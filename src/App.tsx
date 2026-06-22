@@ -1,9 +1,15 @@
-import { useCallback, useState } from "react";
-import { Loader2, RotateCcw, ScanLine, AlertTriangle } from "lucide-react";
+import { useCallback, useRef, useState } from "react";
+import { FileDown, Loader2, RotateCcw, ScanLine, AlertTriangle } from "lucide-react";
 import { Uploader } from "@/components/Uploader";
 import { Scorecard } from "@/components/Scorecard";
+import { ComputeAnimation } from "@/components/ComputeAnimation";
+import { AdjustmentsPanel } from "@/components/AdjustmentsPanel";
+import { COMPUTE_LOOP_MS } from "@/hooks/useComputeTimeline";
 import { Button } from "@/components/ui/button";
 import { analyzePhoto, type PoseAnalysis } from "@/lib/analyze";
+import { exportPdfReport } from "@/lib/pdf";
+import { defaultMethod } from "@/assessment/registry";
+import type { PostureInput } from "@/assessment/types";
 import type { UploadItem } from "@/types";
 
 type Phase = "idle" | "computing" | "results";
@@ -13,6 +19,8 @@ export default function App() {
   const [items, setItems] = useState<UploadItem[]>([]);
   const [phase, setPhase] = useState<Phase>("idle");
   const [results, setResults] = useState<ResultMap>({});
+  const [showAnimation, setShowAnimation] = useState(true);
+  const skipResolveRef = useRef<(() => void) | null>(null);
 
   const addFiles = useCallback((files: File[]) => {
     const imgs = files.filter((f) => f.type.startsWith("image/"));
@@ -49,29 +57,85 @@ export default function App() {
     }
   }, [addFiles]);
 
+  // Floor so the compute animation always gets a full cycle on screen, even when
+  // detection resolves near-instantly (warm model, small/cached photo). Derived
+  // from the real GSAP timeline duration so it can't drift out of sync with it.
+  const MIN_COMPUTE_MS = Math.max(5000, COMPUTE_LOOP_MS);
+
   const runAnalysis = useCallback(async () => {
     setPhase("computing");
+    setShowAnimation(true);
+    const startedAt = performance.now();
     const out: ResultMap = {};
-    for (const it of items) {
-      try {
-        out[it.id] = await analyzePhoto(it.file);
-      } catch (e) {
-        out[it.id] = {
-          skeletonUrl: it.url,
-          landmarks: [],
-          worldLandmarks: [],
-          width: 0,
-          height: 0,
-          detected: false,
-          error: (e as Error).message,
-        };
+
+    const work = (async () => {
+      for (const it of items) {
+        try {
+          out[it.id] = await analyzePhoto(it.file);
+        } catch (e) {
+          out[it.id] = {
+            skeletonUrl: it.url,
+            landmarks: [],
+            worldLandmarks: [],
+            width: 0,
+            height: 0,
+            detected: false,
+            error: (e as Error).message,
+          };
+        }
       }
-    }
+    })();
+
+    const floor = new Promise<void>((resolve) => {
+      const remaining = MIN_COMPUTE_MS - (performance.now() - startedAt);
+      const timer = setTimeout(resolve, Math.max(0, remaining));
+      skipResolveRef.current = () => {
+        clearTimeout(timer);
+        resolve();
+      };
+    });
+
+    await Promise.all([work, floor]);
+    skipResolveRef.current = null;
     setResults(out);
     setPhase("results");
   }, [items]);
 
+  // "Skip" drops the decorative floor and the animation itself (falls back to a
+  // plain spinner) — it can't skip the real detection work still in flight.
+  const skipAnimation = useCallback(() => {
+    setShowAnimation(false);
+    skipResolveRef.current?.();
+  }, []);
+
   const reset = () => setPhase("idle");
+
+  // Recompute live when the adjustments panel changes a non-visible factor.
+  const updateInput = useCallback((id: string, next: PostureInput) => {
+    setResults((prev) => {
+      const r = prev[id];
+      if (!r) return prev;
+      return { ...prev, [id]: { ...r, input: next, assessment: defaultMethod.compute(next) } };
+    });
+  }, []);
+
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+
+  const exportPdf = useCallback(async () => {
+    setExporting(true);
+    setExportError(null);
+    try {
+      const reportItems = items
+        .filter((it) => results[it.id])
+        .map((it) => ({ fileName: it.file.name, originalUrl: it.url, analysis: results[it.id] }));
+      await exportPdfReport(reportItems);
+    } catch (e) {
+      setExportError((e as Error).message || "Could not generate the PDF.");
+    } finally {
+      setExporting(false);
+    }
+  }, [items, results]);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -100,27 +164,40 @@ export default function App() {
         )}
 
         {phase === "computing" && (
-          <div className="flex min-h-[50vh] flex-col items-center justify-center text-center">
-            <Loader2 className="h-10 w-10 animate-spin text-primary" />
-            <p className="mt-4 text-lg font-medium">Analyzing posture…</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Detecting pose · computing vectors · solving angles · running RULA
-            </p>
-            <p className="mt-3 text-xs text-muted-foreground">
-              First run loads the Pose Heavy model (~30 MB) — a moment, then it’s cached.
-            </p>
+          <div className="animate-in fade-in duration-500">
+            {showAnimation ? (
+              <ComputeAnimation
+                note="First run loads the Pose Heavy model (~30 MB) — a moment, then it’s cached."
+                onSkip={skipAnimation}
+              />
+            ) : (
+              <div className="flex min-h-[50vh] flex-col items-center justify-center gap-3 text-center">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="text-sm text-muted-foreground">Still working…</p>
+              </div>
+            )}
           </div>
         )}
 
         {phase === "results" && (
-          <div className="mx-auto w-full max-w-4xl">
-            <div className="mb-6 flex items-center justify-between">
+          <div className="mx-auto w-full max-w-4xl animate-in fade-in duration-500">
+            <div className="mb-2 flex items-center justify-between">
               <h2 className="text-xl font-semibold">Results</h2>
-              <Button variant="outline" onClick={reset}>
-                <RotateCcw className="h-4 w-4" /> Analyze more
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" onClick={exportPdf} disabled={exporting}>
+                  {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+                  Export PDF
+                </Button>
+                <Button variant="outline" onClick={reset}>
+                  <RotateCcw className="h-4 w-4" /> Analyze more
+                </Button>
+              </div>
             </div>
-            <div className="space-y-8">
+            {exportError && (
+              <p className="mb-4 text-sm text-destructive">Could not generate the PDF: {exportError}</p>
+            )}
+            {items.length > 1 && <BatchSummary items={items} results={results} />}
+            <div className="space-y-8 mt-6">
               {items.map((it) => {
                 const r = results[it.id];
                 return (
@@ -148,9 +225,14 @@ export default function App() {
                         <AlertTriangle className="h-4 w-4" /> Could not analyze: {r.error}
                       </div>
                     ) : r?.assessment ? (
-                      <div className="border-t">
-                        <Scorecard result={r.assessment} />
-                      </div>
+                      <>
+                        <div className="border-t">
+                          <Scorecard result={r.assessment} />
+                        </div>
+                        {r.input && (
+                          <AdjustmentsPanel input={r.input} onChange={(next) => updateInput(it.id, next)} />
+                        )}
+                      </>
                     ) : (
                       <div className="flex items-center gap-2 border-t px-5 py-4 text-sm text-amber-600">
                         <AlertTriangle className="h-4 w-4" /> No pose detected — try a clearer, full-body side view.
@@ -163,6 +245,42 @@ export default function App() {
           </div>
         )}
       </main>
+    </div>
+  );
+}
+
+/** Mean / max / worst-photo strip shown above the per-photo results when analyzing a batch. */
+function BatchSummary({ items, results }: { items: UploadItem[]; results: ResultMap }) {
+  const scored = items
+    .map((it) => ({ it, r: results[it.id] }))
+    .filter((x): x is { it: UploadItem; r: PoseAnalysis & { assessment: NonNullable<PoseAnalysis["assessment"]> } } =>
+      Boolean(x.r?.assessment),
+    );
+  if (!scored.length) return null;
+
+  const scores = scored.map(({ r }) => r.assessment.grandScore);
+  const mean = scores.reduce((a, b) => a + b, 0) / scores.length;
+  const max = Math.max(...scores);
+  const worst = scored.find(({ r }) => r.assessment.grandScore === max);
+
+  return (
+    <div className="mb-6 grid grid-cols-3 gap-3 rounded-lg border bg-muted/30 p-4 text-center">
+      <div>
+        <div className="text-2xl font-semibold tabular-nums">
+          {scored.length}/{items.length}
+        </div>
+        <div className="text-xs text-muted-foreground">photos scored</div>
+      </div>
+      <div>
+        <div className="text-2xl font-semibold tabular-nums">{mean.toFixed(1)}</div>
+        <div className="text-xs text-muted-foreground">mean grand score</div>
+      </div>
+      <div>
+        <div className="text-2xl font-semibold tabular-nums">{max}</div>
+        <div className="truncate text-xs text-muted-foreground" title={worst?.it.file.name}>
+          worst{worst ? ` · ${worst.it.file.name}` : ""}
+        </div>
+      </div>
     </div>
   );
 }
