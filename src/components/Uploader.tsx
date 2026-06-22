@@ -36,7 +36,7 @@ export function Uploader({
     const onPaste = (e: ClipboardEvent) => {
       const files = e.clipboardData?.files;
       if (files && files.length) {
-        onAddFiles(Array.from(files).filter((f) => f.type.startsWith("image/")));
+        onAddFiles(Array.from(files)); // addFiles filters to images (incl. HEIC)
       }
     };
     window.addEventListener("paste", onPaste);
@@ -75,12 +75,12 @@ export function Uploader({
           or click to browse · paste from clipboard · one or many
         </p>
         <p className="mt-3 text-xs text-muted-foreground">
-          JPG or PNG · processed privately in your browser
+          JPG, PNG, or iPhone HEIC · processed privately in your browser
         </p>
         <input
           ref={inputRef}
           type="file"
-          accept="image/*"
+          accept="image/*,.heic,.heif"
           multiple
           className="hidden"
           onChange={(e) => {

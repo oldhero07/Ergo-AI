@@ -25,7 +25,9 @@ export default function App() {
   const skipResolveRef = useRef<(() => void) | null>(null);
 
   const addFiles = useCallback((files: File[]) => {
-    const imgs = files.filter((f) => f.type.startsWith("image/"));
+    // Accept anything the browser labels as an image, plus HEIC/HEIF by extension
+    // (some browsers report an empty MIME type for iPhone .heic files).
+    const imgs = files.filter((f) => f.type.startsWith("image/") || /\.(heic|heif)$/i.test(f.name));
     if (!imgs.length) return;
     setItems((prev) => [
       ...prev,

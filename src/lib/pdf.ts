@@ -23,15 +23,32 @@ const CONTENT_MUTED: [number, number, number] = [100, 100, 100];
 const CONTENT_DARK: [number, number, number] = [30, 30, 30];
 const RULE_GRAY: [number, number, number] = [210, 210, 210];
 
-/**
- * Resolve any image URL to a `data:` URL jsPDF's `addImage` can consume.
- * `data:` URLs (e.g. the MediaPipe skeleton output) pass through untouched.
- * `blob:` (and any other non-data) URLs are loaded into an `<img>`, drawn to
- * an offscreen canvas at natural size, and re-encoded as JPEG.
- */
-export async function toDataUrl(url: string): Promise<string> {
-  if (url.startsWith("data:")) return url;
+/** Longest edge (px) we embed images at in the PDF. The display box is ~255pt
+ * wide (~530px @150dpi print), so ~1000px is plenty sharp while keeping the file
+ * small. Both the original photo AND the skeleton are re-encoded to JPEG here —
+ * embedding the skeleton as PNG (lossless, photographic content) is what made
+ * reports balloon to many MB per page. */
+const PDF_IMAGE_MAX_PX = 1000;
+const PDF_IMAGE_QUALITY = 0.82;
 
+export interface PreparedImage {
+  /** Downscaled, JPEG-encoded `data:` URL ready for `doc.addImage(..., "JPEG")`. */
+  dataUrl: string;
+  width: number;
+  height: number;
+}
+
+/**
+ * Load any image URL (`data:`, `blob:`, or http), downscale its longest edge to
+ * `maxPx`, and re-encode as JPEG. This keeps PDF reports small enough to handle
+ * large batches: a full-res original + a PNG skeleton can be ~7 MB *per photo*;
+ * downscaled JPEGs are typically ~150–300 KB each.
+ */
+export async function prepareImage(
+  url: string,
+  maxPx = PDF_IMAGE_MAX_PX,
+  quality = PDF_IMAGE_QUALITY,
+): Promise<PreparedImage> {
   const img = new Image();
   img.crossOrigin = "anonymous";
   await new Promise<void>((resolve, reject) => {
@@ -40,23 +57,19 @@ export async function toDataUrl(url: string): Promise<string> {
     img.src = url;
   });
 
+  const nw = img.naturalWidth || img.width;
+  const nh = img.naturalHeight || img.height;
+  const scale = Math.min(1, maxPx / Math.max(nw, nh));
+  const width = Math.max(1, Math.round(nw * scale));
+  const height = Math.max(1, Math.round(nh * scale));
+
   const canvas = document.createElement("canvas");
-  canvas.width = img.naturalWidth || img.width;
-  canvas.height = img.naturalHeight || img.height;
+  canvas.width = width;
+  canvas.height = height;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Failed to acquire 2D canvas context");
-  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-  return canvas.toDataURL("image/jpeg", 0.92);
-}
-
-/** Natural pixel size of a data URL image, needed to fit it into a PDF content box without distortion. */
-function getImageSize(dataUrl: string): Promise<{ width: number; height: number }> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
-    img.onerror = () => reject(new Error("Failed to read image dimensions"));
-    img.src = dataUrl;
-  });
+  ctx.drawImage(img, 0, 0, width, height);
+  return { dataUrl: canvas.toDataURL("image/jpeg", quality), width, height };
 }
 
 /** Scale (w, h) to fit fully inside (maxW, maxH) while preserving aspect ratio. */
@@ -240,15 +253,15 @@ async function addPhotoPage(doc: jsPDF, item: PdfReportItem, isFirstPage: boolea
   const imageBoxW = (contentWidth - 12) / 2;
   const imageBoxH = 170;
 
-  const originalDataUrl = await toDataUrl(item.originalUrl);
-  const [originalSize, skeletonSize] = await Promise.all([
-    getImageSize(originalDataUrl),
-    analysis.skeletonUrl ? getImageSize(analysis.skeletonUrl) : Promise.resolve(null),
+  // Downscale + JPEG-encode both images so report size stays manageable at scale.
+  const [original, skeleton] = await Promise.all([
+    prepareImage(item.originalUrl),
+    analysis.skeletonUrl ? prepareImage(analysis.skeletonUrl) : Promise.resolve(null),
   ]);
 
-  const originalFit = fitWithin(originalSize.width, originalSize.height, imageBoxW, imageBoxH);
+  const originalFit = fitWithin(original.width, original.height, imageBoxW, imageBoxH);
   doc.addImage(
-    originalDataUrl,
+    original.dataUrl,
     "JPEG",
     PAGE_MARGIN + (imageBoxW - originalFit.w) / 2,
     y,
@@ -260,12 +273,12 @@ async function addPhotoPage(doc: jsPDF, item: PdfReportItem, isFirstPage: boolea
   doc.setTextColor(...CONTENT_MUTED);
   doc.text("Original photo", PAGE_MARGIN, y + imageBoxH + 10);
 
-  if (skeletonSize) {
-    const skeletonFit = fitWithin(skeletonSize.width, skeletonSize.height, imageBoxW, imageBoxH);
+  if (skeleton) {
+    const skeletonFit = fitWithin(skeleton.width, skeleton.height, imageBoxW, imageBoxH);
     const skeletonX = PAGE_MARGIN + imageBoxW + 12;
     doc.addImage(
-      analysis.skeletonUrl,
-      "PNG",
+      skeleton.dataUrl,
+      "JPEG",
       skeletonX + (imageBoxW - skeletonFit.w) / 2,
       y,
       skeletonFit.w,

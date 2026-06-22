@@ -184,15 +184,18 @@ describe("exportPdfReport", () => {
   });
 });
 
-describe("toDataUrl", () => {
-  it("returns data: URLs unchanged", async () => {
-    const { toDataUrl } = await import("@/lib/pdf");
-    const url = "data:image/png;base64,ABC";
-    await expect(toDataUrl(url)).resolves.toBe(url);
+describe("prepareImage", () => {
+  it("re-encodes a data: URL (e.g. the PNG skeleton) to a downscaled JPEG", async () => {
+    const { prepareImage } = await import("@/lib/pdf");
+    const out = await prepareImage("data:image/png;base64,ABC");
+    expect(out.dataUrl).toBe("data:image/jpeg;base64,FAKE"); // canvas mock encodes as JPEG
+    expect(out.width).toBe(100); // FakeImage natural size, within maxPx so unscaled
+    expect(out.height).toBe(80);
   });
 
   it("converts a blob: URL via the Image/canvas pipeline", async () => {
-    const { toDataUrl } = await import("@/lib/pdf");
-    await expect(toDataUrl("blob:http://localhost/xyz")).resolves.toBe("data:image/jpeg;base64,FAKE");
+    const { prepareImage } = await import("@/lib/pdf");
+    const out = await prepareImage("blob:http://localhost/xyz");
+    expect(out.dataUrl).toBe("data:image/jpeg;base64,FAKE");
   });
 });
