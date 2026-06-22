@@ -20,6 +20,8 @@ export default function App() {
   const [phase, setPhase] = useState<Phase>("idle");
   const [results, setResults] = useState<ResultMap>({});
   const [showAnimation, setShowAnimation] = useState(true);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
   const skipResolveRef = useRef<(() => void) | null>(null);
 
   const addFiles = useCallback((files: File[]) => {
@@ -63,6 +65,7 @@ export default function App() {
   const MIN_COMPUTE_MS = Math.max(5000, COMPUTE_LOOP_MS);
 
   const runAnalysis = useCallback(async () => {
+    if (!items.length) return; // nothing queued — ignore stray clicks
     setPhase("computing");
     setShowAnimation(true);
     const startedAt = performance.now();
@@ -108,7 +111,20 @@ export default function App() {
     skipResolveRef.current?.();
   }, []);
 
-  const reset = () => setPhase("idle");
+  // Full reset to a clean slate: clear photos + results, revoke blob URLs (so
+  // memory isn't leaked across runs), and drop any export/animation flags. This
+  // is what "Start over" does — each session begins fresh, nothing lingers.
+  const reset = useCallback(() => {
+    setItems((prev) => {
+      prev.forEach((p) => URL.revokeObjectURL(p.url));
+      return [];
+    });
+    setResults({});
+    setExportError(null);
+    setExporting(false);
+    setShowAnimation(true);
+    setPhase("idle");
+  }, []);
 
   // Recompute live when the adjustments panel changes a non-visible factor.
   const updateInput = useCallback((id: string, next: PostureInput) => {
@@ -118,9 +134,6 @@ export default function App() {
       return { ...prev, [id]: { ...r, input: next, assessment: defaultMethod.compute(next) } };
     });
   }, []);
-
-  const [exporting, setExporting] = useState(false);
-  const [exportError, setExportError] = useState<string | null>(null);
 
   const exportPdf = useCallback(async () => {
     setExporting(true);
@@ -189,7 +202,7 @@ export default function App() {
                   Export PDF
                 </Button>
                 <Button variant="outline" onClick={reset}>
-                  <RotateCcw className="h-4 w-4" /> Analyze more
+                  <RotateCcw className="h-4 w-4" /> Start over
                 </Button>
               </div>
             </div>
@@ -245,6 +258,19 @@ export default function App() {
           </div>
         )}
       </main>
+
+      <footer className="border-t">
+        <div className="container flex flex-col items-center gap-1 py-6 text-center text-xs text-muted-foreground">
+          <p>
+            Photos are analyzed entirely in your browser with MediaPipe — nothing is uploaded to a
+            server, and no image leaves your device.
+          </p>
+          <p>
+            RULA scores are a lower-bound estimate from a single 2D view, not a substitute for a
+            trained assessor.
+          </p>
+        </div>
+      </footer>
     </div>
   );
 }
