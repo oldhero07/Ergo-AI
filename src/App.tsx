@@ -16,6 +16,11 @@ import type { UploadItem } from "@/types";
 type Phase = "idle" | "computing" | "results";
 type ResultMap = Record<string, PoseAnalysis>;
 
+// Max photos per batch. Caps client-side memory: every photo holds a decoded
+// image plus its skeleton render, and PDF export builds all pages in RAM — on a
+// phone, hundreds at once can crash the tab. Raise only if targeting desktops.
+const MAX_BATCH = 30;
+
 export default function App() {
   const [items, setItems] = useState<UploadItem[]>([]);
   const [phase, setPhase] = useState<Phase>("idle");
@@ -23,20 +28,38 @@ export default function App() {
   const [showAnimation, setShowAnimation] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const skipResolveRef = useRef<(() => void) | null>(null);
 
-  const addFiles = useCallback((files: File[]) => {
-    // Accept anything the browser labels as an image, plus HEIC/HEIF by extension
-    // (some browsers report an empty MIME type for iPhone .heic files).
-    const imgs = files.filter((f) => f.type.startsWith("image/") || /\.(heic|heif)$/i.test(f.name));
-    if (!imgs.length) return;
-    setItems((prev) => [
-      ...prev,
-      ...imgs.map((f) => ({ id: crypto.randomUUID(), file: f, url: URL.createObjectURL(f) })),
-    ]);
-  }, []);
+  const addFiles = useCallback(
+    (files: File[]) => {
+      // Accept anything the browser labels as an image, plus HEIC/HEIF by extension
+      // (some browsers report an empty MIME type for iPhone .heic files).
+      const imgs = files.filter((f) => f.type.startsWith("image/") || /\.(heic|heif)$/i.test(f.name));
+      if (!imgs.length) return;
+
+      const room = Math.max(0, MAX_BATCH - items.length);
+      const toAdd = imgs.slice(0, room);
+      if (imgs.length > room) {
+        setNotice(
+          room === 0
+            ? `You can analyze up to ${MAX_BATCH} photos at once — remove some to add more.`
+            : `Limit is ${MAX_BATCH} photos at once — added ${room}, skipped ${imgs.length - room}.`,
+        );
+      } else {
+        setNotice(null);
+      }
+      if (!toAdd.length) return;
+      setItems((prev) => [
+        ...prev,
+        ...toAdd.map((f) => ({ id: crypto.randomUUID(), file: f, url: URL.createObjectURL(f) })),
+      ]);
+    },
+    [items],
+  );
 
   const removeItem = useCallback((id: string) => {
+    setNotice(null);
     setItems((prev) => {
       const it = prev.find((p) => p.id === id);
       if (it) URL.revokeObjectURL(it.url);
@@ -45,6 +68,7 @@ export default function App() {
   }, []);
 
   const clearItems = useCallback(() => {
+    setNotice(null);
     setItems((prev) => {
       prev.forEach((p) => URL.revokeObjectURL(p.url));
       return [];
@@ -126,6 +150,7 @@ export default function App() {
     setExportError(null);
     setExporting(false);
     setShowAnimation(true);
+    setNotice(null);
     setPhase("idle");
   }, []);
 
@@ -167,14 +192,21 @@ export default function App() {
 
       <main className="container py-10">
         {phase === "idle" && (
-          <Uploader
-            items={items}
-            onAddFiles={addFiles}
-            onRemove={removeItem}
-            onClear={clearItems}
-            onAnalyze={runAnalysis}
-            onUseSample={useSample}
-          />
+          <div>
+            <Uploader
+              items={items}
+              onAddFiles={addFiles}
+              onRemove={removeItem}
+              onClear={clearItems}
+              onAnalyze={runAnalysis}
+              onUseSample={useSample}
+            />
+            {notice && (
+              <p className="mx-auto mt-4 max-w-3xl rounded-md bg-amber-50 px-4 py-2 text-center text-sm text-amber-700 dark:bg-amber-950/40 dark:text-amber-400">
+                {notice}
+              </p>
+            )}
+          </div>
         )}
 
         {phase === "computing" && (
