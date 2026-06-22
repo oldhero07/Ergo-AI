@@ -85,5 +85,8 @@ export function lookupC(scoreC: number, scoreD: number): number {
 }
 
 function clampIdx(v: number, max: number): number {
+  // Guard non-finite scores (NaN/Infinity) so a bad angle can never index the
+  // lookup tables out of bounds and crash scoring.
+  if (!Number.isFinite(v)) return 1;
   return Math.min(max, Math.max(1, Math.round(v)));
 }

@@ -116,26 +116,13 @@ function appendPhases(tl: gsap.core.Timeline, t: PhaseTargets, setPhase?: (n: nu
     });
 }
 
-function dummyLengthTargets(count: number): LengthTarget[] {
-  return Array.from({ length: count }, () => ({ getTotalLength: () => 100 }));
-}
-
-/** One-time dry-run probe (no real DOM) so we know the true single-loop duration. */
-const probeTl = gsap.timeline({ paused: true });
-appendPhases(probeTl, {
-  nodes: dummyLengthTargets(7),
-  edges: dummyLengthTargets(6),
-  vectors: dummyLengthTargets(2),
-  tags: dummyLengthTargets(2),
-  arc: dummyLengthTargets(1)[0],
-  degreeText: { textContent: "" },
-  gaugeRing: dummyLengthTargets(1)[0],
-  gaugeText: { textContent: "" },
-  chips: dummyLengthTargets(4),
-});
-/** Duration (ms) of exactly one cycle of the compute animation, measured from the real timeline. */
-export const COMPUTE_LOOP_MS = Math.round(probeTl.duration() * 1000);
-probeTl.kill();
+/**
+ * Approximate length of one full animation cycle (4 phases + reset), summed from
+ * the tween durations in appendPhases above (~4.5s). The compute screen floors
+ * its display time at max(5000, COMPUTE_LOOP_MS) so at least one full cycle is
+ * always seen; bump this if the choreography is lengthened past 5s.
+ */
+export const COMPUTE_LOOP_MS = 4500;
 
 /**
  * Builds the looping, abstract "computing" animation on a single GSAP timeline.

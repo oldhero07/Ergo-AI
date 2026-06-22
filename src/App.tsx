@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from "react";
-import { FileDown, Loader2, RotateCcw, ScanLine, AlertTriangle } from "lucide-react";
+import { FileDown, Loader2, RotateCcw, AlertTriangle } from "lucide-react";
+import { Logo } from "@/components/Logo";
 import { Uploader } from "@/components/Uploader";
 import { Scorecard } from "@/components/Scorecard";
 import { ComputeAnimation } from "@/components/ComputeAnimation";
@@ -156,9 +157,7 @@ export default function App() {
     <div className="min-h-screen bg-background text-foreground">
       <header className="border-b">
         <div className="container flex items-center gap-2.5 py-4">
-          <div className="grid h-8 w-8 place-items-center rounded-md bg-primary text-primary-foreground">
-            <ScanLine className="h-5 w-5" />
-          </div>
+          <Logo className="h-9 w-9 shrink-0" />
           <div>
             <h1 className="text-lg font-semibold leading-none tracking-tight">Ergo AI</h1>
             <p className="text-xs text-muted-foreground">RULA ergonomic risk from a photo</p>
