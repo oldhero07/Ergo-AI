@@ -3,10 +3,12 @@ import react from "@vitejs/plugin-react";
 import { fileURLToPath, URL } from "node:url";
 
 export default defineConfig({
-  // Vercel/custom-domain serve at root ("/"); GitHub Pages serves under the repo
-  // subpath. The Pages workflow sets PAGES_BASE="/Ergo-AI/". All runtime asset
-  // paths use import.meta.env.BASE_URL, so this is the only base switch needed.
-  base: process.env.PAGES_BASE || "/",
+  // Relative base so the same build works at any path: Vercel root, the
+  // github.io/Ergo-AI/ subpath, and the rulaergo.com custom-domain root. All
+  // asset URLs (incl. runtime import.meta.env.BASE_URL fetches for the model,
+  // wasm, and samples) resolve relative to the served page. The app has no
+  // client-side routing, so relative resolution is always correct.
+  base: "./",
   plugins: [react()],
   resolve: {
     alias: {
