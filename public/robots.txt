@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://oldhero07.github.io/Ergo-AI/sitemap.xml

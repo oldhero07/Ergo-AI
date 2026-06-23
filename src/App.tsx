@@ -313,10 +313,7 @@ export default function App() {
 
       <footer className="border-t">
         <div className="container flex flex-col items-center gap-1 py-6 text-center text-xs text-muted-foreground">
-          <p>
-            Photos are analyzed entirely in your browser with MediaPipe — nothing is uploaded to a
-            server, and no image leaves your device.
-          </p>
+          <p>Photos are processed on your device and never uploaded.</p>
           <p>
             RULA scores are a lower-bound estimate from a single 2D view, not a substitute for a
             trained assessor.

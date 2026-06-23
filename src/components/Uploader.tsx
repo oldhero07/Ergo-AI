@@ -74,9 +74,7 @@ export function Uploader({
         <p className="mt-1 text-sm text-muted-foreground">
           or click to browse · paste from clipboard · one or many
         </p>
-        <p className="mt-3 text-xs text-muted-foreground">
-          JPG, PNG, or iPhone HEIC · processed privately in your browser
-        </p>
+        <p className="mt-3 text-xs text-muted-foreground">JPG, PNG, or iPhone HEIC</p>
         <input
           ref={inputRef}
           type="file"
