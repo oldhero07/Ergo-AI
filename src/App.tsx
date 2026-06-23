@@ -212,6 +212,11 @@ export default function App() {
                 {notice}
               </p>
             )}
+            <p className="mx-auto mt-6 max-w-2xl text-center text-sm text-muted-foreground">
+              Ergo AI uses Google’s MediaPipe Pose (Heavy) model to locate 33 body landmarks in your
+              photo, then derives the joint angles and computes a RULA ergonomic-risk score from
+              them — all in your browser.
+            </p>
           </div>
         )}
 
@@ -221,8 +226,8 @@ export default function App() {
               <ComputeAnimation
                 note={
                   modelProgress !== null
-                    ? `Downloading AI model (one time, ~30 MB)… ${modelProgress}%`
-                    : "First run loads the Pose Heavy model (~30 MB) — a moment, then it’s cached on your device."
+                    ? `Downloading the pose model — ${modelProgress}%. This only happens the first time; afterwards it’s saved on your device.`
+                    : undefined
                 }
                 onSkip={skipAnimation}
               />
@@ -230,7 +235,9 @@ export default function App() {
               <div className="flex min-h-[50vh] flex-col items-center justify-center gap-3 text-center">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 <p className="text-sm text-muted-foreground">
-                  {modelProgress !== null ? `Downloading AI model… ${modelProgress}%` : "Still working…"}
+                  {modelProgress !== null
+                    ? `Downloading the pose model — ${modelProgress}% (first time only)`
+                    : "Still working…"}
                 </p>
               </div>
             )}

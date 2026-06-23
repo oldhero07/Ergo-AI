@@ -12,7 +12,7 @@ const PORT = Number(process.env.PORT) || 4178;
 const CSP =
   "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval'; " +
   "style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; " +
-  "worker-src 'self' blob:; connect-src 'self'; font-src 'self'; object-src 'none'; " +
+  "worker-src 'self' blob:; connect-src 'self' https://storage.googleapis.com; font-src 'self'; object-src 'none'; " +
   "base-uri 'self'; form-action 'self'; frame-ancestors 'none'";
 
 const TYPES = {
