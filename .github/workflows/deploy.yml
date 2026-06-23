@@ -24,10 +24,8 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - name: Build (served under the repo subpath)
+      - name: Build (custom domain rulaergo.com serves at root)
         run: npm run build
-        env:
-          PAGES_BASE: /Ergo-AI/
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
