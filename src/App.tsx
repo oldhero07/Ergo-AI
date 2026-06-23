@@ -29,6 +29,7 @@ export default function App() {
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [modelProgress, setModelProgress] = useState<number | null>(null);
   const skipResolveRef = useRef<(() => void) | null>(null);
 
   const addFiles = useCallback(
@@ -101,7 +102,10 @@ export default function App() {
     const work = (async () => {
       for (const it of items) {
         try {
-          out[it.id] = await analyzePhoto(it.file);
+          out[it.id] = await analyzePhoto(it.file, (loaded, total) => {
+            setModelProgress(total > 0 ? Math.min(100, Math.round((loaded / total) * 100)) : null);
+            if (total > 0 && loaded >= total) setModelProgress(null); // download done
+          });
         } catch (e) {
           out[it.id] = {
             skeletonUrl: it.url,
@@ -127,6 +131,7 @@ export default function App() {
 
     await Promise.all([work, floor]);
     skipResolveRef.current = null;
+    setModelProgress(null);
     setResults(out);
     setPhase("results");
   }, [items]);
@@ -151,6 +156,7 @@ export default function App() {
     setExporting(false);
     setShowAnimation(true);
     setNotice(null);
+    setModelProgress(null);
     setPhase("idle");
   }, []);
 
@@ -213,13 +219,19 @@ export default function App() {
           <div className="animate-in fade-in duration-500">
             {showAnimation ? (
               <ComputeAnimation
-                note="First run loads the Pose Heavy model (~30 MB) — a moment, then it’s cached."
+                note={
+                  modelProgress !== null
+                    ? `Downloading AI model (one time, ~30 MB)… ${modelProgress}%`
+                    : "First run loads the Pose Heavy model (~30 MB) — a moment, then it’s cached on your device."
+                }
                 onSkip={skipAnimation}
               />
             ) : (
               <div className="flex min-h-[50vh] flex-col items-center justify-center gap-3 text-center">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <p className="text-sm text-muted-foreground">Still working…</p>
+                <p className="text-sm text-muted-foreground">
+                  {modelProgress !== null ? `Downloading AI model… ${modelProgress}%` : "Still working…"}
+                </p>
               </div>
             )}
           </div>

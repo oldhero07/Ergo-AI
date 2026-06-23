@@ -1,5 +1,5 @@
 import type { Landmark, NormalizedLandmark } from "@mediapipe/tasks-vision";
-import { detectPose } from "@/lib/poseLandmarker";
+import { detectPose, type ModelProgress } from "@/lib/poseLandmarker";
 import { loadBitmap } from "@/lib/image";
 import { annotateSkeleton } from "@/lib/annotate";
 import { computeAngles, type AngleSet } from "@/lib/angles";
@@ -23,11 +23,12 @@ export interface PoseAnalysis {
   assessment?: AssessmentResult;
 }
 
-/** Full per-photo pipeline: decode → detect pose → render skeleton → RULA. */
-export async function analyzePhoto(file: File): Promise<PoseAnalysis> {
+/** Full per-photo pipeline: decode → detect pose → render skeleton → RULA.
+ * `onModelProgress` fires while the model downloads on the first call. */
+export async function analyzePhoto(file: File, onModelProgress?: ModelProgress): Promise<PoseAnalysis> {
   const bitmap = await loadBitmap(file);
   try {
-    const result = await detectPose(bitmap);
+    const result = await detectPose(bitmap, onModelProgress);
     const detected = result.landmarks.length > 0;
     const { dataUrl, width, height } = annotateSkeleton(bitmap, result);
     const out: PoseAnalysis = {
