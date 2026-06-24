@@ -1,18 +1,27 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Upload, X, Images, Play, Trash2 } from "lucide-react";
+import { Upload, X, Images, Play, Trash2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { UploadItem } from "@/types";
 
 /**
  * Thumbnail tile. Chrome/Firefox can't render an iPhone HEIC in an <img>, so the
- * raw object URL fails to load — but the file IS attached and will be converted
- * (heic2any) at analysis time. Rather than show a broken-image glyph (which reads
- * as "upload failed"), fall back to a labelled placeholder so it's clear the
- * photo is queued and will be analyzed.
+ * raw object URL fails to load — but the file IS attached and will be decoded
+ * (heic-to / libheif) at analysis time. Rather than show a broken-image glyph
+ * (which reads as "upload failed"), fall back to a labelled placeholder so it's
+ * clear the photo is queued and will be analyzed.
  */
-function Thumb({ url, name }: { url: string; name: string }) {
+function Thumb({ url, name, converting }: { url: string; name: string; converting?: boolean }) {
   const [failed, setFailed] = useState(false);
+  if (converting) {
+    return (
+      <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 p-2 text-center">
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        <span className="line-clamp-2 break-all text-[10px] leading-tight text-muted-foreground">{name}</span>
+        <span className="text-[9px] text-muted-foreground/70">decoding HEIC…</span>
+      </div>
+    );
+  }
   if (failed) {
     return (
       <div className="flex h-full w-full flex-col items-center justify-center gap-1 p-2 text-center">
@@ -136,7 +145,7 @@ export function Uploader({
                 key={it.id}
                 className="group relative aspect-square overflow-hidden rounded-lg border bg-muted"
               >
-                <Thumb url={it.url} name={it.file.name} />
+                <Thumb key={it.url} url={it.url} name={it.file.name} converting={it.converting} />
                 <button
                   onClick={(e) => {
                     e.stopPropagation();

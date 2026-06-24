@@ -8,6 +8,7 @@ import { AdjustmentsPanel } from "@/components/AdjustmentsPanel";
 import { COMPUTE_LOOP_MS } from "@/hooks/useComputeTimeline";
 import { Button } from "@/components/ui/button";
 import { analyzePhoto, type PoseAnalysis } from "@/lib/analyze";
+import { isHeic } from "@/lib/image";
 import { exportPdfReport } from "@/lib/pdf";
 import { getMethod, methods } from "@/assessment/registry";
 import type { PostureInput } from "@/assessment/types";
@@ -34,31 +35,72 @@ export default function App() {
   const [modelProgress, setModelProgress] = useState<number | null>(null);
   const skipResolveRef = useRef<(() => void) | null>(null);
 
+  // HEIC has no in-browser <img> preview, so decode it to a JPEG in the
+  // background once it's queued: this both shows a real thumbnail AND lets
+  // analysis reuse the JPEG (decoded once, not twice — and fast on re-decode).
+  const convertHeicItem = useCallback(async (id: string, file: File) => {
+    try {
+      const { heicTo } = await import("heic-to");
+      const out = await heicTo({ blob: file, type: "image/jpeg", quality: 0.9 });
+      const blob = (Array.isArray(out) ? out[0] : out) as Blob;
+      const jpeg = new File([blob], file.name.replace(/\.(heic|heif)$/i, ".jpg"), { type: "image/jpeg" });
+      const newUrl = URL.createObjectURL(blob);
+      setItems((prev) =>
+        prev.map((it) => {
+          if (it.id !== id) return it;
+          URL.revokeObjectURL(it.url);
+          return { ...it, file: jpeg, url: newUrl, converting: false };
+        }),
+      );
+    } catch {
+      // Decode failed — clear the spinner; analysis still falls back to heic-to.
+      setItems((prev) => prev.map((it) => (it.id === id ? { ...it, converting: false } : it)));
+    }
+  }, []);
+
   const addFiles = useCallback(
     (files: File[]) => {
       // Accept anything the browser labels as an image, plus HEIC/HEIF by extension
       // (some browsers report an empty MIME type for iPhone .heic files).
       const imgs = files.filter((f) => f.type.startsWith("image/") || /\.(heic|heif)$/i.test(f.name));
-      if (!imgs.length) return;
+      const skipped = files.length - imgs.length;
+      if (!imgs.length) {
+        // Everything dropped/selected was a non-image (PDF, video, doc, …).
+        setNotice(
+          skipped > 0
+            ? `That file isn't a supported image. Upload a JPG, PNG, or iPhone HEIC.`
+            : null,
+        );
+        return;
+      }
 
       const room = Math.max(0, MAX_BATCH - items.length);
       const toAdd = imgs.slice(0, room);
-      if (imgs.length > room) {
+      const overLimit = imgs.length - room;
+      if (overLimit > 0) {
         setNotice(
           room === 0
             ? `You can analyze up to ${MAX_BATCH} photos at once — remove some to add more.`
-            : `Limit is ${MAX_BATCH} photos at once — added ${room}, skipped ${imgs.length - room}.`,
+            : `Limit is ${MAX_BATCH} photos at once — added ${room}, skipped ${overLimit}.`,
         );
+      } else if (skipped > 0) {
+        setNotice(`Added ${imgs.length} photo${imgs.length > 1 ? "s" : ""} — skipped ${skipped} non-image file${skipped > 1 ? "s" : ""}.`);
       } else {
         setNotice(null);
       }
       if (!toAdd.length) return;
-      setItems((prev) => [
-        ...prev,
-        ...toAdd.map((f) => ({ id: crypto.randomUUID(), file: f, url: URL.createObjectURL(f) })),
-      ]);
+      const newItems = toAdd.map((f) => ({
+        id: crypto.randomUUID(),
+        file: f,
+        url: URL.createObjectURL(f),
+        converting: isHeic(f),
+      }));
+      setItems((prev) => [...prev, ...newItems]);
+      newItems.forEach((it) => {
+        if (it.converting) void convertHeicItem(it.id, it.file);
+      });
     },
-    [items],
+    [items, convertHeicItem],
   );
 
   const removeItem = useCallback((id: string) => {
@@ -312,7 +354,11 @@ export default function App() {
                   <div key={it.id} className="overflow-hidden rounded-xl border">
                     <div className="grid sm:grid-cols-2">
                       <figure className="border-b sm:border-b-0 sm:border-r">
-                        <img src={it.url} alt="original" className="aspect-[4/3] w-full bg-muted object-contain" />
+                        <img
+                          src={r?.originalImageUrl ?? it.url}
+                          alt="original"
+                          className="aspect-[4/3] w-full bg-muted object-contain"
+                        />
                         <figcaption className="truncate px-4 py-2 text-xs text-muted-foreground">
                           Original · {it.file.name}
                         </figcaption>

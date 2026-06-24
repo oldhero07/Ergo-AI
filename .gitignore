@@ -10,3 +10,7 @@ ergo-ai-report-*.pdf
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Local HEIC test photos (not part of the app)
+/*.HEIC
+/*.heic

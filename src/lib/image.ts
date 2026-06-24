@@ -1,34 +1,29 @@
 /** iPhone/HEIF photos that the browser's native decoder usually can't read. */
-function isHeic(file: File): boolean {
+export function isHeic(file: File): boolean {
   return /image\/(heic|heif)/i.test(file.type) || /\.(heic|heif)$/i.test(file.name);
 }
 
 /**
- * iPhones default to HEIC, which Chrome/Firefox/Android can't decode natively.
- * Convert to JPEG via heic2any (lazy-loaded only when needed, so it never bloats
- * the bundle for the common JPEG/PNG case).
+ * Decode a HEIC/HEIF file straight to an ImageBitmap via heic-to (a modern
+ * libheif build, lazy-loaded only when needed). Unlike the old heic2any/libheif,
+ * this decodes Apple's newer HDR "tmap"/gain-map HEICs that iPhones now produce.
+ * libheif applies the container's rotation, so the bitmap is already upright.
  */
-async function convertHeicToJpeg(file: File): Promise<Blob> {
-  const heic2any = (await import("heic2any")).default as (opts: {
-    blob: Blob;
-    toType?: string;
-    quality?: number;
-  }) => Promise<Blob | Blob[]>;
-  const out = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.92 });
-  return Array.isArray(out) ? out[0] : out;
+async function decodeHeic(file: File): Promise<ImageBitmap> {
+  const { heicTo } = await import("heic-to");
+  return (await heicTo({ blob: file, type: "bitmap" })) as ImageBitmap;
 }
 
 /**
  * Decode a File into an ImageBitmap, honoring EXIF orientation so that the
  * landmarks we compute line up with what the user sees (phone photos are often
- * rotated via EXIF rather than pixel data). Falls back to HEIC→JPEG conversion
- * for iPhone photos that the browser can't decode directly.
+ * rotated via EXIF rather than pixel data). HEIC/HEIF go through heic-to; if that
+ * fails we still try the native decoder (Safari can read HEIC directly).
  */
 export async function loadBitmap(file: File): Promise<ImageBitmap> {
   if (isHeic(file)) {
     try {
-      const jpeg = await convertHeicToJpeg(file);
-      return await createImageBitmap(jpeg, { imageOrientation: "from-image" });
+      return await decodeHeic(file);
     } catch {
       // Fall through to the native decoder — Safari on Apple devices can often
       // read HEIC directly even when conversion fails.
@@ -37,11 +32,10 @@ export async function loadBitmap(file: File): Promise<ImageBitmap> {
   try {
     return await createImageBitmap(file, { imageOrientation: "from-image" });
   } catch (err) {
-    // Last-ditch: maybe it was an unlabeled HEIC. Try conversion once more.
+    // Last-ditch: maybe it was an unlabeled HEIC. Try the HEIC decoder once more.
     if (!isHeic(file)) {
       try {
-        const jpeg = await convertHeicToJpeg(file);
-        return await createImageBitmap(jpeg, { imageOrientation: "from-image" });
+        return await decodeHeic(file);
       } catch {
         /* ignore — throw the original, more descriptive error below */
       }
