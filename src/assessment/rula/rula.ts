@@ -89,6 +89,17 @@ export function buildAutoInput(angles: AngleSet, overrides: Partial<PostureInput
     forceA: 0,
     muscleUseB: false,
     forceB: 0,
+    // REBA-specific defaults. `legAngle` flows through from pose when the lower
+    // body is visible; otherwise it stays undefined and REBA treats legs as
+    // supported. Load/coupling/activity default to the neutral (zero) case.
+    legAngle: angles.legAngle,
+    legsBilateral: true,
+    load: 0,
+    loadShock: false,
+    coupling: 0,
+    activityStatic: false,
+    activityRepeated: false,
+    activityUnstable: false,
     ...overrides,
   };
 }

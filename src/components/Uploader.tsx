@@ -4,6 +4,29 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { UploadItem } from "@/types";
 
+/**
+ * Thumbnail tile. Chrome/Firefox can't render an iPhone HEIC in an <img>, so the
+ * raw object URL fails to load — but the file IS attached and will be converted
+ * (heic2any) at analysis time. Rather than show a broken-image glyph (which reads
+ * as "upload failed"), fall back to a labelled placeholder so it's clear the
+ * photo is queued and will be analyzed.
+ */
+function Thumb({ url, name }: { url: string; name: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) {
+    return (
+      <div className="flex h-full w-full flex-col items-center justify-center gap-1 p-2 text-center">
+        <Images className="h-5 w-5 text-muted-foreground" />
+        <span className="line-clamp-2 break-all text-[10px] leading-tight text-muted-foreground">{name}</span>
+        <span className="text-[9px] text-muted-foreground/70">queued · preview not supported</span>
+      </div>
+    );
+  }
+  return (
+    <img src={url} alt={name} onError={() => setFailed(true)} className="h-full w-full object-cover" />
+  );
+}
+
 interface UploaderProps {
   items: UploadItem[];
   onAddFiles: (files: File[]) => void;
@@ -113,7 +136,7 @@ export function Uploader({
                 key={it.id}
                 className="group relative aspect-square overflow-hidden rounded-lg border bg-muted"
               >
-                <img src={it.url} alt={it.file.name} className="h-full w-full object-cover" />
+                <Thumb url={it.url} name={it.file.name} />
                 <button
                   onClick={(e) => {
                     e.stopPropagation();

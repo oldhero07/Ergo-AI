@@ -28,12 +28,22 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
   );
 }
 
-function ForceControl({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
+function ForceControl({
+  label,
+  value,
+  onChange,
+  steps = [0, 1, 2, 3],
+}: {
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+  steps?: number[];
+}) {
   return (
     <div className="flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-sm">
       <span className="text-muted-foreground">{label}</span>
       <div className="flex gap-1">
-        {[0, 1, 2, 3].map((v) => (
+        {steps.map((v) => (
           <button
             key={v}
             type="button"
@@ -57,9 +67,18 @@ function ForceControl({ label, value, onChange }: { label: string; value: number
  * see (wrist flex/twist, support, muscle use, force/load). Edits call `onChange`
  * with a full updated PostureInput; the caller recomputes the assessment live.
  */
-export function AdjustmentsPanel({ input, onChange }: { input: PostureInput; onChange: (next: PostureInput) => void }) {
+export function AdjustmentsPanel({
+  input,
+  methodId,
+  onChange,
+}: {
+  input: PostureInput;
+  methodId: string;
+  onChange: (next: PostureInput) => void;
+}) {
   const [open, setOpen] = useState(false);
   const set = <K extends keyof PostureInput>(key: K, value: PostureInput[K]) => onChange({ ...input, [key]: value });
+  const isReba = methodId === "reba";
 
   return (
     <div className="border-t">
@@ -78,7 +97,9 @@ export function AdjustmentsPanel({ input, onChange }: { input: PostureInput; onC
       {open && (
         <div className="grid gap-5 px-5 pb-5 sm:grid-cols-2">
           <div className="space-y-2">
-            <h5 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Group A · arm &amp; wrist</h5>
+            <h5 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {isReba ? "Group B · arm & wrist" : "Group A · arm & wrist"}
+            </h5>
             <div className="rounded-md border px-3 py-2">
               <label className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
                 <span>Wrist flexion / extension</span>
@@ -93,41 +114,91 @@ export function AdjustmentsPanel({ input, onChange }: { input: PostureInput; onC
                 className="w-full accent-primary"
               />
             </div>
-            <Toggle label="Wrist deviated (ulnar/radial)" checked={input.wristDeviated} onChange={(v) => set("wristDeviated", v)} />
-            <Toggle label="Wrist twisted near end of range" checked={input.wristTwistEnd} onChange={(v) => set("wristTwistEnd", v)} />
-            <Toggle label="Arm supported / resting" checked={input.armSupported} onChange={(v) => set("armSupported", v)} />
+            <Toggle
+              label={isReba ? "Wrist deviated or twisted" : "Wrist deviated (ulnar/radial)"}
+              checked={input.wristDeviated}
+              onChange={(v) => set("wristDeviated", v)}
+            />
+            {!isReba && (
+              <Toggle label="Wrist twisted near end of range" checked={input.wristTwistEnd} onChange={(v) => set("wristTwistEnd", v)} />
+            )}
+            <Toggle label="Arm supported / leaning" checked={input.armSupported} onChange={(v) => set("armSupported", v)} />
             <Toggle label="Shoulder raised" checked={input.shoulderRaised} onChange={(v) => set("shoulderRaised", v)} />
             <Toggle
               label="Upper arm abducted (out to the side)"
               checked={input.upperArmAbducted}
               onChange={(v) => set("upperArmAbducted", v)}
             />
-            <Toggle
-              label="Lower arm crosses midline"
-              checked={input.lowerArmCrossMidline}
-              onChange={(v) => set("lowerArmCrossMidline", v)}
-            />
-            <Toggle
-              label="Muscle held static or repeated >4x/min"
-              checked={input.muscleUseA}
-              onChange={(v) => set("muscleUseA", v)}
-            />
-            <ForceControl label="Force / load" value={input.forceA} onChange={(v) => set("forceA", v)} />
+            {isReba ? (
+              <ForceControl
+                label="Coupling (0 good · 3 unacceptable)"
+                value={input.coupling}
+                onChange={(v) => set("coupling", v)}
+              />
+            ) : (
+              <>
+                <Toggle
+                  label="Lower arm crosses midline"
+                  checked={input.lowerArmCrossMidline}
+                  onChange={(v) => set("lowerArmCrossMidline", v)}
+                />
+                <Toggle
+                  label="Muscle held static or repeated >4x/min"
+                  checked={input.muscleUseA}
+                  onChange={(v) => set("muscleUseA", v)}
+                />
+                <ForceControl label="Force / load" value={input.forceA} onChange={(v) => set("forceA", v)} />
+              </>
+            )}
           </div>
 
           <div className="space-y-2">
-            <h5 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Group B · neck, trunk &amp; legs</h5>
+            <h5 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {isReba ? "Group A · trunk, neck & legs" : "Group B · neck, trunk & legs"}
+            </h5>
             <Toggle label="Neck twisted" checked={input.neckTwisted} onChange={(v) => set("neckTwisted", v)} />
             <Toggle label="Neck side-bent" checked={input.neckSideBend} onChange={(v) => set("neckSideBend", v)} />
             <Toggle label="Trunk twisted" checked={input.trunkTwisted} onChange={(v) => set("trunkTwisted", v)} />
             <Toggle label="Trunk side-bent" checked={input.trunkSideBend} onChange={(v) => set("trunkSideBend", v)} />
-            <Toggle label="Legs &amp; feet supported" checked={input.legsSupported} onChange={(v) => set("legsSupported", v)} />
-            <Toggle
-              label="Muscle held static or repeated >4x/min"
-              checked={input.muscleUseB}
-              onChange={(v) => set("muscleUseB", v)}
-            />
-            <ForceControl label="Force / load" value={input.forceB} onChange={(v) => set("forceB", v)} />
+            <Toggle label="Legs & feet supported / seated" checked={input.legsSupported} onChange={(v) => set("legsSupported", v)} />
+            {isReba ? (
+              <>
+                <Toggle
+                  label="Bilateral weight-bearing / stable base"
+                  checked={input.legsBilateral}
+                  onChange={(v) => set("legsBilateral", v)}
+                />
+                <div className="rounded-md border px-3 py-2">
+                  <label className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
+                    <span>Knee flexion</span>
+                    <span className="font-mono tabular-nums">{Math.round(input.legAngle ?? 0)}°</span>
+                  </label>
+                  <input
+                    type="range"
+                    min={0}
+                    max={150}
+                    value={input.legAngle ?? 0}
+                    onChange={(e) => set("legAngle", Number(e.target.value))}
+                    className="w-full accent-primary"
+                  />
+                </div>
+                <ForceControl label="Load (0 <5kg · 1 5–10 · 2 >10)" value={input.load} onChange={(v) => set("load", v)} steps={[0, 1, 2]} />
+                <Toggle label="Shock / rapid force build-up" checked={input.loadShock} onChange={(v) => set("loadShock", v)} />
+                <div className="pt-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Activity</div>
+                <Toggle label="Body part held static >1 min" checked={input.activityStatic} onChange={(v) => set("activityStatic", v)} />
+                <Toggle label="Small actions repeated >4x/min" checked={input.activityRepeated} onChange={(v) => set("activityRepeated", v)} />
+                <Toggle label="Rapid large changes / unstable base" checked={input.activityUnstable} onChange={(v) => set("activityUnstable", v)} />
+              </>
+            ) : (
+              <>
+                <Toggle
+                  label="Muscle held static or repeated >4x/min"
+                  checked={input.muscleUseB}
+                  onChange={(v) => set("muscleUseB", v)}
+                />
+                <ForceControl label="Force / load" value={input.forceB} onChange={(v) => set("forceB", v)} />
+              </>
+            )}
           </div>
         </div>
       )}

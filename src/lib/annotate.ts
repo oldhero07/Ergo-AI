@@ -51,3 +51,21 @@ export function annotateSkeleton(
 
   return { dataUrl: canvas.toDataURL("image/png"), width, height };
 }
+
+/**
+ * Draw an already-decoded bitmap to a downscaled JPEG data URL. Because the
+ * bitmap is decoded (HEIC already converted upstream by `loadBitmap`), this
+ * gives a "clean original" that renders in any browser — used for the PDF's
+ * Original-photo slot, which otherwise can't embed a raw iPhone HEIC file.
+ */
+export function renderOriginalJpeg(source: ImageBitmap, quality = 0.85): string {
+  const scale = fitScale(source.width, source.height);
+  const width = Math.round(source.width * scale);
+  const height = Math.round(source.height * scale);
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d")!;
+  ctx.drawImage(source, 0, 0, width, height);
+  return canvas.toDataURL("image/jpeg", quality);
+}

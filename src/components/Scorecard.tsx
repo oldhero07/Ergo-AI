@@ -86,6 +86,13 @@ export function Scorecard({ result, className }: { result: AssessmentResult; cla
           <Group key={g.name} group={g} />
         ))}
       </div>
+      {result.notes.length > 0 && (
+        <ul className="mt-4 space-y-1 text-xs text-muted-foreground">
+          {result.notes.map((n, i) => (
+            <li key={i}>· {n}</li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

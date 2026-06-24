@@ -1,8 +1,9 @@
 import type { AssessmentMethod } from "@/assessment/types";
 import { rula } from "@/assessment/rula/rula";
+import { reba } from "@/assessment/reba/reba";
 
-/** Registered assessment methods. REBA and others slot in here later. */
-export const methods: AssessmentMethod[] = [rula];
+/** Registered assessment methods. */
+export const methods: AssessmentMethod[] = [rula, reba];
 
 export const defaultMethod = rula;
 

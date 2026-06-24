@@ -29,6 +29,19 @@ export interface PostureInput {
   forceA: number;
   muscleUseB: boolean;
   forceB: number;
+
+  // --- REBA-specific inputs (ignored by RULA) ---------------------------------
+  // REBA scores legs by knee flexion + base stability, and adds load, coupling
+  // and a whole-task activity score that RULA does not have. Defaulted by
+  // `buildAutoInput`, so RULA-only callers are unaffected.
+  legAngle?: number; // knee flexion in degrees (0 = straight, ~90 = right angle); undefined when lower body not visible
+  legsBilateral: boolean; // true = bilateral weight-bearing / sitting / walking; false = unilateral / unstable
+  load: number; // REBA load band: 0 (<5 kg), 1 (5–10 kg), 2 (>10 kg)
+  loadShock: boolean; // +1 for shock or rapid build-up of force
+  coupling: number; // 0 good, 1 fair, 2 poor, 3 unacceptable
+  activityStatic: boolean; // one or more body parts held static >1 min
+  activityRepeated: boolean; // small-range actions repeated >4×/min
+  activityUnstable: boolean; // rapid large-range changes / unstable base
 }
 
 export interface GroupBreakdown {

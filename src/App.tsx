@@ -9,7 +9,7 @@ import { COMPUTE_LOOP_MS } from "@/hooks/useComputeTimeline";
 import { Button } from "@/components/ui/button";
 import { analyzePhoto, type PoseAnalysis } from "@/lib/analyze";
 import { exportPdfReport } from "@/lib/pdf";
-import { defaultMethod } from "@/assessment/registry";
+import { getMethod, methods } from "@/assessment/registry";
 import type { PostureInput } from "@/assessment/types";
 import type { UploadItem } from "@/types";
 
@@ -25,6 +25,8 @@ export default function App() {
   const [items, setItems] = useState<UploadItem[]>([]);
   const [phase, setPhase] = useState<Phase>("idle");
   const [results, setResults] = useState<ResultMap>({});
+  const [methodId, setMethodId] = useState<string>("rula");
+  const [reportMeta, setReportMeta] = useState({ assessor: "", organization: "", subject: "" });
   const [showAnimation, setShowAnimation] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
@@ -160,12 +162,31 @@ export default function App() {
     setPhase("idle");
   }, []);
 
-  // Recompute live when the adjustments panel changes a non-visible factor.
-  const updateInput = useCallback((id: string, next: PostureInput) => {
+  // Recompute live when the adjustments panel changes a non-visible factor,
+  // using whichever method (RULA/REBA) is currently selected.
+  const updateInput = useCallback(
+    (id: string, next: PostureInput) => {
+      const compute = getMethod(methodId).compute;
+      setResults((prev) => {
+        const r = prev[id];
+        if (!r) return prev;
+        return { ...prev, [id]: { ...r, input: next, assessment: compute(next) } };
+      });
+    },
+    [methodId],
+  );
+
+  // Switch assessment method: re-score every result from its (method-agnostic)
+  // PostureInput. Inputs are preserved, so toggling back and forth is lossless.
+  const switchMethod = useCallback((id: string) => {
+    setMethodId(id);
+    const compute = getMethod(id).compute;
     setResults((prev) => {
-      const r = prev[id];
-      if (!r) return prev;
-      return { ...prev, [id]: { ...r, input: next, assessment: defaultMethod.compute(next) } };
+      const next: ResultMap = {};
+      for (const [key, r] of Object.entries(prev)) {
+        next[key] = r.input ? { ...r, assessment: compute(r.input) } : r;
+      }
+      return next;
     });
   }, []);
 
@@ -176,13 +197,13 @@ export default function App() {
       const reportItems = items
         .filter((it) => results[it.id])
         .map((it) => ({ fileName: it.file.name, originalUrl: it.url, analysis: results[it.id] }));
-      await exportPdfReport(reportItems);
+      await exportPdfReport(reportItems, reportMeta);
     } catch (e) {
       setExportError((e as Error).message || "Could not generate the PDF.");
     } finally {
       setExporting(false);
     }
-  }, [items, results]);
+  }, [items, results, reportMeta]);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -191,7 +212,7 @@ export default function App() {
           <Logo className="h-9 w-9 shrink-0" />
           <div>
             <h1 className="text-lg font-semibold leading-none tracking-tight">Ergo AI</h1>
-            <p className="text-xs text-muted-foreground">RULA ergonomic risk from a photo</p>
+            <p className="text-xs text-muted-foreground">RULA &amp; REBA ergonomic risk from a photo</p>
           </div>
         </div>
       </header>
@@ -214,8 +235,8 @@ export default function App() {
             )}
             <p className="mx-auto mt-6 max-w-2xl text-center text-sm text-muted-foreground">
               Ergo AI uses Google’s MediaPipe Pose (Heavy) model to locate 33 body landmarks in your
-              photo, then derives the joint angles and computes a RULA ergonomic-risk score from
-              them — all in your browser.
+              photo, then derives the joint angles and computes RULA and REBA ergonomic-risk scores
+              from them — all in your browser.
             </p>
           </div>
         )}
@@ -246,8 +267,29 @@ export default function App() {
 
         {phase === "results" && (
           <div className="mx-auto w-full max-w-4xl animate-in fade-in duration-500">
-            <div className="mb-2 flex items-center justify-between">
-              <h2 className="text-xl font-semibold">Results</h2>
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-4">
+                <h2 className="text-xl font-semibold">Results</h2>
+                <div role="tablist" aria-label="Assessment method" className="inline-flex rounded-lg border p-0.5">
+                  {methods.map((m) => (
+                    <button
+                      key={m.id}
+                      type="button"
+                      role="tab"
+                      aria-selected={methodId === m.id}
+                      onClick={() => switchMethod(m.id)}
+                      className={
+                        "rounded-md px-3 py-1 text-sm font-medium transition-colors " +
+                        (methodId === m.id
+                          ? "bg-primary text-primary-foreground"
+                          : "text-muted-foreground hover:text-foreground")
+                      }
+                    >
+                      {m.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div className="flex items-center gap-2">
                 <Button variant="outline" onClick={exportPdf} disabled={exporting}>
                   {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
@@ -261,6 +303,7 @@ export default function App() {
             {exportError && (
               <p className="mb-4 text-sm text-destructive">Could not generate the PDF: {exportError}</p>
             )}
+            <ReportDetails meta={reportMeta} onChange={setReportMeta} />
             {items.length > 1 && <BatchSummary items={items} results={results} />}
             <div className="space-y-8 mt-6">
               {items.map((it) => {
@@ -295,7 +338,11 @@ export default function App() {
                           <Scorecard result={r.assessment} />
                         </div>
                         {r.input && (
-                          <AdjustmentsPanel input={r.input} onChange={(next) => updateInput(it.id, next)} />
+                          <AdjustmentsPanel
+                            input={r.input}
+                            methodId={methodId}
+                            onChange={(next) => updateInput(it.id, next)}
+                          />
                         )}
                       </>
                     ) : (
@@ -315,12 +362,49 @@ export default function App() {
         <div className="container flex flex-col items-center gap-1 py-6 text-center text-xs text-muted-foreground">
           <p>Photos are processed on your device and never uploaded.</p>
           <p>
-            RULA scores are a lower-bound estimate from a single 2D view, not a substitute for a
-            trained assessor.
+            RULA and REBA scores are a lower-bound estimate from a single 2D view, not a substitute
+            for a trained assessor.
           </p>
         </div>
       </footer>
     </div>
+  );
+}
+
+/** Optional provenance for the PDF cover page (assessor, organization, subject/task). */
+function ReportDetails({
+  meta,
+  onChange,
+}: {
+  meta: { assessor: string; organization: string; subject: string };
+  onChange: (next: { assessor: string; organization: string; subject: string }) => void;
+}) {
+  const set = (key: keyof typeof meta, value: string) => onChange({ ...meta, [key]: value });
+  const fields: { key: keyof typeof meta; label: string; placeholder: string }[] = [
+    { key: "assessor", label: "Assessor", placeholder: "Your name" },
+    { key: "organization", label: "Organization", placeholder: "Dept. / company" },
+    { key: "subject", label: "Subject / task", placeholder: "e.g. Loin-loom weaving — beating" },
+  ];
+  return (
+    <details className="mb-6 rounded-lg border bg-muted/20">
+      <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-muted-foreground">
+        Report details (shown on the PDF cover page)
+      </summary>
+      <div className="grid gap-3 px-4 pb-4 sm:grid-cols-3">
+        {fields.map((f) => (
+          <label key={f.key} className="text-xs text-muted-foreground">
+            {f.label}
+            <input
+              type="text"
+              value={meta[f.key]}
+              placeholder={f.placeholder}
+              onChange={(e) => set(f.key, e.target.value)}
+              className="mt-1 w-full rounded-md border bg-background px-2 py-1.5 text-sm text-foreground"
+            />
+          </label>
+        ))}
+      </div>
+    </details>
   );
 }
 

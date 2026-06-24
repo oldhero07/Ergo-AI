@@ -34,6 +34,9 @@ vi.mock("jspdf", () => {
     setDrawColor = vi.fn();
     setFillColor = vi.fn();
     setLineWidth = vi.fn();
+    getTextWidth = vi.fn(() => 80);
+    getNumberOfPages = vi.fn(() => 1);
+    setPage = vi.fn();
   }
   return { jsPDF: FakeJsPDF };
 });
@@ -111,6 +114,13 @@ function makeAnalysis(overrides: Partial<PoseAnalysis> = {}): PoseAnalysis {
       forceA: 0,
       muscleUseB: false,
       forceB: 0,
+      legsBilateral: true,
+      load: 0,
+      loadShock: false,
+      coupling: 0,
+      activityStatic: false,
+      activityRepeated: false,
+      activityUnstable: false,
     },
     assessment: {
       method: "RULA",
@@ -160,7 +170,7 @@ describe("exportPdfReport", () => {
     const { exportPdfReport } = await import("@/lib/pdf");
     await expect(exportPdfReport([makeItem()])).resolves.toBeUndefined();
     expect(saveMock).toHaveBeenCalledTimes(1);
-    expect(saveMock.mock.calls[0][0]).toMatch(/^ergo-ai-report-\d{4}-\d{2}-\d{2}-\d{4}\.pdf$/);
+    expect(saveMock.mock.calls[0][0]).toMatch(/^ergo-ai-rula-report-\d{4}-\d{2}-\d{2}-\d{4}\.pdf$/);
   });
 
   it("resolves without throwing for multiple items (adds a summary page) and saves once", async () => {

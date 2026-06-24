@@ -13,6 +13,10 @@ const LM = {
   rightWrist: 16,
   leftHip: 23,
   rightHip: 24,
+  leftKnee: 25,
+  rightKnee: 26,
+  leftAnkle: 27,
+  rightAnkle: 28,
 } as const;
 
 export type Side = "left" | "right";
@@ -22,6 +26,9 @@ export interface AngleSet {
   lowerArm: number; // forearm flexion (180 − elbow angle)
   neck: number; // head flexion relative to trunk
   trunk: number; // trunk inclination from vertical
+  /** Knee flexion (180 − knee included angle), for REBA legs. Omitted/unreliable
+   * when the lower body isn't visible — callers should treat it as optional. */
+  legAngle?: number;
   side: Side;
   confidence: number; // mean visibility of the chosen side's key joints
 }
@@ -62,8 +69,8 @@ export function computeAngles(lms: NormalizedLandmark[], forcedSide?: Side): Ang
   const side = forcedSide ?? pickSide(lms);
   const i =
     side === "right"
-      ? { sh: LM.rightShoulder, el: LM.rightElbow, wr: LM.rightWrist, hip: LM.rightHip, ear: LM.rightEar }
-      : { sh: LM.leftShoulder, el: LM.leftElbow, wr: LM.leftWrist, hip: LM.leftHip, ear: LM.leftEar };
+      ? { sh: LM.rightShoulder, el: LM.rightElbow, wr: LM.rightWrist, hip: LM.rightHip, ear: LM.rightEar, kn: LM.rightKnee, an: LM.rightAnkle }
+      : { sh: LM.leftShoulder, el: LM.leftElbow, wr: LM.leftWrist, hip: LM.leftHip, ear: LM.leftEar, kn: LM.leftKnee, an: LM.leftAnkle };
 
   const shoulder = pt(lms, i.sh);
   const elbow = pt(lms, i.el);
@@ -86,8 +93,17 @@ export function computeAngles(lms: NormalizedLandmark[], forcedSide?: Side): Ang
   // Trunk: inclination of the trunk line from true vertical.
   const trunk = angleBetween(sub(shoulderMid, hipMid), { x: 0, y: 1 });
 
+  // Leg (knee) flexion for REBA: 180 − hip-knee-ankle included angle. Only
+  // meaningful when both knee and ankle are reasonably visible — otherwise the
+  // lower body is out of frame (common in desk/loom photos) and we leave it
+  // undefined so REBA falls back to its documented neutral default.
+  const kneeVisible = vis(lms, i.kn) > 0.3 && vis(lms, i.an) > 0.3;
+  const legAngle = kneeVisible
+    ? 180 - angleBetween(sub(hip, pt(lms, i.kn)), sub(pt(lms, i.an), pt(lms, i.kn)))
+    : undefined;
+
   const confidence =
     (vis(lms, i.sh) + vis(lms, i.el) + vis(lms, i.wr) + vis(lms, i.hip)) / 4;
 
-  return { upperArm, lowerArm, neck, trunk, side, confidence };
+  return { upperArm, lowerArm, neck, trunk, legAngle, side, confidence };
 }
