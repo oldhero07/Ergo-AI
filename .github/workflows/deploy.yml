@@ -24,7 +24,7 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - name: Build (custom domain ergoai.is-a.dev serves at root)
+      - name: Build (custom domain rulaergo.com serves at root)
         run: npm run build
       - uses: actions/upload-pages-artifact@v3
         with:

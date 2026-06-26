@@ -4,7 +4,7 @@ import { fileURLToPath, URL } from "node:url";
 
 export default defineConfig({
   // Relative base so the same build works at any path: Vercel root, the
-  // github.io/Ergo-AI/ subpath, and the ergoai.is-a.dev custom-domain root. All
+  // github.io/Ergo-AI/ subpath, and the rulaergo.com custom-domain root. All
   // asset URLs (incl. runtime import.meta.env.BASE_URL fetches for the model,
   // wasm, and samples) resolve relative to the served page. The app has no
   // client-side routing, so relative resolution is always correct.
