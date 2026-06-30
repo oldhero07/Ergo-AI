@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from "react";
 import { FileDown, Loader2, RotateCcw, AlertTriangle } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { Uploader } from "@/components/Uploader";
+import { Landing } from "@/components/Landing";
 import { Scorecard } from "@/components/Scorecard";
 import { ComputeAnimation } from "@/components/ComputeAnimation";
 import { AdjustmentsPanel } from "@/components/AdjustmentsPanel";
@@ -14,7 +15,7 @@ import { getMethod, methods } from "@/assessment/registry";
 import type { PostureInput } from "@/assessment/types";
 import type { UploadItem } from "@/types";
 
-type Phase = "idle" | "computing" | "results";
+type Phase = "landing" | "idle" | "computing" | "results";
 type ResultMap = Record<string, PoseAnalysis>;
 
 // Max photos per batch. Caps client-side memory: every photo holds a decoded
@@ -24,7 +25,7 @@ const MAX_BATCH = 30;
 
 export default function App() {
   const [items, setItems] = useState<UploadItem[]>([]);
-  const [phase, setPhase] = useState<Phase>("idle");
+  const [phase, setPhase] = useState<Phase>("landing");
   const [results, setResults] = useState<ResultMap>({});
   const [methodId, setMethodId] = useState<string>("rula");
   const [reportMeta, setReportMeta] = useState({ assessor: "", organization: "", subject: "" });
@@ -204,6 +205,22 @@ export default function App() {
     setPhase("idle");
   }, []);
 
+  // Back to the landing page: same clean-slate teardown as `reset`, but lands on
+  // the intro screen rather than the uploader. Used by the header logo/title.
+  const goHome = useCallback(() => {
+    setItems((prev) => {
+      prev.forEach((p) => URL.revokeObjectURL(p.url));
+      return [];
+    });
+    setResults({});
+    setExportError(null);
+    setExporting(false);
+    setShowAnimation(true);
+    setNotice(null);
+    setModelProgress(null);
+    setPhase("landing");
+  }, []);
+
   // Recompute live when the adjustments panel changes a non-visible factor,
   // using whichever method (RULA/REBA) is currently selected.
   const updateInput = useCallback(
@@ -250,16 +267,25 @@ export default function App() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="border-b">
-        <div className="container flex items-center gap-2.5 py-4">
-          <Logo className="h-9 w-9 shrink-0" />
-          <div>
-            <h1 className="text-lg font-semibold leading-none tracking-tight">Ergo AI</h1>
-            <p className="text-xs text-muted-foreground">RULA &amp; REBA ergonomic risk from a photo</p>
-          </div>
+        <div className="container py-4">
+          <button
+            type="button"
+            onClick={goHome}
+            className="flex items-center gap-2.5 rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label="Ergo AI — home"
+          >
+            <Logo className="h-9 w-9 shrink-0" />
+            <div>
+              <h1 className="text-lg font-semibold leading-none tracking-tight">Ergo AI</h1>
+              <p className="text-xs text-muted-foreground">RULA &amp; REBA ergonomic risk from a photo</p>
+            </div>
+          </button>
         </div>
       </header>
 
       <main className="container py-10">
+        {phase === "landing" && <Landing onStart={() => setPhase("idle")} />}
+
         {phase === "idle" && (
           <div>
             <Uploader
