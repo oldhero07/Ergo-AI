@@ -17,7 +17,7 @@ export interface ReportMeta {
   subject?: string; // subject / task being assessed
 }
 
-/** RGB fill/text colors per risk band — jsPDF wants plain RGB triples, not CSS `hsl(var(--x))`. */
+/** RGB fill/text colors per risk band - jsPDF wants plain RGB triples, not CSS `hsl(var(--x))`. */
 const RISK_RGB: Record<RiskBand, [number, number, number]> = {
   low: [22, 163, 74],
   medium: [217, 119, 6],
@@ -33,7 +33,7 @@ const RULE_GRAY: [number, number, number] = [210, 210, 210];
 
 /** Longest edge (px) we embed images at in the PDF. The display box is ~255pt
  * wide (~530px @150dpi print), so ~1000px is plenty sharp while keeping the file
- * small. Both the original photo AND the skeleton are re-encoded to JPEG here —
+ * small. Both the original photo AND the skeleton are re-encoded to JPEG here -
  * embedding the skeleton as PNG (lossless, photographic content) is what made
  * reports balloon to many MB per page. */
 const PDF_IMAGE_MAX_PX = 1000;
@@ -50,7 +50,7 @@ export interface PreparedImage {
  * Load any image URL (`data:`, `blob:`, or http), downscale its longest edge to
  * `maxPx`, and re-encode as JPEG. This keeps PDF reports small enough to handle
  * large batches: a full-res original + a PNG skeleton can be ~7 MB *per photo*;
- * downscaled JPEGs are typically ~150–300 KB each.
+ * downscaled JPEGs are typically ~150-300 KB each.
  */
 export async function prepareImage(
   url: string,
@@ -92,9 +92,9 @@ function fmt(n: number): string {
 
 const COUPLING_LABELS = ["good", "fair", "poor", "unacceptable"];
 
-/** The 1–N scale a method's grand score sits on (RULA 1–7, REBA 1–15). */
+/** The 1-N scale a method's grand score sits on (RULA 1-7, REBA 1-15). */
 function methodScale(maxScore: number): string {
-  return `1–${fmt(maxScore)}`;
+  return `1-${fmt(maxScore)}`;
 }
 
 /**
@@ -108,11 +108,11 @@ function describeAssumptions(input: PostureInput, method: string): string {
     parts.push(
       input.legAngle !== undefined
         ? `Knee flexion: ${fmt(input.legAngle)}° (estimated from pose)`
-        : "Legs: not visible — assumed bilateral / supported",
+        : "Legs: not visible - assumed bilateral / supported",
     );
     parts.push(
       input.load > 0 || input.loadShock
-        ? `Load: band ${fmt(input.load)} (0–2)${input.loadShock ? " + shock" : ""} (assumed)`
+        ? `Load: band ${fmt(input.load)} (0-2)${input.loadShock ? " + shock" : ""} (assumed)`
         : "Load: < 5 kg, no shock (assumed)",
     );
     parts.push(`Coupling: ${COUPLING_LABELS[Math.max(0, Math.min(3, Math.round(input.coupling)))]} (assumed)`);
@@ -143,14 +143,14 @@ function describeAssumptions(input: PostureInput, method: string): string {
       : "Muscle use: none significant (assumed)",
   );
   const maxForce = Math.max(input.forceA, input.forceB);
-  parts.push(maxForce > 0 ? `Force/load: ${maxForce} (assumed, 0–3 scale)` : "Force/load: none (assumed)");
+  parts.push(maxForce > 0 ? `Force/load: ${maxForce} (assumed, 0-3 scale)` : "Force/load: none (assumed)");
   parts.push(input.legsSupported ? "Legs: supported (assumed)" : "Legs: not supported (assumed)");
   return parts.join(" · ");
 }
 
-/** Measured joint angles + pose confidence — the objective values the score is derived from. */
+/** Measured joint angles + pose confidence - the objective values the score is derived from. */
 function describeAngles(analysis: PoseAnalysis, a: AssessmentResult): string {
-  let txt = `Measured angles — upper arm ${fmt(a.angles.upperArm)}°, lower arm ${fmt(a.angles.lowerArm)}°, neck ${fmt(
+  let txt = `Measured angles - upper arm ${fmt(a.angles.upperArm)}°, lower arm ${fmt(a.angles.lowerArm)}°, neck ${fmt(
     a.angles.neck,
   )}°, trunk ${fmt(a.angles.trunk)}°`;
   if (a.method === "REBA" && analysis.input?.legAngle !== undefined) {
@@ -208,7 +208,7 @@ function drawGroupBreakdown(doc: jsPDF, group: GroupBreakdown, x: number, y: num
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
   doc.setTextColor(...CONTENT_DARK);
-  const titleLines = doc.splitTextToSize(`${group.name} — score ${fmt(group.score)}`, maxWidth) as string[];
+  const titleLines = doc.splitTextToSize(`${group.name} - score ${fmt(group.score)}`, maxWidth) as string[];
   doc.text(titleLines, x, cursor);
   cursor += titleLines.length * 12 + 1;
 
@@ -231,21 +231,21 @@ function drawGroupBreakdown(doc: jsPDF, group: GroupBreakdown, x: number, y: num
   return cursor;
 }
 
-/** Risk-band legend rows for a method (RULA 1–7, REBA 1–15). */
+/** Risk-band legend rows for a method (RULA 1-7, REBA 1-15). */
 function riskBandRows(method: string): { range: string; label: string; band: RiskBand }[] {
   if (method === "REBA") {
     return [
       { range: "1", label: "Negligible", band: "low" },
-      { range: "2–3", label: "Low risk", band: "low" },
-      { range: "4–7", label: "Medium risk", band: "medium" },
-      { range: "8–10", label: "High risk", band: "high" },
-      { range: "11–15", label: "Very high risk", band: "veryhigh" },
+      { range: "2-3", label: "Low risk", band: "low" },
+      { range: "4-7", label: "Medium risk", band: "medium" },
+      { range: "8-10", label: "High risk", band: "high" },
+      { range: "11-15", label: "Very high risk", band: "veryhigh" },
     ];
   }
   return [
-    { range: "1–2", label: "Acceptable", band: "low" },
-    { range: "3–4", label: "Investigate further", band: "medium" },
-    { range: "5–6", label: "Change soon", band: "high" },
+    { range: "1-2", label: "Acceptable", band: "low" },
+    { range: "3-4", label: "Investigate further", band: "medium" },
+    { range: "5-6", label: "Change soon", band: "high" },
     { range: "7", label: "Change now", band: "veryhigh" },
   ];
 }
@@ -266,12 +266,12 @@ function addCoverPage(doc: jsPDF, items: PdfReportItem[], meta: ReportMeta, meth
   const mean = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
   const max = scores.length ? Math.max(...scores) : 0;
 
-  // Provenance block — key/value rows, blanks shown as an em dash.
+  // Provenance block - key/value rows, blanks shown as an em dash.
   y += 6;
   const rows: [string, string][] = [
-    ["Assessor", meta.assessor?.trim() || "—"],
-    ["Organization", meta.organization?.trim() || "—"],
-    ["Subject / task", meta.subject?.trim() || "—"],
+    ["Assessor", meta.assessor?.trim() || "-"],
+    ["Organization", meta.organization?.trim() || "-"],
+    ["Subject / task", meta.subject?.trim() || "-"],
     ["Date generated", new Date().toLocaleString()],
     ["Method", `${method} (${method === "REBA" ? "Rapid Entire Body Assessment" : "Rapid Upper Limb Assessment"})`],
     ["Photos analyzed", `${items.length} (${scored.length} with a detected pose)`],
@@ -296,7 +296,7 @@ function addCoverPage(doc: jsPDF, items: PdfReportItem[], meta: ReportMeta, meth
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
   doc.setTextColor(...CONTENT_DARK);
-  doc.text(`Risk bands — ${method}`, PAGE_MARGIN, y);
+  doc.text(`Risk bands - ${method}`, PAGE_MARGIN, y);
   y += 16;
   for (const row of riskBandRows(method)) {
     const rgb = RISK_RGB[row.band];
@@ -333,7 +333,7 @@ function addSummaryPage(doc: jsPDF, items: PdfReportItem[], method: string, maxS
   let y = drawHeader(
     doc,
     pageWidth,
-    "Ergo AI — Batch Summary",
+    "Ergo AI - Batch Summary",
     `${method} assessment · grand-score scale ${methodScale(maxScore)}`,
   );
 
@@ -392,13 +392,13 @@ function addSummaryPage(doc: jsPDF, items: PdfReportItem[], method: string, maxS
 
     if (y > doc.internal.pageSize.getHeight() - PAGE_MARGIN - FOOTER_RESERVE - 40) {
       doc.addPage();
-      y = drawHeader(doc, pageWidth, "Ergo AI — Batch Summary (cont.)");
+      y = drawHeader(doc, pageWidth, "Ergo AI - Batch Summary (cont.)");
     }
   }
 
   // Highlighted mean/max strip.
   y += 8;
-  y = ensureSpace(doc, y, 44, pageWidth, "Ergo AI — Batch Summary (cont.)");
+  y = ensureSpace(doc, y, 44, pageWidth, "Ergo AI - Batch Summary (cont.)");
   doc.setDrawColor(...RULE_GRAY);
   doc.setFillColor(245, 245, 245);
   const boxW = pageWidth - PAGE_MARGIN * 2;
@@ -472,7 +472,7 @@ async function addPhotoPage(doc: jsPDF, item: PdfReportItem, isFirstPage: boolea
   const a: AssessmentResult = analysis.assessment;
   const rgb = RISK_RGB[a.riskBand];
 
-  // Grand-score strip — auto-sized to the wrapped action text so nothing overflows the box.
+  // Grand-score strip - auto-sized to the wrapped action text so nothing overflows the box.
   const scoreText = `${a.method} grand score: ${fmt(a.grandScore)} / ${fmt(a.maxScore)}`;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
@@ -489,7 +489,7 @@ async function addPhotoPage(doc: jsPDF, item: PdfReportItem, isFirstPage: boolea
   doc.text(scoreText, PAGE_MARGIN + 10, y + 20);
   const scoreW = doc.getTextWidth(scoreText);
   doc.setTextColor(...rgb);
-  doc.text(`— ${a.riskLabel}`, PAGE_MARGIN + 10 + scoreW + 8, y + 20);
+  doc.text(`- ${a.riskLabel}`, PAGE_MARGIN + 10 + scoreW + 8, y + 20);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
@@ -608,4 +608,183 @@ export async function exportPdfReport(items: PdfReportItem[], meta: ReportMeta =
 
   addFooters(doc, method);
   doc.save(timestampedFilename(method));
+}
+
+// --- Video report -----------------------------------------------------------
+
+export interface VideoPdfReport {
+  fileName: string;
+  method: string;
+  maxScore: number;
+  durationSec: number;
+  framesAnalyzed: number;
+  skipped: number;
+  timeline: { timeSec: number; grandScore: number; riskBand: RiskBand }[];
+  stats: { peakScore: number; peakTimeSec: number; peakLabel: string; peakBand: RiskBand; mean: number; highPct: number };
+  worst: { timeSec: number; thumbUrl: string; assessment: AssessmentResult; input: PostureInput };
+}
+
+const fmtClock = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+
+/** Draw the risk-over-time bars (coloured by band) into a boxed region. */
+function drawTimeline(doc: jsPDF, report: VideoPdfReport, x: number, y: number, w: number, h: number): void {
+  doc.setDrawColor(...RULE_GRAY);
+  doc.setFillColor(250, 250, 250);
+  doc.rect(x, y, w, h, "FD");
+  const dur = report.durationSec || 1;
+  const barW = Math.max(1, (w / Math.max(1, report.timeline.length)) * 0.8);
+  for (const p of report.timeline) {
+    const bx = x + (p.timeSec / dur) * w;
+    const bh = (p.grandScore / report.maxScore) * (h - 8);
+    doc.setFillColor(...RISK_RGB[p.riskBand]);
+    doc.rect(Math.min(bx, x + w - barW), y + h - bh, barW, bh, "F");
+  }
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7.5);
+  doc.setTextColor(...CONTENT_MUTED);
+  doc.text("0:00", x, y + h + 9);
+  doc.text(fmtClock(dur), x + w, y + h + 9, { align: "right" });
+}
+
+/**
+ * Build and download a one-clip video report: a summary page (provenance, the
+ * peak/mean/time-at-high-risk stats, the risk-over-time timeline, and a risk-band
+ * legend) followed by the worst frame with its full breakdown.
+ */
+export async function exportVideoPdfReport(report: VideoPdfReport, meta: ReportMeta = {}): Promise<void> {
+  const doc = new jsPDF({ unit: "pt", format: "a4" });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const contentWidth = pageWidth - PAGE_MARGIN * 2;
+  const { method, maxScore } = report;
+
+  // --- Page 1: summary --------------------------------------------------------
+  let y = drawHeader(
+    doc,
+    pageWidth,
+    "Ergonomic Risk Assessment - Video",
+    `${method} method · grand-score scale ${methodScale(maxScore)}`,
+  );
+
+  const rows: [string, string][] = [
+    ["Assessor", meta.assessor?.trim() || "-"],
+    ["Organization", meta.organization?.trim() || "-"],
+    ["Subject / task", meta.subject?.trim() || "-"],
+    ["Date generated", new Date().toLocaleString()],
+    ["Video", report.fileName],
+    ["Analyzed", `${report.framesAnalyzed} frames over ${report.durationSec.toFixed(1)} s${report.skipped ? ` · ${report.skipped} skipped` : ""}`],
+  ];
+  y += 4;
+  const labelW = 110;
+  for (const [k, v] of rows) {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9.5);
+    doc.setTextColor(...CONTENT_DARK);
+    doc.text(`${k}:`, PAGE_MARGIN, y);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(...CONTENT_MUTED);
+    const lines = doc.splitTextToSize(v, contentWidth - labelW) as string[];
+    doc.text(lines, PAGE_MARGIN + labelW, y);
+    y += Math.max(1, lines.length) * 13 + 2;
+  }
+
+  // Stats strip.
+  y += 10;
+  doc.setDrawColor(...RULE_GRAY);
+  doc.setFillColor(245, 245, 245);
+  doc.rect(PAGE_MARGIN, y, contentWidth, 40, "FD");
+  const third = contentWidth / 3;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(13);
+  doc.setTextColor(...RISK_RGB[report.stats.peakBand]);
+  doc.text(`${fmt(report.stats.peakScore)} / ${fmt(maxScore)}`, PAGE_MARGIN + 12, y + 20);
+  doc.setTextColor(...CONTENT_DARK);
+  doc.text(fmt(report.stats.mean), PAGE_MARGIN + third + 12, y + 20);
+  doc.text(`${report.stats.highPct}%`, PAGE_MARGIN + third * 2 + 12, y + 20);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(...CONTENT_MUTED);
+  doc.text(`peak · ${report.stats.peakLabel} at ${fmtClock(report.stats.peakTimeSec)}`, PAGE_MARGIN + 12, y + 33);
+  doc.text("mean grand score", PAGE_MARGIN + third + 12, y + 33);
+  doc.text("time at high / very-high risk", PAGE_MARGIN + third * 2 + 12, y + 33);
+  y += 40 + 18;
+
+  // Timeline.
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.setTextColor(...CONTENT_DARK);
+  doc.text("Risk over time", PAGE_MARGIN, y);
+  y += 10;
+  drawTimeline(doc, report, PAGE_MARGIN, y, contentWidth, 90);
+  y += 90 + 22;
+
+  // Risk-band legend.
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.setTextColor(...CONTENT_DARK);
+  doc.text(`Risk bands - ${method}`, PAGE_MARGIN, y);
+  y += 15;
+  for (const row of riskBandRows(method)) {
+    doc.setFillColor(...RISK_RGB[row.band]);
+    doc.rect(PAGE_MARGIN, y - 7, 13, 10, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(...CONTENT_DARK);
+    doc.text(row.range, PAGE_MARGIN + 22, y);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(...CONTENT_MUTED);
+    doc.text(row.label, PAGE_MARGIN + 78, y);
+    y += 15;
+  }
+
+  // --- Page 2: worst frame ----------------------------------------------------
+  doc.addPage();
+  const a = report.worst.assessment;
+  let y2 = drawHeader(doc, pageWidth, `Worst frame · ${fmtClock(report.worst.timeSec)}`, `${method} grand score ${fmt(a.grandScore)} / ${fmt(maxScore)} - ${a.riskLabel}`);
+
+  const img = await (async () => {
+    try {
+      return await prepareImage(report.worst.thumbUrl);
+    } catch {
+      return null;
+    }
+  })();
+  if (img) {
+    const fit = fitWithin(img.width, img.height, contentWidth, 220);
+    doc.addImage(img.dataUrl, "JPEG", PAGE_MARGIN + (contentWidth - fit.w) / 2, y2, fit.w, fit.h);
+    y2 += fit.h + 18;
+  }
+
+  // Measured angles.
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8.5);
+  doc.setTextColor(...CONTENT_MUTED);
+  let angleTxt = `Measured angles - upper arm ${fmt(a.angles.upperArm)}°, lower arm ${fmt(a.angles.lowerArm)}°, neck ${fmt(a.angles.neck)}°, trunk ${fmt(a.angles.trunk)}°`;
+  if (method === "REBA" && report.worst.input.legAngle !== undefined) angleTxt += `, knee ${fmt(report.worst.input.legAngle)}°`;
+  const al = doc.splitTextToSize(angleTxt, contentWidth) as string[];
+  doc.text(al, PAGE_MARGIN, y2);
+  y2 += al.length * 10 + 8;
+
+  // Group breakdown.
+  const groupColW = (contentWidth - 12) / 2;
+  let bottom = y2;
+  a.groups.forEach((group, idx) => {
+    bottom = Math.max(bottom, drawGroupBreakdown(doc, group, PAGE_MARGIN + idx * (groupColW + 12), y2, groupColW));
+  });
+  y2 = bottom + 6;
+
+  const assumptionLines = doc.splitTextToSize(describeAssumptions(report.worst.input, method), contentWidth) as string[];
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8.5);
+  doc.setTextColor(...CONTENT_DARK);
+  doc.text("Assumptions (factors video cannot fully observe):", PAGE_MARGIN, y2);
+  y2 += 12;
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(...CONTENT_MUTED);
+  doc.text(assumptionLines, PAGE_MARGIN, y2);
+  y2 += assumptionLines.length * 10 + 8;
+
+  addCaveat(doc, PAGE_MARGIN, y2, contentWidth, method);
+
+  addFooters(doc, method);
+  doc.save(timestampedFilename(`${method}-video`));
 }

@@ -1,14 +1,17 @@
 import { useMemo, useRef, useState, useEffect } from "react";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, FileDown, Loader2 } from "lucide-react";
 import type { VideoAnalysis } from "@/lib/analyze";
-import type { AssessmentResult } from "@/assessment/types";
+import type { AssessmentResult, PostureInput } from "@/assessment/types";
 import { getMethod, methods } from "@/assessment/registry";
 import { RISK_META } from "@/lib/risk";
 import { Scorecard } from "@/components/Scorecard";
+import { Button } from "@/components/ui/button";
+import { exportVideoPdfReport, type VideoPdfReport } from "@/lib/pdf";
 
 interface ScoredFrame {
   timeSec: number;
   thumbUrl: string;
+  input: PostureInput;
   assessment: AssessmentResult;
 }
 
@@ -23,23 +26,30 @@ const fmtTime = (s: number) => {
  * Scores are recomputed from each frame's PostureInput for the active method. */
 export function VideoResults({
   videoUrl,
+  fileName,
   analysis,
   methodId,
   onMethodChange,
+  reportMeta,
 }: {
   videoUrl: string;
+  fileName: string;
   analysis: VideoAnalysis;
   methodId: string;
   onMethodChange: (id: string) => void;
+  reportMeta: { assessor: string; organization: string; subject: string };
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [playhead, setPlayhead] = useState(0);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   const scored: ScoredFrame[] = useMemo(() => {
     const compute = getMethod(methodId).compute;
     return analysis.frames.map((f) => ({
       timeSec: f.timeSec,
       thumbUrl: f.thumbUrl,
+      input: f.input,
       assessment: compute(f.input),
     }));
   }, [analysis, methodId]);
@@ -59,6 +69,42 @@ export function VideoResults({
     if (v) {
       v.currentTime = t;
       setPlayhead(t);
+    }
+  };
+
+  const exportPdf = async () => {
+    if (!stats) return;
+    setExporting(true);
+    setExportError(null);
+    try {
+      const report: VideoPdfReport = {
+        fileName,
+        method: stats.peak.assessment.method,
+        maxScore: stats.maxScore,
+        durationSec: analysis.sampledDurationSec,
+        framesAnalyzed: scored.length,
+        skipped: analysis.skippedNoPose + analysis.skippedLowConfidence,
+        timeline: scored.map((s) => ({ timeSec: s.timeSec, grandScore: s.assessment.grandScore, riskBand: s.assessment.riskBand })),
+        stats: {
+          peakScore: stats.peak.assessment.grandScore,
+          peakTimeSec: stats.peak.timeSec,
+          peakLabel: stats.peak.assessment.riskLabel,
+          peakBand: stats.peak.assessment.riskBand,
+          mean: stats.mean,
+          highPct: stats.highPct,
+        },
+        worst: {
+          timeSec: stats.peak.timeSec,
+          thumbUrl: stats.peak.thumbUrl,
+          assessment: stats.peak.assessment,
+          input: stats.peak.input,
+        },
+      };
+      await exportVideoPdfReport(report, reportMeta);
+    } catch (e) {
+      setExportError((e as Error).message || "Could not generate the PDF.");
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -91,7 +137,14 @@ export function VideoResults({
             </button>
           ))}
         </div>
+        {scored.length > 0 && (
+          <Button variant="outline" onClick={exportPdf} disabled={exporting} className="ml-auto">
+            {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+            Export PDF
+          </Button>
+        )}
       </div>
+      {exportError && <p className="mb-3 text-sm text-destructive">Could not generate the PDF: {exportError}</p>}
 
       {!scored.length ? (
         <div className="flex items-center gap-2 rounded-xl border px-5 py-6 text-sm text-amber-600">
@@ -117,10 +170,13 @@ export function VideoResults({
             </div>
           )}
 
-          {analysis.skippedNoPose > 0 && (
+          {analysis.skippedNoPose + analysis.skippedLowConfidence > 0 && (
             <p className="mt-2 text-xs text-muted-foreground">
-              {analysis.skippedNoPose} sampled frame{analysis.skippedNoPose > 1 ? "s" : ""} had no detectable pose and{" "}
-              {analysis.skippedNoPose > 1 ? "were" : "was"} skipped.
+              {analysis.skippedNoPose + analysis.skippedLowConfidence} sampled frame
+              {analysis.skippedNoPose + analysis.skippedLowConfidence > 1 ? "s" : ""} skipped
+              {analysis.skippedNoPose > 0 && ` · ${analysis.skippedNoPose} with no detectable pose`}
+              {analysis.skippedLowConfidence > 0 && ` · ${analysis.skippedLowConfidence} occluded (low visibility)`}
+              . Angles are smoothed over a 2.5 s window.
             </p>
           )}
 

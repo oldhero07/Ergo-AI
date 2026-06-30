@@ -36,6 +36,7 @@ export default function App() {
   const [notice, setNotice] = useState<string | null>(null);
   const [modelProgress, setModelProgress] = useState<number | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [videoName, setVideoName] = useState<string>("video");
   const [videoAnalysis, setVideoAnalysis] = useState<VideoAnalysis | null>(null);
   const [videoError, setVideoError] = useState<string | null>(null);
   const [videoProgress, setVideoProgress] = useState<number | null>(null);
@@ -192,6 +193,7 @@ export default function App() {
     async (file: File) => {
       setVideoError(null);
       setVideoAnalysis(null);
+      setVideoName(file.name);
       setVideoUrl((prev) => {
         if (prev) URL.revokeObjectURL(prev);
         return URL.createObjectURL(file);
@@ -418,11 +420,16 @@ export default function App() {
                 <RotateCcw className="h-4 w-4" /> Start over
               </Button>
             </div>
+            <div className="mx-auto w-full max-w-4xl">
+              <ReportDetails meta={reportMeta} onChange={setReportMeta} />
+            </div>
             <VideoResults
               videoUrl={videoUrl}
+              fileName={videoName}
               analysis={videoAnalysis}
               methodId={methodId}
               onMethodChange={setMethodId}
+              reportMeta={reportMeta}
             />
           </div>
         )}

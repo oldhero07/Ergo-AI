@@ -74,11 +74,39 @@ export interface VideoAnalysis {
   frames: VideoFrameResult[];
   /** Sampled frames that had no detectable pose (skipped). */
   skippedNoPose: number;
+  /** Sampled frames dropped because landmark visibility was below the occlusion floor. */
+  skippedLowConfidence: number;
   sampledDurationSec: number;
   fps: number;
 }
 
 export type VideoProgress = (stage: "sampling", done: number, total: number) => void;
+
+/** Below this mean landmark visibility a frame is unreliable (occlusion) and is dropped. */
+const OCCLUSION_CONFIDENCE = 0.4;
+/** Rolling window (seconds) used to smooth per-frame angles before scoring. */
+const SMOOTH_WINDOW_SEC = 2.5;
+
+interface RawVideoFrame {
+  timeSec: number;
+  angles: AngleSet;
+  confidence: number;
+  thumbUrl: string;
+}
+
+/** Centered moving average of one angle channel at index `i`, ignoring gaps. */
+function smoothChannel(values: (number | undefined)[], i: number, halfWin: number): number | undefined {
+  let sum = 0;
+  let n = 0;
+  for (let j = Math.max(0, i - halfWin); j <= Math.min(values.length - 1, i + halfWin); j++) {
+    const v = values[j];
+    if (v !== undefined && Number.isFinite(v)) {
+      sum += v;
+      n++;
+    }
+  }
+  return n ? sum / n : undefined;
+}
 
 /** Render a small JPEG thumbnail of a frame bitmap (for the timeline/worst-frame UI). */
 function thumbnail(bitmap: ImageBitmap, maxEdge = 320, quality = 0.7): string {
@@ -101,8 +129,9 @@ function thumbnail(bitmap: ImageBitmap, maxEdge = 320, quality = 0.7): string {
  * scores each frame with the active method and builds the risk-over-time view.
  */
 export async function analyzeVideo(file: File, onProgress?: VideoProgress): Promise<VideoAnalysis> {
-  const frames: VideoFrameResult[] = [];
+  const raw: RawVideoFrame[] = [];
   let skippedNoPose = 0;
+  let skippedLowConfidence = 0;
 
   const meta = await sampleVideoFrames(
     file,
@@ -119,15 +148,40 @@ export async function analyzeVideo(file: File, onProgress?: VideoProgress): Prom
         skippedNoPose++;
         return;
       }
-      frames.push({
-        timeSec,
-        angles,
-        input: buildAutoInput(angles),
-        confidence: angles.confidence,
-        thumbUrl: thumbnail(bitmap),
-      });
+      // Occlusion handling: drop frames where the subject is partly out of frame
+      // rather than feed misleading angles into the timeline/smoothing.
+      if (angles.confidence < OCCLUSION_CONFIDENCE) {
+        skippedLowConfidence++;
+        return;
+      }
+      raw.push({ timeSec, angles, confidence: angles.confidence, thumbUrl: thumbnail(bitmap) });
     },
   );
 
-  return { frames, skippedNoPose, sampledDurationSec: meta.sampledDurationSec, fps: meta.fps };
+  // Smooth the raw angles over a rolling window before scoring, so the timeline
+  // reflects sustained posture rather than single-frame detection jitter. We
+  // smooth angles (continuous), not the categorical scores (step functions).
+  const halfWin = Math.max(1, Math.round((SMOOTH_WINDOW_SEC * meta.fps) / 2));
+  const channel = (key: "upperArm" | "lowerArm" | "neck" | "trunk" | "legAngle") =>
+    raw.map((r) => r.angles[key] as number | undefined);
+  const ua = channel("upperArm");
+  const la = channel("lowerArm");
+  const nk = channel("neck");
+  const tk = channel("trunk");
+  const lg = channel("legAngle");
+
+  const frames: VideoFrameResult[] = raw.map((r, i) => {
+    const smoothed: AngleSet = {
+      upperArm: smoothChannel(ua, i, halfWin) ?? r.angles.upperArm,
+      lowerArm: smoothChannel(la, i, halfWin) ?? r.angles.lowerArm,
+      neck: smoothChannel(nk, i, halfWin) ?? r.angles.neck,
+      trunk: smoothChannel(tk, i, halfWin) ?? r.angles.trunk,
+      legAngle: smoothChannel(lg, i, halfWin),
+      side: r.angles.side,
+      confidence: r.confidence,
+    };
+    return { timeSec: r.timeSec, angles: smoothed, input: buildAutoInput(smoothed), confidence: r.confidence, thumbUrl: r.thumbUrl };
+  });
+
+  return { frames, skippedNoPose, skippedLowConfidence, sampledDurationSec: meta.sampledDurationSec, fps: meta.fps };
 }
