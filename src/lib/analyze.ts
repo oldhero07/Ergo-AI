@@ -76,6 +76,8 @@ export interface VideoAnalysis {
   skippedNoPose: number;
   /** Sampled frames dropped because landmark visibility was below the occlusion floor. */
   skippedLowConfidence: number;
+  /** Frames that couldn't be decoded (seek timeout / glitch) and were skipped. */
+  unreadableFrames: number;
   sampledDurationSec: number;
   fps: number;
 }
@@ -128,14 +130,18 @@ function thumbnail(bitmap: ImageBitmap, maxEdge = 320, quality = 0.7): string {
  * smoothed/interpolated yet — that's the temporal-tracking follow-up). The UI
  * scores each frame with the active method and builds the risk-over-time view.
  */
-export async function analyzeVideo(file: File, onProgress?: VideoProgress): Promise<VideoAnalysis> {
+export async function analyzeVideo(
+  file: File,
+  onProgress?: VideoProgress,
+  signal?: AbortSignal,
+): Promise<VideoAnalysis> {
   const raw: RawVideoFrame[] = [];
   let skippedNoPose = 0;
   let skippedLowConfidence = 0;
 
   const meta = await sampleVideoFrames(
     file,
-    { fps: 4, maxDurationSec: 30, maxFrames: 150, maxEdge: 720, onProgress: (d, t) => onProgress?.("sampling", d, t) },
+    { onProgress: (d, t) => onProgress?.("sampling", d, t), signal },
     async ({ timeSec, bitmap }) => {
       const result = await detectPose(bitmap);
       const landmarks = result.landmarks[0];
@@ -183,5 +189,12 @@ export async function analyzeVideo(file: File, onProgress?: VideoProgress): Prom
     return { timeSec: r.timeSec, angles: smoothed, input: buildAutoInput(smoothed), confidence: r.confidence, thumbUrl: r.thumbUrl };
   });
 
-  return { frames, skippedNoPose, skippedLowConfidence, sampledDurationSec: meta.sampledDurationSec, fps: meta.fps };
+  return {
+    frames,
+    skippedNoPose,
+    skippedLowConfidence,
+    unreadableFrames: meta.unreadableFrames,
+    sampledDurationSec: meta.sampledDurationSec,
+    fps: meta.fps,
+  };
 }

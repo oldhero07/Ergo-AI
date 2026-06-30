@@ -170,12 +170,13 @@ export function VideoResults({
             </div>
           )}
 
-          {analysis.skippedNoPose + analysis.skippedLowConfidence > 0 && (
+          {analysis.skippedNoPose + analysis.skippedLowConfidence + analysis.unreadableFrames > 0 && (
             <p className="mt-2 text-xs text-muted-foreground">
-              {analysis.skippedNoPose + analysis.skippedLowConfidence} sampled frame
-              {analysis.skippedNoPose + analysis.skippedLowConfidence > 1 ? "s" : ""} skipped
+              {analysis.skippedNoPose + analysis.skippedLowConfidence + analysis.unreadableFrames} sampled frame
+              {analysis.skippedNoPose + analysis.skippedLowConfidence + analysis.unreadableFrames > 1 ? "s" : ""} skipped
               {analysis.skippedNoPose > 0 && ` · ${analysis.skippedNoPose} with no detectable pose`}
               {analysis.skippedLowConfidence > 0 && ` · ${analysis.skippedLowConfidence} occluded (low visibility)`}
+              {analysis.unreadableFrames > 0 && ` · ${analysis.unreadableFrames} unreadable`}
               . Angles are smoothed over a 2.5 s window.
             </p>
           )}

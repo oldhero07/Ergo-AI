@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Upload, X, Images, Play, Trash2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { isVideoFile } from "@/lib/videoFile";
 import type { UploadItem } from "@/types";
 
 /**
@@ -46,8 +47,6 @@ interface UploaderProps {
   onUseSample?: () => void;
 }
 
-const isVideo = (f: File) => f.type.startsWith("video/") || /\.(mp4|mov|webm|m4v|avi|mkv)$/i.test(f.name);
-
 export function Uploader({
   items,
   onAddFiles,
@@ -66,7 +65,7 @@ export function Uploader({
       const arr = Array.from(list);
       // A video takes its own dedicated flow (one clip at a time); otherwise the
       // files go to the photo batch (addFiles filters to images incl. HEIC).
-      const video = arr.find(isVideo);
+      const video = arr.find(isVideoFile);
       if (video && onVideo) {
         onVideo(video);
         return;

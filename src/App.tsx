@@ -10,6 +10,7 @@ import { COMPUTE_LOOP_MS } from "@/hooks/useComputeTimeline";
 import { Button } from "@/components/ui/button";
 import { analyzePhoto, analyzeVideo, type PoseAnalysis, type VideoAnalysis } from "@/lib/analyze";
 import { isHeic } from "@/lib/image";
+import { validateVideoFile } from "@/lib/videoFile";
 import { VideoResults } from "@/components/VideoResults";
 import { exportPdfReport } from "@/lib/pdf";
 import { getMethod, methods } from "@/assessment/registry";
@@ -41,6 +42,7 @@ export default function App() {
   const [videoError, setVideoError] = useState<string | null>(null);
   const [videoProgress, setVideoProgress] = useState<number | null>(null);
   const skipResolveRef = useRef<(() => void) | null>(null);
+  const videoAbortRef = useRef<AbortController | null>(null);
 
   // HEIC has no in-browser <img> preview, so decode it to a JPEG in the
   // background once it's queued: this both shows a real thumbnail AND lets
@@ -191,6 +193,19 @@ export default function App() {
   // Runs as its own flow (one clip at a time), separate from the photo batch.
   const runVideoAnalysis = useCallback(
     async (file: File) => {
+      // Gate the file before any object URL or decoder is created (size/type cap).
+      const check = validateVideoFile(file);
+      if (!check.ok) {
+        setVideoError(check.message);
+        setPhase("idle");
+        return;
+      }
+
+      // Concurrency guard: cancel any analysis already in flight before starting.
+      videoAbortRef.current?.abort();
+      const controller = new AbortController();
+      videoAbortRef.current = controller;
+
       setVideoError(null);
       setVideoAnalysis(null);
       setVideoName(file.name);
@@ -205,13 +220,19 @@ export default function App() {
 
       let analysis: VideoAnalysis | null = null;
       let err: string | null = null;
+      let aborted = false;
       const work = (async () => {
         try {
-          analysis = await analyzeVideo(file, (_stage, done, total) => {
-            setVideoProgress(total > 0 ? Math.min(100, Math.round((done / total) * 100)) : null);
-          });
+          analysis = await analyzeVideo(
+            file,
+            (_stage, done, total) => {
+              setVideoProgress(total > 0 ? Math.min(100, Math.round((done / total) * 100)) : null);
+            },
+            controller.signal,
+          );
         } catch (e) {
-          err = (e as Error).message || "Could not analyze the video.";
+          if ((e as Error).name === "AbortError" || controller.signal.aborted) aborted = true;
+          else err = (e as Error).message || "Could not analyze the video.";
         }
       })();
 
@@ -226,8 +247,13 @@ export default function App() {
 
       await Promise.all([work, floor]);
       skipResolveRef.current = null;
+      // A newer run (or a cancel) superseded this one — let that owner drive state.
+      if (videoAbortRef.current !== controller) return;
+      videoAbortRef.current = null;
       setVideoProgress(null);
-      if (err || !analysis) {
+      if (aborted) {
+        setPhase("idle"); // cancelled: quietly return to the uploader, no error
+      } else if (err || !analysis) {
         setVideoError(err ?? "Could not analyze the video.");
         setPhase("idle");
       } else {
@@ -238,6 +264,15 @@ export default function App() {
     [MIN_COMPUTE_MS],
   );
 
+  // Cancel an in-flight video analysis and return to the uploader.
+  const cancelVideoAnalysis = useCallback(() => {
+    videoAbortRef.current?.abort();
+    videoAbortRef.current = null;
+    skipResolveRef.current?.();
+    setVideoProgress(null);
+    setPhase("idle");
+  }, []);
+
   // "Skip" drops the decorative floor and the animation itself (falls back to a
   // plain spinner) — it can't skip the real detection work still in flight.
   const skipAnimation = useCallback(() => {
@@ -245,8 +280,10 @@ export default function App() {
     skipResolveRef.current?.();
   }, []);
 
-  // Tear down any video session and revoke its object URL.
+  // Tear down any video session: abort an in-flight run and revoke its object URL.
   const clearVideo = useCallback(() => {
+    videoAbortRef.current?.abort();
+    videoAbortRef.current = null;
     setVideoUrl((prev) => {
       if (prev) URL.revokeObjectURL(prev);
       return null;
@@ -408,6 +445,13 @@ export default function App() {
                       ? `Analyzing video — ${videoProgress}%`
                       : "Still working…"}
                 </p>
+              </div>
+            )}
+            {videoProgress !== null && (
+              <div className="mt-6 flex justify-center">
+                <Button variant="outline" onClick={cancelVideoAnalysis}>
+                  Cancel
+                </Button>
               </div>
             )}
           </div>
