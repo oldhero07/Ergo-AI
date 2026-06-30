@@ -39,15 +39,19 @@ function Thumb({ url, name, converting }: { url: string; name: string; convertin
 interface UploaderProps {
   items: UploadItem[];
   onAddFiles: (files: File[]) => void;
+  onVideo?: (file: File) => void;
   onRemove: (id: string) => void;
   onClear: () => void;
   onAnalyze: () => void;
   onUseSample?: () => void;
 }
 
+const isVideo = (f: File) => f.type.startsWith("video/") || /\.(mp4|mov|webm|m4v|avi|mkv)$/i.test(f.name);
+
 export function Uploader({
   items,
   onAddFiles,
+  onVideo,
   onRemove,
   onClear,
   onAnalyze,
@@ -59,21 +63,27 @@ export function Uploader({
   const handleFiles = useCallback(
     (list: FileList | null) => {
       if (!list) return;
-      onAddFiles(Array.from(list));
+      const arr = Array.from(list);
+      // A video takes its own dedicated flow (one clip at a time); otherwise the
+      // files go to the photo batch (addFiles filters to images incl. HEIC).
+      const video = arr.find(isVideo);
+      if (video && onVideo) {
+        onVideo(video);
+        return;
+      }
+      onAddFiles(arr);
     },
-    [onAddFiles],
+    [onAddFiles, onVideo],
   );
 
   useEffect(() => {
     const onPaste = (e: ClipboardEvent) => {
       const files = e.clipboardData?.files;
-      if (files && files.length) {
-        onAddFiles(Array.from(files)); // addFiles filters to images (incl. HEIC)
-      }
+      if (files && files.length) handleFiles(files);
     };
     window.addEventListener("paste", onPaste);
     return () => window.removeEventListener("paste", onPaste);
-  }, [onAddFiles]);
+  }, [handleFiles]);
 
   return (
     <div className="mx-auto w-full max-w-3xl">
@@ -106,11 +116,11 @@ export function Uploader({
         <p className="mt-1 text-sm text-muted-foreground">
           or click to browse · paste from clipboard · one or many
         </p>
-        <p className="mt-3 text-xs text-muted-foreground">JPG, PNG, or iPhone HEIC</p>
+        <p className="mt-3 text-xs text-muted-foreground">JPG, PNG, iPhone HEIC — or a short video (MP4/MOV/WebM)</p>
         <input
           ref={inputRef}
           type="file"
-          accept="image/*,.heic,.heif"
+          accept="image/*,.heic,.heif,video/*,.mp4,.mov,.webm,.m4v"
           multiple
           className="hidden"
           onChange={(e) => {

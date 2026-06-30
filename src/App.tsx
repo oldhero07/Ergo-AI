@@ -8,14 +8,15 @@ import { ComputeAnimation } from "@/components/ComputeAnimation";
 import { AdjustmentsPanel } from "@/components/AdjustmentsPanel";
 import { COMPUTE_LOOP_MS } from "@/hooks/useComputeTimeline";
 import { Button } from "@/components/ui/button";
-import { analyzePhoto, type PoseAnalysis } from "@/lib/analyze";
+import { analyzePhoto, analyzeVideo, type PoseAnalysis, type VideoAnalysis } from "@/lib/analyze";
 import { isHeic } from "@/lib/image";
+import { VideoResults } from "@/components/VideoResults";
 import { exportPdfReport } from "@/lib/pdf";
 import { getMethod, methods } from "@/assessment/registry";
 import type { PostureInput } from "@/assessment/types";
 import type { UploadItem } from "@/types";
 
-type Phase = "landing" | "idle" | "computing" | "results";
+type Phase = "landing" | "idle" | "computing" | "results" | "video";
 type ResultMap = Record<string, PoseAnalysis>;
 
 // Max photos per batch. Caps client-side memory: every photo holds a decoded
@@ -34,6 +35,10 @@ export default function App() {
   const [exportError, setExportError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [modelProgress, setModelProgress] = useState<number | null>(null);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [videoAnalysis, setVideoAnalysis] = useState<VideoAnalysis | null>(null);
+  const [videoError, setVideoError] = useState<string | null>(null);
+  const [videoProgress, setVideoProgress] = useState<number | null>(null);
   const skipResolveRef = useRef<(() => void) | null>(null);
 
   // HEIC has no in-browser <img> preview, so decode it to a JPEG in the
@@ -181,11 +186,72 @@ export default function App() {
     setPhase("results");
   }, [items]);
 
+  // Video path: decode → sample frames → pose → per-frame scores → timeline view.
+  // Runs as its own flow (one clip at a time), separate from the photo batch.
+  const runVideoAnalysis = useCallback(
+    async (file: File) => {
+      setVideoError(null);
+      setVideoAnalysis(null);
+      setVideoUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return URL.createObjectURL(file);
+      });
+      setPhase("computing");
+      setShowAnimation(true);
+      setVideoProgress(0);
+      const startedAt = performance.now();
+
+      let analysis: VideoAnalysis | null = null;
+      let err: string | null = null;
+      const work = (async () => {
+        try {
+          analysis = await analyzeVideo(file, (_stage, done, total) => {
+            setVideoProgress(total > 0 ? Math.min(100, Math.round((done / total) * 100)) : null);
+          });
+        } catch (e) {
+          err = (e as Error).message || "Could not analyze the video.";
+        }
+      })();
+
+      const floor = new Promise<void>((resolve) => {
+        const remaining = MIN_COMPUTE_MS - (performance.now() - startedAt);
+        const timer = setTimeout(resolve, Math.max(0, remaining));
+        skipResolveRef.current = () => {
+          clearTimeout(timer);
+          resolve();
+        };
+      });
+
+      await Promise.all([work, floor]);
+      skipResolveRef.current = null;
+      setVideoProgress(null);
+      if (err || !analysis) {
+        setVideoError(err ?? "Could not analyze the video.");
+        setPhase("idle");
+      } else {
+        setVideoAnalysis(analysis);
+        setPhase("video");
+      }
+    },
+    [MIN_COMPUTE_MS],
+  );
+
   // "Skip" drops the decorative floor and the animation itself (falls back to a
   // plain spinner) — it can't skip the real detection work still in flight.
   const skipAnimation = useCallback(() => {
     setShowAnimation(false);
     skipResolveRef.current?.();
+  }, []);
+
+  // Tear down any video session and revoke its object URL.
+  const clearVideo = useCallback(() => {
+    setVideoUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+    setVideoAnalysis(null);
+    setVideoError(null);
+    setVideoProgress(null);
   }, []);
 
   // Full reset to a clean slate: clear photos + results, revoke blob URLs (so
@@ -202,8 +268,9 @@ export default function App() {
     setShowAnimation(true);
     setNotice(null);
     setModelProgress(null);
+    clearVideo();
     setPhase("idle");
-  }, []);
+  }, [clearVideo]);
 
   // Back to the landing page: same clean-slate teardown as `reset`, but lands on
   // the intro screen rather than the uploader. Used by the header logo/title.
@@ -218,8 +285,9 @@ export default function App() {
     setShowAnimation(true);
     setNotice(null);
     setModelProgress(null);
+    clearVideo();
     setPhase("landing");
-  }, []);
+  }, [clearVideo]);
 
   // Recompute live when the adjustments panel changes a non-visible factor,
   // using whichever method (RULA/REBA) is currently selected.
@@ -291,11 +359,17 @@ export default function App() {
             <Uploader
               items={items}
               onAddFiles={addFiles}
+              onVideo={runVideoAnalysis}
               onRemove={removeItem}
               onClear={clearItems}
               onAnalyze={runAnalysis}
               onUseSample={useSample}
             />
+            {videoError && (
+              <p className="mx-auto mt-4 max-w-3xl rounded-md bg-red-50 px-4 py-2 text-center text-sm text-red-700 dark:bg-red-950/40 dark:text-red-400">
+                Could not analyze the video: {videoError}
+              </p>
+            )}
             {notice && (
               <p className="mx-auto mt-4 max-w-3xl rounded-md bg-amber-50 px-4 py-2 text-center text-sm text-amber-700 dark:bg-amber-950/40 dark:text-amber-400">
                 {notice}
@@ -316,7 +390,9 @@ export default function App() {
                 note={
                   modelProgress !== null
                     ? `Downloading the pose model — ${modelProgress}%. This only happens the first time; afterwards it’s saved on your device.`
-                    : undefined
+                    : videoProgress !== null
+                      ? `Analyzing video — ${videoProgress}% (sampling frames)`
+                      : undefined
                 }
                 onSkip={skipAnimation}
               />
@@ -326,10 +402,28 @@ export default function App() {
                 <p className="text-sm text-muted-foreground">
                   {modelProgress !== null
                     ? `Downloading the pose model — ${modelProgress}% (first time only)`
-                    : "Still working…"}
+                    : videoProgress !== null
+                      ? `Analyzing video — ${videoProgress}%`
+                      : "Still working…"}
                 </p>
               </div>
             )}
+          </div>
+        )}
+
+        {phase === "video" && videoUrl && videoAnalysis && (
+          <div className="animate-in fade-in duration-500">
+            <div className="mx-auto mb-4 flex w-full max-w-4xl justify-end">
+              <Button variant="outline" onClick={reset}>
+                <RotateCcw className="h-4 w-4" /> Start over
+              </Button>
+            </div>
+            <VideoResults
+              videoUrl={videoUrl}
+              analysis={videoAnalysis}
+              methodId={methodId}
+              onMethodChange={setMethodId}
+            />
           </div>
         )}
 
