@@ -1,0 +1,80 @@
+{
+  "_meta": {
+    "capturedAt": "2026-07-02",
+    "commit": "0272b4e",
+    "purpose": "Accuracy gate for the worker-pipeline refactor: the same 4 bundled sample images must reproduce these angles (within float tolerance ~0.5 deg) and these exact scores on the same machine/browser. MediaPipe GPU output is machine-specific, so this is a local verification fixture, not a CI assertion.",
+    "pipeline": "main-thread analyzePhoto(), MediaPipe Pose Landmarker Heavy (GPU) + Hand Landmarker, Chrome dev server",
+    "note": "weaver-sample.jpg is byte-identical to office-typing.jpg as of 0272b4e, hence identical results."
+  },
+  "samples": {
+    "office-typing.jpg": {
+      "detected": true,
+      "wristMeasured": true,
+      "angles": {
+        "side": "left",
+        "upperArm": 18.250540380033108,
+        "lowerArm": 58.13113332592857,
+        "neck": 40.93153734883123,
+        "trunk": 8.55021836143838,
+        "confidence": 0.6502793356776237,
+        "neckSideBend": false,
+        "trunkSideBend": false,
+        "sides": {
+          "left": { "upperArm": 18.250540380033108, "lowerArm": 58.13113332592857, "visibility": 0.5337175826231638 },
+          "right": { "upperArm": 22.396928787717425, "lowerArm": 78.50816658838282, "legAngle": 86.11010618427848, "visibility": 0.9973444739977518 }
+        }
+      },
+      "wristAngle": 31.010823517050486,
+      "rula": { "grandScore": 3, "riskBand": "medium", "groupA": { "posture": 3, "items": { "Upper arm": 1, "Lower arm": 2, "Wrist": 3, "Wrist twist": 1 } }, "groupB": { "posture": 3, "items": { "Neck": 3, "Trunk": 2, "Legs": 1 } } },
+      "reba": { "grandScore": 3, "riskBand": "low", "groupA": { "posture": 3, "items": { "Neck": 2, "Trunk": 2, "Legs": 1 } }, "groupB": { "posture": 2, "items": { "Upper arm": 1, "Lower arm": 2, "Wrist": 2 } } }
+    },
+    "warehouse-lifting.jpg": {
+      "detected": true,
+      "wristMeasured": false,
+      "angles": {
+        "side": "left",
+        "upperArm": 51.724617595535975,
+        "lowerArm": 44.85598179376291,
+        "neck": 27.75054193644926,
+        "trunk": 41.89418429571786,
+        "legAngle": 52.73792042151233,
+        "confidence": 0.9737389385700226,
+        "neckSideBend": true,
+        "trunkSideBend": true,
+        "sides": {
+          "left": { "upperArm": 51.724617595535975, "lowerArm": 44.85598179376291, "legAngle": 52.73792042151233, "visibility": 0.9650484522183737 },
+          "right": { "upperArm": 23.312396877641962, "lowerArm": 54.91330614773288, "visibility": 0.4041057489812374 }
+        }
+      },
+      "wristAngle": 0,
+      "rula": { "grandScore": 6, "riskBand": "high", "groupA": { "posture": 3, "items": { "Upper arm": 3, "Lower arm": 2, "Wrist": 1, "Wrist twist": 1 } }, "groupB": { "posture": 7, "items": { "Neck": 4, "Trunk": 4, "Legs": 1 } } },
+      "reba": { "grandScore": 7, "riskBand": "medium", "groupA": { "posture": 6, "items": { "Neck": 3, "Trunk": 4, "Legs": 1 } }, "groupB": { "posture": 4, "items": { "Upper arm": 3, "Lower arm": 2, "Wrist": 1 } } }
+    },
+    "assembly-standing.jpg": {
+      "detected": true,
+      "wristMeasured": false,
+      "angles": {
+        "side": "left",
+        "upperArm": 75.26409668442102,
+        "lowerArm": 53.43663563977624,
+        "neck": 42.415134416438576,
+        "trunk": 5.488529453616084,
+        "confidence": 0.849556490778923,
+        "neckSideBend": true,
+        "trunkSideBend": false,
+        "sides": {
+          "left": { "upperArm": 75.26409668442102, "lowerArm": 53.43663563977624, "visibility": 0.8005039095878601 },
+          "right": { "upperArm": 35.70102475226656, "lowerArm": 50.1329281611182, "visibility": 0.4242440350353718 }
+        }
+      },
+      "wristAngle": 0,
+      "rula": { "grandScore": 4, "riskBand": "medium", "groupA": { "posture": 3, "items": { "Upper arm": 3, "Lower arm": 2, "Wrist": 1, "Wrist twist": 1 } }, "groupB": { "posture": 5, "items": { "Neck": 4, "Trunk": 2, "Legs": 1 } } },
+      "reba": { "grandScore": 4, "riskBand": "medium", "groupA": { "posture": 4, "items": { "Neck": 3, "Trunk": 2, "Legs": 1 } }, "groupB": { "posture": 4, "items": { "Upper arm": 3, "Lower arm": 2, "Wrist": 1 } } }
+    },
+    "weaver-sample.jpg": {
+      "detected": true,
+      "wristMeasured": true,
+      "identicalTo": "office-typing.jpg"
+    }
+  }
+}
