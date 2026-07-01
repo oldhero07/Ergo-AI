@@ -53,19 +53,19 @@ function appendPhases(tl: gsap.core.Timeline, t: PhaseTargets, setPhase?: (n: nu
   const degreeProxy = { v: 0 };
   const scoreProxy = { v: 1 };
 
-  // Phase 0 — Detecting pose: wireframe assembles.
+  // Phase 0 - Detecting pose: wireframe assembles.
   tl.call(() => setPhase?.(0))
     .to(t.nodes, { scale: 1, opacity: 1, duration: 0.35, stagger: 0.07, ease: "back.out(2)" })
     .to(t.edges as object, { strokeDashoffset: 0, duration: 0.5, stagger: 0.06 }, "<0.1")
     .to({}, { duration: 0.35 });
 
-  // Phase 1 — Computing vectors: arrows extend off the wireframe.
+  // Phase 1 - Computing vectors: arrows extend off the wireframe.
   tl.call(() => setPhase?.(1))
     .to(t.vectors, { opacity: 1, duration: 0.3, stagger: 0.18 })
     .to(t.tags, { opacity: 1, duration: 0.3, stagger: 0.18 }, "<")
     .to({}, { duration: 0.55 });
 
-  // Phase 2 — Solving angles: arc sweeps, degree readout flickers then settles.
+  // Phase 2 - Solving angles: arc sweeps, degree readout flickers then settles.
   tl.call(() => setPhase?.(2))
     .to(t.arc as object, { opacity: 1, strokeDashoffset: 0, duration: 0.45 })
     .to(t.degreeText as object, { opacity: 1, duration: 0.2 }, "<")
@@ -83,7 +83,7 @@ function appendPhases(tl: gsap.core.Timeline, t: PhaseTargets, setPhase?: (n: nu
     )
     .to({}, { duration: 0.4 });
 
-  // Phase 3 — Running RULA: group chips light up, gauge sweeps, score cycles.
+  // Phase 3 - Running RULA: group chips light up, gauge sweeps, score cycles.
   tl.call(() => setPhase?.(3))
     .to(t.chips, { opacity: 1, scale: 1, duration: 0.25, stagger: 0.15 })
     .to(t.gaugeRing as object, { strokeDashoffset: gaugeLen * 0.22, duration: 0.6 }, "<")

@@ -37,7 +37,7 @@ export function useTheme() {
     try {
       localStorage.setItem(KEY, t);
     } catch {
-      /* private mode — apply for the session only */
+      /* private mode - apply for the session only */
     }
     setThemeState(t);
   }, []);

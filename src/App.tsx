@@ -6,6 +6,7 @@ import { Landing } from "@/components/Landing";
 import { Scorecard } from "@/components/Scorecard";
 import { ComputeAnimation } from "@/components/ComputeAnimation";
 import { AdjustmentsPanel } from "@/components/AdjustmentsPanel";
+import { MeasurementSummary } from "@/components/MeasurementSummary";
 import { COMPUTE_LOOP_MS } from "@/hooks/useComputeTimeline";
 import { Button } from "@/components/ui/button";
 import { analyzePhoto, analyzeVideo, type PoseAnalysis, type VideoAnalysis } from "@/lib/analyze";
@@ -23,7 +24,7 @@ type Phase = "landing" | "idle" | "computing" | "results" | "video";
 type ResultMap = Record<string, PoseAnalysis>;
 
 // Max photos per batch. Caps client-side memory: every photo holds a decoded
-// image plus its skeleton render, and PDF export builds all pages in RAM — on a
+// image plus its skeleton render, and PDF export builds all pages in RAM - on a
 // phone, hundreds at once can crash the tab. Raise only if targeting desktops.
 const MAX_BATCH = 30;
 
@@ -49,7 +50,7 @@ export default function App() {
 
   // HEIC has no in-browser <img> preview, so decode it to a JPEG in the
   // background once it's queued: this both shows a real thumbnail AND lets
-  // analysis reuse the JPEG (decoded once, not twice — and fast on re-decode).
+  // analysis reuse the JPEG (decoded once, not twice - and fast on re-decode).
   const convertHeicItem = useCallback(async (id: string, file: File) => {
     try {
       const { heicTo } = await import("heic-to");
@@ -65,7 +66,7 @@ export default function App() {
         }),
       );
     } catch {
-      // Decode failed — clear the spinner; analysis still falls back to heic-to.
+      // Decode failed - clear the spinner; analysis still falls back to heic-to.
       setItems((prev) => prev.map((it) => (it.id === id ? { ...it, converting: false } : it)));
     }
   }, []);
@@ -92,11 +93,11 @@ export default function App() {
       if (overLimit > 0) {
         setNotice(
           room === 0
-            ? `You can analyze up to ${MAX_BATCH} photos at once — remove some to add more.`
-            : `Limit is ${MAX_BATCH} photos at once — added ${room}, skipped ${overLimit}.`,
+            ? `You can analyze up to ${MAX_BATCH} photos at once - remove some to add more.`
+            : `Limit is ${MAX_BATCH} photos at once - added ${room}, skipped ${overLimit}.`,
         );
       } else if (skipped > 0) {
-        setNotice(`Added ${imgs.length} photo${imgs.length > 1 ? "s" : ""} — skipped ${skipped} non-image file${skipped > 1 ? "s" : ""}.`);
+        setNotice(`Added ${imgs.length} photo${imgs.length > 1 ? "s" : ""} - skipped ${skipped} non-image file${skipped > 1 ? "s" : ""}.`);
       } else {
         setNotice(null);
       }
@@ -139,7 +140,7 @@ export default function App() {
       const blob = await res.blob();
       addFiles([new File([blob], "weaver-sample.jpg", { type: blob.type || "image/jpeg" })]);
     } catch {
-      /* sample not bundled — ignore */
+      /* sample not bundled - ignore */
     }
   }, [addFiles]);
 
@@ -149,7 +150,7 @@ export default function App() {
   const MIN_COMPUTE_MS = Math.max(5000, COMPUTE_LOOP_MS);
 
   const runAnalysis = useCallback(async () => {
-    if (!items.length) return; // nothing queued — ignore stray clicks
+    if (!items.length) return; // nothing queued - ignore stray clicks
     setPhase("computing");
     setShowAnimation(true);
     const startedAt = performance.now();
@@ -250,7 +251,7 @@ export default function App() {
 
       await Promise.all([work, floor]);
       skipResolveRef.current = null;
-      // A newer run (or a cancel) superseded this one — let that owner drive state.
+      // A newer run (or a cancel) superseded this one - let that owner drive state.
       if (videoAbortRef.current !== controller) return;
       videoAbortRef.current = null;
       setVideoProgress(null);
@@ -277,7 +278,7 @@ export default function App() {
   }, []);
 
   // "Skip" drops the decorative floor and the animation itself (falls back to a
-  // plain spinner) — it can't skip the real detection work still in flight.
+  // plain spinner) - it can't skip the real detection work still in flight.
   const skipAnimation = useCallback(() => {
     setShowAnimation(false);
     skipResolveRef.current?.();
@@ -311,7 +312,7 @@ export default function App() {
 
   // Full reset to a clean slate: clear photos + results, revoke blob URLs (so
   // memory isn't leaked across runs), and drop any export/animation flags. This
-  // is what "Start over" does — each session begins fresh, nothing lingers.
+  // is what "Start over" does - each session begins fresh, nothing lingers.
   const reset = useCallback(() => {
     setItems((prev) => {
       prev.forEach((p) => URL.revokeObjectURL(p.url));
@@ -395,7 +396,7 @@ export default function App() {
             type="button"
             onClick={goHome}
             className="flex items-center gap-2.5 rounded-lg text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            aria-label="Ergo AI — home"
+            aria-label="Ergo AI - home"
           >
             <Logo className="h-9 w-9 shrink-0" />
             <div>
@@ -454,9 +455,9 @@ export default function App() {
               <ComputeAnimation
                 note={
                   modelProgress !== null
-                    ? `Downloading the pose model — ${modelProgress}%. This only happens the first time; afterwards it’s saved on your device.`
+                    ? `Downloading the pose model - ${modelProgress}%. This only happens the first time; afterwards it’s saved on your device.`
                     : videoProgress !== null
-                      ? `Analyzing video — ${videoProgress}% (sampling frames)`
+                      ? `Analyzing video - ${videoProgress}% (sampling frames)`
                       : undefined
                 }
                 onSkip={skipAnimation}
@@ -466,9 +467,9 @@ export default function App() {
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 <p className="text-sm text-muted-foreground">
                   {modelProgress !== null
-                    ? `Downloading the pose model — ${modelProgress}% (first time only)`
+                    ? `Downloading the pose model - ${modelProgress}% (first time only)`
                     : videoProgress !== null
-                      ? `Analyzing video — ${videoProgress}%`
+                      ? `Analyzing video - ${videoProgress}%`
                       : "Still working…"}
                 </p>
               </div>
@@ -581,6 +582,20 @@ export default function App() {
                           <Scorecard result={r.assessment} />
                         </div>
                         {r.input && (
+                          <div className="border-t">
+                            <MeasurementSummary
+                              method={r.assessment.method}
+                              input={r.input}
+                              confidence={r.angles?.confidence}
+                              wristMeasured={r.wristMeasured}
+                              sideBendMeasured={
+                                r.angles?.neckSideBend !== undefined || r.angles?.trunkSideBend !== undefined
+                              }
+                              staticRepetition="assumed"
+                            />
+                          </div>
+                        )}
+                        {r.input && (
                           <AdjustmentsPanel
                             input={r.input}
                             methodId={methodId}
@@ -590,7 +605,7 @@ export default function App() {
                       </>
                     ) : (
                       <div className="flex items-center gap-2 border-t px-5 py-4 text-sm text-amber-600">
-                        <AlertTriangle className="h-4 w-4" /> No pose detected — try a clearer, full-body side view.
+                        <AlertTriangle className="h-4 w-4" /> No pose detected - try a clearer, full-body side view.
                       </div>
                     )}
                   </div>
@@ -603,7 +618,7 @@ export default function App() {
 
       <footer className="border-t">
         <div className="container flex flex-col items-center gap-1 py-6 text-center text-xs text-muted-foreground">
-          <p>Everything runs in your browser — your photos and videos are never uploaded.</p>
+          <p>Everything runs in your browser - your photos and videos are never uploaded.</p>
           {phase !== "landing" && (
             <p>
               RULA and REBA scores are a lower-bound estimate from a single 2D view, not a substitute
@@ -628,7 +643,7 @@ function ReportDetails({
   const fields: { key: keyof typeof meta; label: string; placeholder: string }[] = [
     { key: "assessor", label: "Assessor", placeholder: "Your name" },
     { key: "organization", label: "Organization", placeholder: "Dept. / company" },
-    { key: "subject", label: "Subject / task", placeholder: "e.g. Loin-loom weaving — beating" },
+    { key: "subject", label: "Subject / task", placeholder: "e.g. Loin-loom weaving - beating" },
   ];
   return (
     <details className="mb-6 rounded-lg border bg-muted/20">

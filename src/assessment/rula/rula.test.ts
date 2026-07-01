@@ -14,8 +14,8 @@ import type { AngleSet } from "@/lib/angles";
 describe("RULA category scores", () => {
   it("scores upper arm by elevation with adjustments", () => {
     expect(upperArmScore(0, false, false, false)).toBe(1); // neutral
-    expect(upperArmScore(30, false, false, false)).toBe(2); // 20–45
-    expect(upperArmScore(70, false, false, false)).toBe(3); // 45–90
+    expect(upperArmScore(30, false, false, false)).toBe(2); // 20-45
+    expect(upperArmScore(70, false, false, false)).toBe(3); // 45-90
     expect(upperArmScore(120, false, false, false)).toBe(4); // >90
     expect(upperArmScore(-40, false, false, false)).toBe(2); // extension
     expect(upperArmScore(70, true, false, false)).toBe(4); // +shoulder raised
@@ -23,7 +23,7 @@ describe("RULA category scores", () => {
   });
 
   it("scores lower arm by forearm flexion", () => {
-    expect(lowerArmScore(80, false)).toBe(1); // 60–100
+    expect(lowerArmScore(80, false)).toBe(1); // 60-100
     expect(lowerArmScore(120, false)).toBe(2); // >100
     expect(lowerArmScore(80, true)).toBe(2); // +cross midline
   });

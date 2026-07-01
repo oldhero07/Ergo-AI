@@ -25,7 +25,7 @@ export async function loadBitmap(file: File): Promise<ImageBitmap> {
     try {
       return await decodeHeic(file);
     } catch {
-      // Fall through to the native decoder — Safari on Apple devices can often
+      // Fall through to the native decoder - Safari on Apple devices can often
       // read HEIC directly even when conversion fails.
     }
   }
@@ -37,14 +37,14 @@ export async function loadBitmap(file: File): Promise<ImageBitmap> {
       try {
         return await decodeHeic(file);
       } catch {
-        /* ignore — throw the original, more descriptive error below */
+        /* ignore - throw the original, more descriptive error below */
       }
     }
     throw err;
   }
 }
 
-/** Longest-edge dimension we render/annotate at — keeps canvases and PNGs light. */
+/** Longest-edge dimension we render/annotate at - keeps canvases and PNGs light. */
 export const MAX_RENDER_SIZE = 1280;
 
 export function fitScale(width: number, height: number, max = MAX_RENDER_SIZE): number {

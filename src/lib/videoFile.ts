@@ -20,7 +20,7 @@ export function validateVideoFile(file: File): VideoValidation {
     const mb = Math.round(file.size / (1024 * 1024));
     return {
       ok: false,
-      message: `This video is ${mb} MB — the limit is ${MAX_VIDEO_MB} MB. Trim it to a shorter clip of the posture and try again.`,
+      message: `This video is ${mb} MB - the limit is ${MAX_VIDEO_MB} MB. Trim it to a shorter clip of the posture and try again.`,
     };
   }
   if (file.size === 0) {

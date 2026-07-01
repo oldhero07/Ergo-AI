@@ -24,7 +24,7 @@ import {
 export interface SampledFrame {
   /** Presentation time of this frame within the clip, in seconds. */
   timeSec: number;
-  /** Decoded frame, downscaled to `maxEdge`. Caller owns it — close it when done. */
+  /** Decoded frame, downscaled to `maxEdge`. Caller owns it - close it when done. */
   bitmap: ImageBitmap;
   width: number;
   height: number;
@@ -70,7 +70,7 @@ function seekTo(video: HTMLVideoElement, t: number): Promise<void> {
     const onSeeked = () => {
       cleanup();
       // A macrotask tick lets the freshly-seeked frame settle before we read it.
-      // (Deliberately not requestAnimationFrame — rAF is throttled/paused in
+      // (Deliberately not requestAnimationFrame - rAF is throttled/paused in
       // background tabs, which would stall the whole sampling loop.)
       setTimeout(resolve, 0);
     };
@@ -140,7 +140,7 @@ export async function sampleVideoFrames(
   video.muted = true;
   video.playsInline = true;
   video.preload = "auto";
-  // Off-screen rather than fully detached — some browsers (notably mobile
+  // Off-screen rather than fully detached - some browsers (notably mobile
   // Safari) seek/draw more reliably when the element is in the document.
   video.setAttribute("aria-hidden", "true");
   video.style.cssText = "position:fixed;left:-9999px;top:0;width:1px;height:1px;opacity:0;pointer-events:none";
@@ -156,7 +156,7 @@ export async function sampleVideoFrames(
       throw new Error("This video has no readable duration.");
     }
     // No decodable video track (audio-only, or a codec the browser can't decode
-    // such as HEVC/AV1) — metadata loads but there are no pixels to sample.
+    // such as HEVC/AV1) - metadata loads but there are no pixels to sample.
     if (!video.videoWidth || !video.videoHeight) {
       throw new Error("Couldn't decode this video format. Try exporting it as MP4 (H.264).");
     }
@@ -193,7 +193,7 @@ export async function sampleVideoFrames(
       } catch (err) {
         if (err instanceof AbortError) throw err;
         // A single unreadable frame (seek timeout / decode glitch) shouldn't kill
-        // a good clip — skip it. But a fundamentally broken/unsupported file fails
+        // a good clip - skip it. But a fundamentally broken/unsupported file fails
         // every frame, so bail after a short run of consecutive failures.
         unreadableFrames++;
         consecutiveFailures++;

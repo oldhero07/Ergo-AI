@@ -14,7 +14,7 @@ import type { AngleSet } from "@/lib/angles";
 
 describe("REBA category scores", () => {
   it("scores neck (2 bands + twist/side-bend)", () => {
-    expect(neckScore(10, false, false)).toBe(1); // 0–20° flexion
+    expect(neckScore(10, false, false)).toBe(1); // 0-20° flexion
     expect(neckScore(30, false, false)).toBe(2); // >20°
     expect(neckScore(-5, false, false)).toBe(2); // extension
     expect(neckScore(10, true, false)).toBe(2); // +twist
@@ -31,7 +31,7 @@ describe("REBA category scores", () => {
   it("scores legs with the knee-flexion add and seated exception", () => {
     expect(legsScore(true, undefined, true)).toBe(1); // bilateral, no knee data
     expect(legsScore(false, undefined, true)).toBe(2); // unilateral / unstable
-    expect(legsScore(true, 45, false)).toBe(2); // +1 for 30–60° knee
+    expect(legsScore(true, 45, false)).toBe(2); // +1 for 30-60° knee
     expect(legsScore(true, 70, false)).toBe(3); // +2 for >60° knee
     expect(legsScore(true, 70, true)).toBe(1); // seated → knee add skipped
   });
@@ -41,7 +41,7 @@ describe("REBA category scores", () => {
     expect(upperArmScore(70, false, false, false)).toBe(3);
     expect(upperArmScore(120, false, false, false)).toBe(4);
     expect(upperArmScore(70, false, false, true)).toBe(2); // supported −1
-    expect(lowerArmScore(80)).toBe(1); // 60–100°
+    expect(lowerArmScore(80)).toBe(1); // 60-100°
     expect(lowerArmScore(40)).toBe(2); // <60°
     expect(lowerArmScore(120)).toBe(2); // >100°
     expect(wristScore(10, false)).toBe(1);

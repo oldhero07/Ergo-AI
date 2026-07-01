@@ -15,7 +15,7 @@ const CONNECTOR_COLOR = "#10b981"; // emerald
 const LANDMARK_COLOR = "#f43f5e"; // rose
 
 /**
- * Draw the original image with MediaPipe's landmarks + connections on top —
+ * Draw the original image with MediaPipe's landmarks + connections on top -
  * the canonical "skeleton image" output. Returns a PNG data URL.
  */
 export function annotateSkeleton(
@@ -55,7 +55,7 @@ export function annotateSkeleton(
 /**
  * Draw an already-decoded bitmap to a downscaled JPEG data URL. Because the
  * bitmap is decoded (HEIC already converted upstream by `loadBitmap`), this
- * gives a "clean original" that renders in any browser — used for the PDF's
+ * gives a "clean original" that renders in any browser - used for the PDF's
  * Original-photo slot, which otherwise can't embed a raw iPhone HEIC file.
  */
 export function renderOriginalJpeg(source: ImageBitmap, quality = 0.85): string {

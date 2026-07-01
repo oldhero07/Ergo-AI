@@ -24,7 +24,7 @@ export interface PostureInput {
   trunkSideBend: boolean;
   legsSupported: boolean;
 
-  // Muscle use (static/repeated) and force/load (0–3) per group.
+  // Muscle use (static/repeated) and force/load (0-3) per group.
   muscleUseA: boolean;
   forceA: number;
   muscleUseB: boolean;
@@ -36,7 +36,7 @@ export interface PostureInput {
   // `buildAutoInput`, so RULA-only callers are unaffected.
   legAngle?: number; // knee flexion in degrees (0 = straight, ~90 = right angle); undefined when lower body not visible
   legsBilateral: boolean; // true = bilateral weight-bearing / sitting / walking; false = unilateral / unstable
-  load: number; // REBA load band: 0 (<5 kg), 1 (5–10 kg), 2 (>10 kg)
+  load: number; // REBA load band: 0 (<5 kg), 1 (5-10 kg), 2 (>10 kg)
   loadShock: boolean; // +1 for shock or rapid build-up of force
   coupling: number; // 0 good, 1 fair, 2 poor, 3 unacceptable
   activityStatic: boolean; // one or more body parts held static >1 min

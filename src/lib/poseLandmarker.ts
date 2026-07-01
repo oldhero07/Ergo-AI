@@ -84,7 +84,7 @@ async function downloadModelBytes(onProgress?: ModelProgress): Promise<Uint8Arra
       return buf;
     }
   } catch {
-    /* Cache Storage unavailable — fall through to a network fetch. */
+    /* Cache Storage unavailable - fall through to a network fetch. */
   }
 
   let lastError: unknown;

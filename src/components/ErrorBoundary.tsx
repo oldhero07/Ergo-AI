@@ -36,7 +36,7 @@ export class ErrorBoundary extends Component<Props, State> {
         </span>
         <h1 className="text-xl font-semibold">Something went wrong</h1>
         <p className="max-w-md text-sm text-muted-foreground">
-          Ergo AI hit an unexpected error. Nothing was uploaded and nothing is saved — reloading starts you fresh.
+          Ergo AI hit an unexpected error. Nothing was uploaded and nothing is saved - reloading starts you fresh.
         </p>
         <Button onClick={() => window.location.reload()}>Reload</Button>
       </div>

@@ -143,7 +143,7 @@ export function AdjustmentsPanel({
                   onChange={(v) => set("lowerArmCrossMidline", v)}
                 />
                 <Toggle
-                  label="Muscle held static or repeated >4x/min"
+                  label="Held static over a minute, or repeated 4+ times a minute"
                   checked={input.muscleUseA}
                   onChange={(v) => set("muscleUseA", v)}
                 />
@@ -182,7 +182,7 @@ export function AdjustmentsPanel({
                     className="w-full accent-primary"
                   />
                 </div>
-                <ForceControl label="Load (0 <5kg · 1 5–10 · 2 >10)" value={input.load} onChange={(v) => set("load", v)} steps={[0, 1, 2]} />
+                <ForceControl label="Load (0 <5kg · 1 5-10 · 2 >10)" value={input.load} onChange={(v) => set("load", v)} steps={[0, 1, 2]} />
                 <Toggle label="Shock / rapid force build-up" checked={input.loadShock} onChange={(v) => set("loadShock", v)} />
                 <div className="pt-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Activity</div>
                 <Toggle label="Body part held static >1 min" checked={input.activityStatic} onChange={(v) => set("activityStatic", v)} />
@@ -192,7 +192,7 @@ export function AdjustmentsPanel({
             ) : (
               <>
                 <Toggle
-                  label="Muscle held static or repeated >4x/min"
+                  label="Held static over a minute, or repeated 4+ times a minute"
                   checked={input.muscleUseB}
                   onChange={(v) => set("muscleUseB", v)}
                 />

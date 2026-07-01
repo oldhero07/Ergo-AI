@@ -3,7 +3,7 @@
  * Tuning these is a one-line change; they bound memory, runtime, and hang risk.
  */
 
-/** Reject videos larger than this. A memory backstop — the blob still sits in RAM
+/** Reject videos larger than this. A memory backstop - the blob still sits in RAM
  * while the <video> reads it. Generous because we sample frame-by-frame (we never
  * hold the whole clip decoded), so this guards pathological multi-GB drops, not
  * normal phone clips. */

@@ -3,8 +3,8 @@ import { Logo } from "@/components/Logo";
 import type { AnalysisMode } from "@/types";
 
 /**
- * Presentational landing page shown before the tool. Stores nothing — no DB, no
- * cache, no persistence — it just explains what Ergo AI does and hands off to
+ * Presentational landing page shown before the tool. Stores nothing - no DB, no
+ * cache, no persistence - it just explains what Ergo AI does and hands off to
  * the chosen flow (photo or video) via `onStart`.
  */
 export function Landing({ onStart }: { onStart: (mode: AnalysisMode) => void }) {
@@ -23,7 +23,7 @@ export function Landing({ onStart }: { onStart: (mode: AnalysisMode) => void }) 
             <p className="mx-auto mt-4 max-w-xl text-pretty text-base text-muted-foreground sm:text-lg lg:mx-0">
               Get <strong className="font-semibold text-foreground">RULA</strong> and{" "}
               <strong className="font-semibold text-foreground">REBA</strong> posture-risk scores from a photo or a
-              short video — with a professional PDF report. Free, private, no sign-up.
+              short video - with a professional PDF report. Free, private, no sign-up.
             </p>
             <div className="mt-8 grid gap-3 sm:grid-cols-2">
               <EntryCard
@@ -54,7 +54,7 @@ export function Landing({ onStart }: { onStart: (mode: AnalysisMode) => void }) 
           </h2>
           <div className="mt-8 grid gap-4 sm:grid-cols-3">
             <Step icon={<Camera className="h-5 w-5" />} n="1" title="Upload">
-              A clear side view of the working posture — photo or short clip. Everything stays on your device.
+              A clear side view of the working posture - photo or short clip. Everything stays on your device.
             </Step>
             <Step icon={<ScanLine className="h-5 w-5" />} n="2" title="AI reads the pose">
               On-device AI (Google MediaPipe Pose) locates 33 body landmarks and derives the joint angles.
@@ -72,13 +72,13 @@ export function Landing({ onStart }: { onStart: (mode: AnalysisMode) => void }) 
           <MethodCard
             name="RULA"
             full="Rapid Upper Limb Assessment"
-            scale="Grand score 1–7"
-            body="Focuses on the upper body — arms, wrists, neck and trunk. Best for seated, desk and bench tasks."
+            scale="Grand score 1-7"
+            body="Focuses on the upper body - arms, wrists, neck and trunk. Best for seated, desk and bench tasks."
           />
           <MethodCard
             name="REBA"
             full="Rapid Entire Body Assessment"
-            scale="Grand score 1–15"
+            scale="Grand score 1-15"
             body="Whole-body assessment adding legs, load, coupling and an activity score. Best for dynamic, lifting and field work."
           />
         </div>
@@ -94,7 +94,7 @@ export function Landing({ onStart }: { onStart: (mode: AnalysisMode) => void }) 
             After the first load the pose model is cached, so it keeps working without a connection.
           </Feature>
           <Feature icon={<FileText className="h-5 w-5" />} title="Professional reports">
-            Cover page, risk-band legend, measured angles and assumptions — ready to share.
+            Cover page, risk-band legend, measured angles and assumptions - ready to share.
           </Feature>
         </div>
       </section>
@@ -105,7 +105,7 @@ export function Landing({ onStart }: { onStart: (mode: AnalysisMode) => void }) 
           <Logo className="mx-auto h-11 w-11" />
           <h2 className="mt-4 text-2xl font-semibold tracking-tight">Ready to assess a posture?</h2>
           <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-            Start with a photo or a short video — RULA and REBA scores in seconds.
+            Start with a photo or a short video - RULA and REBA scores in seconds.
           </p>
           <div className="mx-auto mt-6 grid max-w-md gap-3 sm:grid-cols-2">
             <EntryCard icon={<Camera className="h-5 w-5" />} title="Analyze a photo" sub="" onClick={() => onStart("photo")} primary />

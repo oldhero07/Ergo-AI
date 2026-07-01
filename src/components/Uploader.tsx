@@ -8,7 +8,7 @@ import type { AnalysisMode, UploadItem } from "@/types";
 
 /**
  * Thumbnail tile. Chrome/Firefox can't render an iPhone HEIC in an <img>, so the
- * raw object URL fails to load — but the file IS attached and will be decoded
+ * raw object URL fails to load - but the file IS attached and will be decoded
  * (heic-to / libheif) at analysis time. Rather than show a broken-image glyph
  * (which reads as "upload failed"), fall back to a labelled placeholder so it's
  * clear the photo is queued and will be analyzed.
@@ -128,7 +128,7 @@ export function Uploader({
           {isVideoMode ? "Drag & drop a video here" : "Drag & drop photos here"}
         </p>
         <p className="mt-1 text-sm text-muted-foreground">
-          {isVideoMode ? "or click to browse — one short clip" : "or click to browse · paste from clipboard · one or many"}
+          {isVideoMode ? "or click to browse - one short clip" : "or click to browse · paste from clipboard · one or many"}
         </p>
         <p className="mt-3 text-xs text-muted-foreground">
           {isVideoMode

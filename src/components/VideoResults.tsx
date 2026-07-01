@@ -5,6 +5,7 @@ import type { AssessmentResult, PostureInput } from "@/assessment/types";
 import { getMethod, methods } from "@/assessment/registry";
 import { RISK_META } from "@/lib/risk";
 import { Scorecard } from "@/components/Scorecard";
+import { MeasurementSummary } from "@/components/MeasurementSummary";
 import { Button } from "@/components/ui/button";
 import { exportVideoPdfReport, type VideoPdfReport } from "@/lib/pdf";
 
@@ -152,7 +153,12 @@ export function VideoResults({
         </div>
       ) : (
         <>
-          <video ref={videoRef} src={videoUrl} controls className="w-full rounded-xl border bg-black" />
+          <video
+            ref={videoRef}
+            src={videoUrl}
+            controls
+            className="mx-auto block max-h-[420px] max-w-full rounded-xl border bg-black"
+          />
 
           <Timeline scored={scored} playhead={playhead} onSeek={seek} />
 
@@ -179,6 +185,24 @@ export function VideoResults({
               {analysis.unreadableFrames > 0 && ` · ${analysis.unreadableFrames} unreadable`}
               . Angles are smoothed over a 2.5 s window.
             </p>
+          )}
+
+          {(analysis.temporal.repeated || analysis.temporal.sustained) && (
+            <p className="mt-3 rounded-lg bg-primary/5 px-4 py-2 text-sm text-foreground">
+              <strong className="font-medium">Detected over the clip:</strong>{" "}
+              {analysis.temporal.repeated ? "repeated motion" : "posture held"} — applied as muscle use / activity in
+              every frame&apos;s score.
+            </p>
+          )}
+
+          {stats && (
+            <div className="mt-4 overflow-hidden rounded-xl border bg-card">
+              <MeasurementSummary
+                method={stats.peak.assessment.method}
+                input={stats.peak.input}
+                staticRepetition={analysis.temporal.repeated || analysis.temporal.sustained ? "detected" : "assumed"}
+              />
+            </div>
           )}
 
           {stats && (

@@ -6,7 +6,7 @@ const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v
 // --- Group A: trunk, neck, legs ---------------------------------------------
 
 export function neckScore(angle: number, twisted: boolean, sideBend: boolean): number {
-  // 0–20° flexion → 1; >20° flexion or any extension → 2.
+  // 0-20° flexion → 1; >20° flexion or any extension → 2.
   let s = angle >= 0 && angle <= 20 ? 1 : 2;
   if (twisted || sideBend) s += 1;
   return clamp(s, 1, 3);
@@ -25,8 +25,8 @@ export function trunkScore(angle: number, twisted: boolean, sideBend: boolean): 
 
 /**
  * REBA legs: base 1 (bilateral weight-bearing / walking / sitting) or 2
- * (unilateral / unstable), plus a knee-flexion add (+1 for 30–60°, +2 for >60°)
- * that is skipped when seated/supported — per the official "(not sitting)" note.
+ * (unilateral / unstable), plus a knee-flexion add (+1 for 30-60°, +2 for >60°)
+ * that is skipped when seated/supported - per the official "(not sitting)" note.
  */
 export function legsScore(bilateral: boolean, legAngle: number | undefined, seated: boolean): number {
   let s = bilateral ? 1 : 2;
@@ -53,7 +53,7 @@ export function upperArmScore(angle: number, raised: boolean, abducted: boolean,
 }
 
 export function lowerArmScore(flexion: number): number {
-  // 60–100° elbow flexion → 1; otherwise → 2.
+  // 60-100° elbow flexion → 1; otherwise → 2.
   return flexion >= 60 && flexion <= 100 ? 1 : 2;
 }
 
@@ -65,13 +65,13 @@ export function wristScore(angle: number, deviatedOrTwisted: boolean): number {
 
 // --- Adjustments & banding --------------------------------------------------
 
-/** Whole-task activity score (0–3): static hold, repeated small actions, unstable/rapid changes. */
+/** Whole-task activity score (0-3): static hold, repeated small actions, unstable/rapid changes. */
 export function activityScore(input: PostureInput): number {
   return (input.activityStatic ? 1 : 0) + (input.activityRepeated ? 1 : 0) + (input.activityUnstable ? 1 : 0);
 }
 
 function band(grand: number): { band: RiskBand; label: string; action: string } {
-  if (grand <= 1) return { band: "low", label: "Negligible", action: "Risk is negligible — no action required." };
+  if (grand <= 1) return { band: "low", label: "Negligible", action: "Risk is negligible - no action required." };
   if (grand <= 3) return { band: "low", label: "Low risk", action: "Low risk; change may be needed." };
   if (grand <= 7) return { band: "medium", label: "Medium risk", action: "Further investigation is needed; change soon." };
   if (grand <= 10) return { band: "high", label: "High risk", action: "Investigate and implement change." };
@@ -79,7 +79,7 @@ function band(grand: number): { band: RiskBand; label: string; action: string } 
 }
 
 export function computeReba(input: PostureInput): AssessmentResult {
-  // Group A — trunk, neck, legs → Table A → + load.
+  // Group A - trunk, neck, legs → Table A → + load.
   const nk = neckScore(input.neckAngle, input.neckTwisted, input.neckSideBend);
   const tk = trunkScore(input.trunkAngle, input.trunkTwisted, input.trunkSideBend);
   const lg = legsScore(input.legsBilateral, input.legAngle, input.legsSupported);
@@ -87,7 +87,7 @@ export function computeReba(input: PostureInput): AssessmentResult {
   const load = clamp(Math.round(input.load), 0, 2) + (input.loadShock ? 1 : 0);
   const scoreA = postureA + load;
 
-  // Group B — upper arm, lower arm, wrist → Table B → + coupling.
+  // Group B - upper arm, lower arm, wrist → Table B → + coupling.
   const ua = upperArmScore(input.upperArmAngle, input.shoulderRaised, input.upperArmAbducted, input.armSupported);
   const la = lowerArmScore(input.lowerArmAngle);
   const wr = wristScore(input.wristAngle, input.wristDeviated || input.wristTwistEnd);
@@ -102,7 +102,7 @@ export function computeReba(input: PostureInput): AssessmentResult {
   const b = band(grandScore);
 
   const notes: string[] = [];
-  if (input.legAngle === undefined) notes.push("Legs not visible — scored as bilateral/supported (assumed).");
+  if (input.legAngle === undefined) notes.push("Legs not visible - scored as bilateral/supported (assumed).");
   if (activity > 0) {
     const parts = [
       input.activityStatic && "static hold >1 min",

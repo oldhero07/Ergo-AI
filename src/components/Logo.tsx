@@ -1,5 +1,5 @@
 /**
- * Ergo AI mark — an abstract pose skeleton (head, trunk, raised arm joints) with
+ * Ergo AI mark - an abstract pose skeleton (head, trunk, raised arm joints) with
  * a highlighted angle arc at the shoulder, mirroring the upper-arm elevation that
  * drives the RULA score and the MediaPipe skeleton the app actually renders.
  * Self-contained (own rounded background) so it doubles as the favicon artwork.
