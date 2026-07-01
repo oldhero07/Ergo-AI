@@ -133,12 +133,24 @@ export default function App() {
     });
   }, []);
 
-  const useSample = useCallback(async () => {
+  const useSample = useCallback(async (key: "office" | "warehouse" | "assembly") => {
     try {
-      const res = await fetch(`${import.meta.env.BASE_URL}samples/weaver-sample.jpg`);
+      const filename =
+        key === "office"
+          ? "office-typing.jpg"
+          : key === "warehouse"
+            ? "warehouse-lifting.jpg"
+            : "assembly-standing.jpg";
+      const displayLabel =
+        key === "office"
+          ? "office-typing.jpg"
+          : key === "warehouse"
+            ? "warehouse-lifting.jpg"
+            : "assembly-standing.jpg";
+      const res = await fetch(`${import.meta.env.BASE_URL}samples/${filename}`);
       if (!res.ok) return;
       const blob = await res.blob();
-      addFiles([new File([blob], "weaver-sample.jpg", { type: blob.type || "image/jpeg" })]);
+      addFiles([new File([blob], displayLabel, { type: blob.type || "image/jpeg" })]);
     } catch {
       /* sample not bundled - ignore */
     }

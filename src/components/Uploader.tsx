@@ -45,7 +45,7 @@ interface UploaderProps {
   onRemove: (id: string) => void;
   onClear: () => void;
   onAnalyze: () => void;
-  onUseSample?: () => void;
+  onUseSample?: (key: "office" | "warehouse" | "assembly") => void;
 }
 
 export function Uploader({
@@ -165,10 +165,33 @@ export function Uploader({
       )}
 
       {!isVideoMode && onUseSample && items.length === 0 && (
-        <div className="mt-3 text-center">
-          <Button variant="link" size="sm" onClick={onUseSample} className="text-muted-foreground">
-            or use a sample photo
-          </Button>
+        <div className="mt-6 border-t pt-4 text-center">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
+            Or test with a sample scenario:
+          </p>
+          <div className="flex flex-wrap justify-center gap-3">
+            <button
+              type="button"
+              onClick={() => onUseSample("office")}
+              className="inline-flex items-center gap-1.5 rounded-lg border bg-card px-3 py-1.5 text-xs font-medium transition-colors hover:bg-accent hover:text-foreground"
+            >
+              💻 Office Desk Work
+            </button>
+            <button
+              type="button"
+              onClick={() => onUseSample("warehouse")}
+              className="inline-flex items-center gap-1.5 rounded-lg border bg-card px-3 py-1.5 text-xs font-medium transition-colors hover:bg-accent hover:text-foreground"
+            >
+              📦 Warehouse Lifting
+            </button>
+            <button
+              type="button"
+              onClick={() => onUseSample("assembly")}
+              className="inline-flex items-center gap-1.5 rounded-lg border bg-card px-3 py-1.5 text-xs font-medium transition-colors hover:bg-accent hover:text-foreground"
+            >
+              ⚙️ Assembly Standing
+            </button>
+          </div>
         </div>
       )}
 
