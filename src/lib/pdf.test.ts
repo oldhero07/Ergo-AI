@@ -150,7 +150,7 @@ function makeAnalysis(overrides: Partial<PoseAnalysis> = {}): PoseAnalysis {
         },
       ],
       angles: { upperArm: 50, lowerArm: 80, neck: 10, trunk: 5 },
-      notes: ["Lower-bound 2D estimate."],
+      notes: ["Lower-bound estimate."],
     },
     ...overrides,
   };

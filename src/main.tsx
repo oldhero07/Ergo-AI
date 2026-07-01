@@ -5,6 +5,26 @@ import App from "./App";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import "./index.css";
 
+// Register the Service Worker for offline capability & model caching
+if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    // Construct absolute origin-relative URL compatible with Vercel and subdirectory hosts (GitHub Pages)
+    const base = import.meta.env.BASE_URL === "./" 
+      ? window.location.pathname.replace(/\/[^\/]*$/, "/") 
+      : import.meta.env.BASE_URL;
+    const swUrl = `${window.location.origin}${base.replace(/\/$/, "")}/sw.js`;
+    
+    navigator.serviceWorker
+      .register(swUrl)
+      .then((reg) => {
+        console.log("Service Worker registered successfully:", reg.scope);
+      })
+      .catch((err) => {
+        console.error("Service Worker registration failed:", err);
+      });
+  });
+}
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <ErrorBoundary>

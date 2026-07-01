@@ -147,7 +147,7 @@ export default function App() {
   // Floor so the compute animation always gets a full cycle on screen, even when
   // detection resolves near-instantly (warm model, small/cached photo). Derived
   // from the real GSAP timeline duration so it can't drift out of sync with it.
-  const MIN_COMPUTE_MS = Math.max(5000, COMPUTE_LOOP_MS);
+  const MIN_COMPUTE_MS = Math.max(4500, COMPUTE_LOOP_MS);
 
   const runAnalysis = useCallback(async () => {
     if (!items.length) return; // nothing queued - ignore stray clicks
@@ -546,11 +546,22 @@ export default function App() {
             <ReportDetails meta={reportMeta} onChange={setReportMeta} />
             {items.length > 1 && <BatchSummary items={items} results={results} />}
             <div className="space-y-8 mt-6">
-              {items.map((it) => {
+              {[...items]
+                .sort((a, b) => {
+                  const sa = results[a.id]?.assessment?.grandScore ?? -1;
+                  const sb = results[b.id]?.assessment?.grandScore ?? -1;
+                  return sb - sa;
+                })
+                .map((it, sortIdx) => {
                 const r = results[it.id];
                 return (
-                  <div key={it.id} className="overflow-hidden rounded-xl border">
-                    <div className="grid sm:grid-cols-2">
+                  <div key={it.id} className={`overflow-hidden rounded-xl border ${sortIdx === 0 && items.length > 1 && results[it.id]?.assessment ? 'ring-2 ring-destructive/60' : ''}`}>
+                      {sortIdx === 0 && items.length > 1 && results[it.id]?.assessment && (
+                        <div className="flex items-center gap-1.5 bg-destructive/10 px-4 py-1.5 text-xs font-semibold text-destructive">
+                          <span>🔴</span> Worst posture in batch · investigate first
+                        </div>
+                      )}
+                      <div className="grid sm:grid-cols-2">
                       <figure className="border-b sm:border-b-0 sm:border-r">
                         <img
                           src={r?.originalImageUrl ?? it.url}
@@ -571,7 +582,7 @@ export default function App() {
                           MediaPipe skeleton
                         </figcaption>
                       </figure>
-                    </div>
+                      </div>
                     {r?.error ? (
                       <div className="flex items-center gap-2 border-t px-5 py-4 text-sm text-destructive">
                         <AlertTriangle className="h-4 w-4" /> Could not analyze: {r.error}
@@ -620,10 +631,10 @@ export default function App() {
         <div className="container flex flex-col items-center gap-1 py-6 text-center text-xs text-muted-foreground">
           <p>Everything runs in your browser - your photos and videos are never uploaded.</p>
           {phase !== "landing" && (
-            <p>
-              RULA and REBA scores are a lower-bound estimate from a single 2D view, not a substitute
-              for a trained assessor.
-            </p>
+          <p>
+            RULA and REBA scores are a lower-bound estimate from a single camera view, not a substitute
+            for a trained assessor.
+          </p>
           )}
         </div>
       </footer>

@@ -187,6 +187,73 @@ function thumbnail(bitmap: ImageBitmap, maxEdge = 320, quality = 0.7): string {
  * smoothed/interpolated yet - that's the temporal-tracking follow-up). The UI
  * scores each frame with the active method and builds the risk-over-time view.
  */
+interface RawVideoFrame {
+  timeSec: number;
+  angles: AngleSet;
+  confidence: number;
+  thumbUrl: string;
+  wristFlex: number | null;
+}
+
+/** Crop the area around the wrist and run the hand landmarker on it for max speed. */
+async function detectHandsCropped(
+  bitmap: ImageBitmap,
+  wristX: number,
+  wristY: number,
+  boxSizeFraction = 0.35, // Increased from 0.25 to prevent finger clipping
+): Promise<NormalizedLandmark[][]> {
+  const w = bitmap.width;
+  const h = bitmap.height;
+  const size = Math.round(Math.min(w, h) * boxSizeFraction);
+  if (size <= 0) return [];
+  const cx = wristX * w;
+  const cy = wristY * h;
+  let sx = Math.round(cx - size / 2);
+  let sy = Math.round(cy - size / 2);
+  sx = Math.max(0, Math.min(w - size, sx));
+  sy = Math.max(0, Math.min(h - size, sy));
+
+  try {
+    const cropped = await createImageBitmap(bitmap, sx, sy, size, size);
+    try {
+      const handsResult = await detectHands(cropped);
+      if (handsResult && handsResult.landmarks && handsResult.landmarks.length > 0) {
+        const ox = sx / w;
+        const oy = sy / h;
+        const sw = size / w;
+        const sh = size / h;
+        return handsResult.landmarks.map((landmarks) =>
+          landmarks.map((pt) => ({
+            ...pt,
+            x: ox + pt.x * sw,
+            y: oy + pt.y * sh,
+          }))
+        );
+      }
+    } finally {
+      cropped.close();
+    }
+  } catch {
+    /* crop decode failed - let fallback handle it */
+  }
+
+  // --- QUALITY ASSURANCE FALLBACK ---
+  // If cropped detection failed to find a hand (e.g. hand was extended outside the crop box),
+  // immediately fall back to scanning the full image frame so we never compromise on accuracy.
+  try {
+    const fullHandsResult = await detectHands(bitmap);
+    return fullHandsResult?.landmarks || [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Full video pipeline (lean V1): sample frames → detect pose per frame → derive
+ * angles + a method-agnostic PostureInput. Frames with no pose are skipped (not
+ * smoothed/interpolated yet - that's the temporal-tracking follow-up). The UI
+ * scores each frame with the active method and builds the risk-over-time view.
+ */
 export async function analyzeVideo(
   file: File,
   onProgress?: VideoProgress,
@@ -217,7 +284,21 @@ export async function analyzeVideo(
         skippedLowConfidence++;
         return;
       }
-      raw.push({ timeSec, angles, confidence: angles.confidence, thumbUrl: thumbnail(bitmap) });
+
+      // Calculate wrist flexion for the assessed side if wrist visibility is high enough
+      let wristFlex: number | null = null;
+      const wristIdx = angles.side === "left" ? 15 : 16; // LM.leftWrist / LM.rightWrist
+      const wristVis = landmarks[wristIdx]?.visibility ?? 0;
+      if (wristVis > 0.45) {
+        try {
+          const mappedHands = await detectHandsCropped(bitmap, landmarks[wristIdx].x, landmarks[wristIdx].y);
+          wristFlex = measureWristFlexion(landmarks, mappedHands, angles.side);
+        } catch {
+          /* ignore hand tracking errors on this frame */
+        }
+      }
+
+      raw.push({ timeSec, angles, confidence: angles.confidence, thumbUrl: thumbnail(bitmap), wristFlex });
     },
   );
 
@@ -232,6 +313,7 @@ export async function analyzeVideo(
   const nk = channel("neck");
   const tk = channel("trunk");
   const lg = channel("legAngle");
+  const wf = raw.map((r) => r.wristFlex ?? undefined);
 
   const frames: VideoFrameResult[] = raw.map((r, i) => {
     const smoothed: AngleSet = {
@@ -243,7 +325,14 @@ export async function analyzeVideo(
       side: r.angles.side,
       confidence: r.confidence,
     };
-    return { timeSec: r.timeSec, angles: smoothed, input: buildAutoInput(smoothed), confidence: r.confidence, thumbUrl: r.thumbUrl };
+    const smoothedWrist = smoothChannel(wf, i, halfWin) ?? 0;
+    return {
+      timeSec: r.timeSec,
+      angles: smoothed,
+      input: buildAutoInput(smoothed, { wristAngle: smoothedWrist }),
+      confidence: r.confidence,
+      thumbUrl: r.thumbUrl,
+    };
   });
 
   // Static/repetition is the factor video can validate that a photo can't. When

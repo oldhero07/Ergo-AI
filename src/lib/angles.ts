@@ -52,6 +52,12 @@ interface P {
   y: number;
 }
 
+interface P3 {
+  x: number;
+  y: number;
+  z: number;
+}
+
 const vis = (lms: { visibility?: number }[], i: number) => lms[i]?.visibility ?? 0;
 const pt = (lms: NormalizedLandmark[], i: number): P => ({ x: lms[i].x, y: lms[i].y });
 const mid = (a: P, b: P): P => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
@@ -67,29 +73,66 @@ function angleBetween(u: P, v: P): number {
   return (Math.acos(cos) * 180) / Math.PI;
 }
 
+const sub3D = (q: P3, p: P3): P3 => ({
+  x: q.x - p.x,
+  y: q.y - p.y,
+  z: q.z - p.z,
+});
+
+function angleBetween3D(u: P3, v: P3): number {
+  const du = Math.hypot(u.x, u.y, u.z);
+  const dv = Math.hypot(v.x, v.y, v.z);
+  if (du === 0 || dv === 0) return 0;
+  const cos = Math.min(1, Math.max(-1, (u.x * v.x + u.y * v.y + u.z * v.z) / (du * dv)));
+  return (Math.acos(cos) * 180) / Math.PI;
+}
+
 const SIDE_IDX = {
   left: { sh: LM.leftShoulder, el: LM.leftElbow, wr: LM.leftWrist, hip: LM.leftHip, kn: LM.leftKnee, an: LM.leftAnkle },
   right: { sh: LM.rightShoulder, el: LM.rightElbow, wr: LM.rightWrist, hip: LM.rightHip, kn: LM.rightKnee, an: LM.rightAnkle },
 } as const;
 
-function sideAngles(lms: NormalizedLandmark[], s: Side): SideAngles {
+function sideAngles(lms: NormalizedLandmark[], s: Side, world?: Landmark[]): SideAngles {
   const i = SIDE_IDX[s];
-  const shoulder = pt(lms, i.sh);
-  const elbow = pt(lms, i.el);
-  const wrist = pt(lms, i.wr);
-  const hip = pt(lms, i.hip);
-
-  // Upper arm: angle between shoulder->elbow and shoulder->hip (trunk line down).
-  const upperArm = angleBetween(sub(elbow, shoulder), sub(hip, shoulder));
-  // Lower arm: forearm flexion = 180 - elbow included angle.
-  const lowerArm = 180 - angleBetween(sub(shoulder, elbow), sub(wrist, elbow));
-
-  const kneeVisible = vis(lms, i.kn) > 0.3 && vis(lms, i.an) > 0.3;
-  const legAngle = kneeVisible
-    ? 180 - angleBetween(sub(hip, pt(lms, i.kn)), sub(pt(lms, i.an), pt(lms, i.kn)))
-    : undefined;
-
   const visibility = (vis(lms, i.sh) + vis(lms, i.el) + vis(lms, i.wr)) / 3;
+
+  let upperArm: number;
+  let lowerArm: number;
+  let legAngle: number | undefined;
+
+  if (world && world.length >= 25 && world[i.sh] && world[i.el] && world[i.wr] && world[i.hip]) {
+    const sh3D = world[i.sh];
+    const el3D = world[i.el];
+    const wr3D = world[i.wr];
+    const hip3D = world[i.hip];
+
+    // Upper arm: angle between shoulder->elbow and shoulder->hip (trunk line down).
+    upperArm = angleBetween3D(sub3D(el3D, sh3D), sub3D(hip3D, sh3D));
+    // Lower arm: forearm flexion = 180 - elbow included angle.
+    lowerArm = 180 - angleBetween3D(sub3D(sh3D, el3D), sub3D(wr3D, el3D));
+
+    const kneeVisible = vis(lms, i.kn) > 0.3 && vis(lms, i.an) > 0.3;
+    if (kneeVisible && world[i.kn] && world[i.an]) {
+      const kn3D = world[i.kn];
+      const an3D = world[i.an];
+      legAngle = 180 - angleBetween3D(sub3D(hip3D, kn3D), sub3D(an3D, kn3D));
+    }
+  } else {
+    // 2D Fallback
+    const shoulder = pt(lms, i.sh);
+    const elbow = pt(lms, i.el);
+    const wrist = pt(lms, i.wr);
+    const hip = pt(lms, i.hip);
+
+    upperArm = angleBetween(sub(elbow, shoulder), sub(hip, shoulder));
+    lowerArm = 180 - angleBetween(sub(shoulder, elbow), sub(wrist, elbow));
+
+    const kneeVisible = vis(lms, i.kn) > 0.3 && vis(lms, i.an) > 0.3;
+    legAngle = kneeVisible
+      ? 180 - angleBetween(sub(hip, pt(lms, i.kn)), sub(pt(lms, i.an), pt(lms, i.kn)))
+      : undefined;
+  }
+
   return { upperArm, lowerArm, legAngle, visibility };
 }
 
@@ -163,8 +206,8 @@ export function computeAngles(
 ): AngleSet | null {
   if (!lms || lms.length < 25) return null;
 
-  const left = sideAngles(lms, "left");
-  const right = sideAngles(lms, "right");
+  const left = sideAngles(lms, "left", world);
+  const right = sideAngles(lms, "right", world);
 
   // Eligible = visible enough to trust; among those, the worse arm is scored.
   const eligible: Side[] = [];
@@ -179,12 +222,46 @@ export function computeAngles(
   const chosen = side === "left" ? left : right;
 
   // Neck & trunk from the body midline (side-independent).
-  const shoulderMid = mid(pt(lms, LM.leftShoulder), pt(lms, LM.rightShoulder));
-  const hipMid = mid(pt(lms, LM.leftHip), pt(lms, LM.rightHip));
+  let neck: number;
+  let trunk: number;
+
   const earVis = vis(lms, LM.leftEar) >= vis(lms, LM.rightEar) ? LM.leftEar : LM.rightEar;
-  const head = vis(lms, earVis) > 0.3 ? pt(lms, earVis) : pt(lms, LM.nose);
-  const neck = angleBetween(sub(head, shoulderMid), sub(shoulderMid, hipMid));
-  const trunk = angleBetween(sub(shoulderMid, hipMid), { x: 0, y: 1 });
+
+  if (world && world.length >= 25) {
+    const shMid3D = {
+      x: (world[LM.leftShoulder].x + world[LM.rightShoulder].x) / 2,
+      y: (world[LM.leftShoulder].y + world[LM.rightShoulder].y) / 2,
+      z: (world[LM.leftShoulder].z + world[LM.rightShoulder].z) / 2,
+    };
+    const hipMid3D = {
+      x: (world[LM.leftHip].x + world[LM.rightHip].x) / 2,
+      y: (world[LM.leftHip].y + world[LM.rightHip].y) / 2,
+      z: (world[LM.leftHip].z + world[LM.rightHip].z) / 2,
+    };
+    const head3D = (vis(lms, LM.leftEar) > 0.3 && vis(lms, LM.rightEar) > 0.3)
+      ? {
+          x: (world[LM.leftEar].x + world[LM.rightEar].x) / 2,
+          y: (world[LM.leftEar].y + world[LM.rightEar].y) / 2,
+          z: (world[LM.leftEar].z + world[LM.rightEar].z) / 2,
+        }
+      : vis(lms, earVis) > 0.3 ? world[earVis] : world[LM.nose];
+
+    // Neck: angle between head-vector (shoulderMid -> head) and trunk-vector (hipMid -> shoulderMid)
+    neck = angleBetween3D(sub3D(head3D, shMid3D), sub3D(shMid3D, hipMid3D));
+
+    // Trunk: angle between trunk-vector (hipMid -> shoulderMid) and vertical gravity vector pointing UP
+    trunk = angleBetween3D(sub3D(shMid3D, hipMid3D), { x: 0, y: -1, z: 0 });
+  } else {
+    // 2D Fallback
+    const shoulderMid = mid(pt(lms, LM.leftShoulder), pt(lms, LM.rightShoulder));
+    const hipMid = mid(pt(lms, LM.leftHip), pt(lms, LM.rightHip));
+    const head = (vis(lms, LM.leftEar) > 0.3 && vis(lms, LM.rightEar) > 0.3)
+      ? mid(pt(lms, LM.leftEar), pt(lms, LM.rightEar))
+      : vis(lms, earVis) > 0.3 ? pt(lms, earVis) : pt(lms, LM.nose);
+
+    neck = angleBetween(sub(head, shoulderMid), sub(shoulderMid, hipMid));
+    trunk = angleBetween(sub(shoulderMid, hipMid), { x: 0, y: 1 });
+  }
 
   // 3D side-bend (measured, conservatively gated on world-landmark confidence).
   let neckSideBend: boolean | undefined;

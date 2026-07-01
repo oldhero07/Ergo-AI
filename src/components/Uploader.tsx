@@ -207,6 +207,9 @@ export function Uploader({
           </div>
         </div>
       )}
+
+      {/* Camera Guidance Expandable Panel */}
+      {!isVideoMode && <PhotoGuide />}
     </div>
   );
 }
@@ -226,5 +229,134 @@ function ModeTab({ active, icon, label, onClick }: { active: boolean; icon: Reac
       {icon}
       {label}
     </button>
+  );
+}
+
+function PhotoGuide() {
+  const [isOpen, setIsOpen] = useState(true);
+
+  return (
+    <div className="mt-8 rounded-2xl border bg-card/65 p-5 text-left shadow-sm backdrop-blur-sm transition-all duration-200">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex w-full items-center justify-between font-semibold text-sm text-foreground outline-none group"
+      >
+        <span className="flex items-center gap-2">
+          <Camera className="h-4.5 w-4.5 text-primary group-hover:scale-110 transition-transform" />
+          Photo Capture Guidelines for RULA/REBA Accuracy
+        </span>
+        <span className="rounded-md bg-secondary/60 hover:bg-secondary px-2.5 py-1 text-xs text-muted-foreground transition-colors">
+          {isOpen ? "Hide Guide" : "Show Guide"}
+        </span>
+      </button>
+
+      {isOpen && (
+        <div className="mt-5 grid gap-5 sm:grid-cols-3 animate-in fade-in slide-in-from-top-1 duration-200">
+          
+          {/* Card 1: Side View profile */}
+          <div className="rounded-xl border bg-card/40 p-3.5 flex flex-col gap-3">
+            <h4 className="font-semibold text-xs text-foreground uppercase tracking-wider">1. View Orientation</h4>
+            <div className="aspect-[4/3] rounded-lg bg-secondary/30 flex items-center justify-center border border-border/40 overflow-hidden">
+              <svg viewBox="0 0 100 80" className="w-full h-full text-muted-foreground">
+                {/* Correct Side View (Green) */}
+                <g transform="translate(12, 5)">
+                  <circle cx="15" cy="15" r="4.5" className="fill-emerald-500/10 stroke-emerald-500" strokeWidth="1.5" />
+                  <path d="M 15 19.5 C 13.5 28 14 36 15 44 L 12 70" fill="none" className="stroke-emerald-500" strokeWidth="2.2" strokeLinecap="round" />
+                  <path d="M 15 21 L 22 34 L 18 46" fill="none" className="stroke-emerald-500" strokeWidth="2" strokeLinecap="round" />
+                  <circle cx="28" cy="62" r="5.5" fill="#10b981" />
+                  <path d="M 26 62 L 27.5 63.5 L 30 60.5" fill="none" stroke="#fff" strokeWidth="1.2" strokeLinecap="round" />
+                </g>
+                {/* Incorrect Front View (Red) */}
+                <g transform="translate(54, 5)" opacity="0.3">
+                  <circle cx="15" cy="15" r="4.5" className="fill-rose-500/10 stroke-rose-500" strokeWidth="1.5" />
+                  <path d="M 15 19.5 L 15 44 M 10 44 L 10 70 M 20 44 L 20 70" className="stroke-rose-500" strokeWidth="2" strokeLinecap="round" />
+                  <path d="M 9 21 L 5 36 M 21 21 L 25 36" className="stroke-rose-500" strokeWidth="1.8" strokeLinecap="round" />
+                  <circle cx="28" cy="62" r="5.5" fill="#ef4444" />
+                  <path d="M 26 60 L 30 64 M 30 60 L 26 64" stroke="#fff" strokeWidth="1.2" strokeLinecap="round" />
+                </g>
+              </svg>
+            </div>
+            <ul className="text-xs space-y-1 text-muted-foreground font-medium">
+              <li className="text-emerald-600 dark:text-emerald-400">✅ Side view (90° profile)</li>
+              <li className="text-rose-600 dark:text-rose-400">❌ Avoid frontal or diagonal shots</li>
+            </ul>
+          </div>
+
+          {/* Card 2: Camera Height */}
+          <div className="rounded-xl border bg-card/40 p-3.5 flex flex-col gap-3">
+            <h4 className="font-semibold text-xs text-foreground uppercase tracking-wider">2. Camera Height</h4>
+            <div className="aspect-[4/3] rounded-lg bg-secondary/30 flex items-center justify-center border border-border/40 overflow-hidden">
+              <svg viewBox="0 0 100 80" className="w-full h-full text-muted-foreground">
+                {/* Person */}
+                <g transform="translate(68, 5)">
+                  <circle cx="10" cy="15" r="4.5" className="fill-muted-foreground/10 stroke-muted-foreground" strokeWidth="1.2" />
+                  <path d="M 10 19.5 Q 8.5 28 10 44 L 7 70" fill="none" className="stroke-muted-foreground" strokeWidth="1.8" />
+                  <path d="M 10 21 L 16 34 L 12 46" fill="none" className="stroke-muted-foreground" strokeWidth="1.8" strokeLinecap="round" />
+                </g>
+                {/* Good camera (horizontal at waist) */}
+                <g transform="translate(8, 30)">
+                  <rect x="0" y="5" width="14" height="9" rx="2" className="fill-emerald-500/10 stroke-emerald-500" strokeWidth="1.2" />
+                  <circle cx="7" cy="9.5" r="2.2" className="fill-none stroke-emerald-500" strokeWidth="1" />
+                  <path d="M 14 9.5 L 68 9.5" stroke="#10b981" strokeWidth="1.5" strokeDasharray="3 3" />
+                  <circle cx="34" cy="9.5" r="5.5" fill="#10b981" />
+                  <path d="M 32 9.5 L 33.5 11 L 36 8" fill="none" stroke="#fff" strokeWidth="1.2" strokeLinecap="round" />
+                </g>
+                {/* Bad camera (overhead angle) */}
+                <g transform="translate(8, -6)" opacity="0.3">
+                  <rect x="0" y="5" width="14" height="9" rx="2" className="fill-rose-500/10 stroke-rose-500" strokeWidth="1.2" transform="rotate(25 7 9)" />
+                  <path d="M 14 12 L 72 38" stroke="#ef4444" strokeWidth="1.5" strokeDasharray="3 3" />
+                  <circle cx="38" cy="22" r="5.5" fill="#ef4444" />
+                  <path d="M 36 20 L 40 24 M 40 20 L 36 24" stroke="#fff" strokeWidth="1.2" strokeLinecap="round" />
+                </g>
+              </svg>
+            </div>
+            <ul className="text-xs space-y-1 text-muted-foreground font-medium">
+              <li className="text-emerald-600 dark:text-emerald-400">✅ Lens at subject's waist level</li>
+              <li className="text-rose-600 dark:text-rose-400">❌ Avoid high overhead/low angles</li>
+            </ul>
+          </div>
+
+          {/* Card 3: Framing */}
+          <div className="rounded-xl border bg-card/40 p-3.5 flex flex-col gap-3">
+            <h4 className="font-semibold text-xs text-foreground uppercase tracking-wider">3. Full Body Framing</h4>
+            <div className="aspect-[4/3] rounded-lg bg-secondary/30 flex items-center justify-center border border-border/40 overflow-hidden">
+              <svg viewBox="0 0 100 80" className="w-full h-full text-muted-foreground">
+                {/* Correct Full Body */}
+                <g transform="translate(10, 5)">
+                  <rect x="0" y="5" width="28" height="66" rx="4" fill="none" stroke="#10b981" strokeWidth="1.2" strokeDasharray="3 3" />
+                  <g transform="translate(4, 5)">
+                    <circle cx="10" cy="10" r="4" className="fill-emerald-500/10 stroke-emerald-500" strokeWidth="1.2" />
+                    <path d="M 10 14 L 10 38 L 6 56 M 10 38 L 14 56" className="stroke-emerald-500" strokeWidth="1.8" />
+                    <path d="M 10 16 L 16 26 L 12 36" fill="none" className="stroke-emerald-500" strokeWidth="1.8" strokeLinecap="round" />
+                  </g>
+                  <circle cx="28" cy="62" r="5.5" fill="#10b981" />
+                  <path d="M 26 62 L 27.5 63.5 L 30 60.5" fill="none" stroke="#fff" strokeWidth="1.2" strokeLinecap="round" />
+                </g>
+                {/* Incorrect Cropped */}
+                <g transform="translate(56, 5)" opacity="0.3">
+                  <rect x="0" y="5" width="28" height="66" rx="4" fill="none" stroke="#rose-500" strokeWidth="1.2" strokeDasharray="3 3" />
+                  <g transform="translate(4, 5)">
+                    <circle cx="10" cy="10" r="4" className="fill-rose-500/10 stroke-rose-500" strokeWidth="1.2" />
+                    {/* leg truncated by crop line */}
+                    <path d="M 10 14 L 10 38 L 8 45" className="stroke-rose-500" strokeWidth="1.8" strokeLinecap="round" />
+                    <path d="M 10 16 L 16 26 L 14 28" fill="none" className="stroke-rose-500" strokeWidth="1.8" strokeLinecap="round" />
+                    {/* red crop cut line */}
+                    <line x1="-8" y1="42" x2="28" y2="42" stroke="#ef4444" strokeWidth="1.5" strokeDasharray="2 2" />
+                  </g>
+                  <circle cx="28" cy="62" r="5.5" fill="#ef4444" />
+                  <path d="M 26 60 L 30 64 M 30 60 L 26 64" stroke="#fff" strokeWidth="1.2" strokeLinecap="round" />
+                </g>
+              </svg>
+            </div>
+            <ul className="text-xs space-y-1 text-muted-foreground font-medium">
+              <li className="text-emerald-600 dark:text-emerald-400">✅ Entire body in frame (head to toe)</li>
+              <li className="text-rose-600 dark:text-rose-400">❌ Avoid cropped limbs or hands</li>
+            </ul>
+          </div>
+
+        </div>
+      )}
+    </div>
   );
 }

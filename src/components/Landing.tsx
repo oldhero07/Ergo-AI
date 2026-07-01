@@ -52,16 +52,20 @@ export function Landing({ onStart }: { onStart: (mode: AnalysisMode) => void }) 
           <h2 className="text-center text-sm font-semibold uppercase tracking-wide text-muted-foreground">
             How it works
           </h2>
-          <div className="mt-8 grid gap-4 sm:grid-cols-3">
-            <Step icon={<Camera className="h-5 w-5" />} n="1" title="Upload">
-              A clear side view of the working posture - photo or short clip. Everything stays on your device.
-            </Step>
-            <Step icon={<ScanLine className="h-5 w-5" />} n="2" title="AI reads the pose">
-              On-device AI (Google MediaPipe Pose) locates 33 body landmarks and derives the joint angles.
-            </Step>
-            <Step icon={<Gauge className="h-5 w-5" />} n="3" title="Score + report">
-              A RULA or REBA grand score with a per-joint breakdown and an exportable PDF.
-            </Step>
+          <div className="mt-8 relative">
+            {/* Connector line between steps */}
+            <div className="absolute top-[28px] left-[calc(16.66%+0px)] right-[calc(16.66%+0px)] hidden h-px bg-gradient-to-r from-primary/20 via-primary/40 to-primary/20 sm:block" />
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Step icon={<Camera className="h-5 w-5" />} n="1" title="Upload">
+                A clear side view of the working posture - photo or short clip. Everything stays on your device.
+              </Step>
+              <Step icon={<ScanLine className="h-5 w-5" />} n="2" title="AI reads the pose">
+                On-device AI (Google MediaPipe Pose) locates 33 body landmarks and derives the joint angles.
+              </Step>
+              <Step icon={<Gauge className="h-5 w-5" />} n="3" title="Score + report">
+                A RULA or REBA grand score with a per-joint breakdown and an exportable PDF.
+              </Step>
+            </div>
           </div>
         </div>
       </section>
@@ -112,7 +116,7 @@ export function Landing({ onStart }: { onStart: (mode: AnalysisMode) => void }) 
             <EntryCard icon={<Video className="h-5 w-5" />} title="Analyze a video" sub="" onClick={() => onStart("video")} />
           </div>
           <p className="mt-5 text-xs text-muted-foreground">
-            Scores are a lower-bound 2D estimate, not a substitute for a trained assessor.
+            Scores are a lower-bound estimate from a single camera view, not a substitute for a trained assessor.
           </p>
         </div>
       </section>
@@ -161,50 +165,125 @@ function EntryCard({
   );
 }
 
-/** A warm, static product motif: an annotated pose skeleton with a coral gauge. */
+/** A warm, animated product motif: an annotated pose skeleton with a glowing RULA gauge and diagnostic HUD. */
 function HeroVisual() {
   return (
-    <div className="mx-auto hidden w-full max-w-sm rounded-3xl border bg-card p-6 shadow-card lg:block">
-      <svg viewBox="0 0 260 240" className="w-full" role="img" aria-label="Pose skeleton with angle and risk score">
-        <g stroke="hsl(var(--primary))" strokeWidth="3" strokeLinecap="round" fill="none" opacity="0.9">
-          <path d="M120 44 L104 86" />
-          <path d="M104 86 L138 120" />
-          <path d="M138 120 L128 160" />
-          <path d="M104 86 L98 176" />
-          <path d="M98 176 L110 214" />
+    <div className="mx-auto hidden w-full max-w-sm rounded-3xl border bg-gradient-to-br from-card to-card/50 p-6 shadow-[0_0_50px_-12px_rgba(99,102,241,0.25)] lg:block backdrop-blur-sm relative overflow-hidden">
+      {/* Decorative ambient background blur lights */}
+      <div className="absolute -left-20 -top-20 h-40 w-40 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
+      <div className="absolute -right-20 -bottom-20 h-40 w-40 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
+
+      <svg viewBox="0 0 260 250" className="w-full relative z-10" role="img" aria-label="Pose skeleton with angle and risk score">
+        <defs>
+          {/* Diagnostic UI grid */}
+          <pattern id="hero-grid" width="20" height="20" patternUnits="userSpaceOnUse">
+            <circle cx="20" cy="20" r="0.75" fill="currentColor" opacity="0.1" />
+          </pattern>
+          {/* Premium neon glow */}
+          <filter id="hero-glow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="2.5" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+
+        <style>
+          {`
+            @keyframes hero-float-skeleton {
+              0%, 100% { transform: translateY(0px); }
+              50% { transform: translateY(-8px); }
+            }
+            @keyframes hero-hud-blink {
+              0%, 100% { opacity: 0.3; }
+              50% { opacity: 0.85; }
+            }
+            .animate-hero-skeleton {
+              animation: hero-float-skeleton 6s infinite ease-in-out;
+              transform-origin: center;
+            }
+            .animate-hero-hud {
+              animation: hero-hud-blink 2s infinite ease-in-out;
+            }
+          `}
+        </style>
+
+        {/* Ambient Grid */}
+        <rect width="260" height="250" fill="url(#hero-grid)" className="text-muted-foreground" />
+
+        {/* Diagnostic HUD Overlay */}
+        <g className="animate-hero-hud" fill="currentColor" opacity="0.6">
+          <rect x={10} y={10} width={6} height={6} rx={1} fill="hsl(var(--primary))" />
+          <text x={22} y={16} className="font-mono" style={{ fontSize: 8, letterSpacing: "0.05em", fontWeight: 600 }}>
+            POSE ENGINE: ACTIVE
+          </text>
+          <text x={10} y={32} className="font-mono text-muted-foreground" style={{ fontSize: 7 }}>
+            FPS: 60.0 / CONF: 98.4%
+          </text>
         </g>
-        <g fill="hsl(var(--primary))">
-          <circle cx="122" cy="34" r="11" />
-          <circle cx="104" cy="86" r="5.5" />
-          <circle cx="138" cy="120" r="5.5" />
-          <circle cx="128" cy="160" r="5.5" />
-          <circle cx="98" cy="176" r="5.5" />
-          <circle cx="110" cy="214" r="5.5" />
+
+        {/* Main Floating Biomechanical Model */}
+        <g className="animate-hero-skeleton">
+          {/* Skeleton Bones - Electric Blue */}
+          <g stroke="hsl(var(--primary))" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none" opacity="0.8" filter="url(#hero-glow)">
+            <path d="M120 44 L104 86" />
+            <path d="M104 86 L138 120" />
+            <path d="M138 120 L128 160" />
+            <path d="M104 86 L98 176" />
+            <path d="M98 176 L110 214" />
+          </g>
+
+          {/* Joint Nodes - Bright Emerald */}
+          <g fill="#34d399" filter="url(#hero-glow)">
+            <circle cx="120" cy="44" r="3.5" fill="#fff" /> {/* Head marker center */}
+            <circle cx="120" cy="44" r="8" fill="hsl(var(--primary))" fillOpacity={0.15} stroke="hsl(var(--primary))" strokeWidth={1} />
+            <circle cx="104" cy="86" r="5" />
+            <circle cx="138" cy="120" r="5" />
+            <circle cx="128" cy="160" r="5" />
+            <circle cx="98" cy="176" r="5" />
+            <circle cx="110" cy="214" r="5" />
+          </g>
+
+          {/* Measured Angle Highlight - Concentric Angle Arc around Elbow Joint (138, 120) */}
+          <path d="M 124 106 A 20 20 0 0 0 133 139" stroke="#f43f5e" strokeWidth="2" fill="none" filter="url(#hero-glow)" />
+          
+          <rect x={128} y={94} width={42} height={16} rx={4} fill="#f43f5e" fillOpacity={0.15} />
+          <text x={132} y={106} className="fill-foreground font-mono" style={{ fontSize: 9, fontWeight: 700 }}>
+            θ = 42.6°
+          </text>
         </g>
-        <path d="M122 108 A 20 20 0 0 1 132 138" stroke="hsl(var(--risk-high))" strokeWidth="3" fill="none" />
-        <text x="150" y="130" className="fill-muted-foreground" style={{ fontSize: 12, fontFamily: "monospace" }}>
-          θ
-        </text>
-        {/* gauge */}
-        <g transform="translate(205,70)">
-          <circle r="34" fill="none" stroke="hsl(var(--muted))" strokeWidth="9" />
+
+        {/* HUD Gauge Panel - Shifted Right to x=208 to prevent overlaps */}
+        <g transform="translate(208,80)">
+          {/* Gauge Background ring */}
+          <circle r="32" fill="none" stroke="hsl(var(--muted))" strokeWidth="8" />
+          {/* Gauge Active Ring - Warning Orange/Coral */}
           <circle
-            r="34"
+            r="32"
             fill="none"
             stroke="hsl(var(--risk-medium))"
-            strokeWidth="9"
+            strokeWidth="8"
             strokeLinecap="round"
-            strokeDasharray="213.6"
-            strokeDashoffset="122"
+            strokeDasharray="201"
+            strokeDashoffset="130"
             transform="rotate(-90)"
+            filter="url(#hero-glow)"
           />
-          <text x="0" y="6" textAnchor="middle" className="fill-foreground" style={{ fontSize: 22, fontWeight: 600 }}>
+          {/* Inner glass overlay */}
+          <circle r="26" fill="currentColor" fillOpacity={0.03} />
+          {/* Score Text */}
+          <text x="0" y="7" textAnchor="middle" className="fill-foreground font-mono" style={{ fontSize: 22, fontWeight: 800 }}>
             3
           </text>
         </g>
-        <text x="205" y="128" textAnchor="middle" className="fill-muted-foreground" style={{ fontSize: 11 }}>
-          RULA
+        <text x="208" y="138" textAnchor="middle" className="fill-muted-foreground font-mono font-medium" style={{ fontSize: 10, letterSpacing: "0.05em" }}>
+          RULA SCORE
         </text>
+
+        {/* Biomechanical key lines - Shifted to match the new gauge position */}
+        <path d="M 198 20 L 238 20 L 238 40" fill="none" stroke="currentColor" strokeWidth="0.5" opacity="0.3" />
+        <path d="M 20 230 L 20 200 L 40 200" fill="none" stroke="currentColor" strokeWidth="0.5" opacity="0.3" />
       </svg>
     </div>
   );
@@ -212,36 +291,44 @@ function HeroVisual() {
 
 function Step({ icon, n, title, children }: { icon: React.ReactNode; n: string; title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border bg-card p-5 shadow-sm">
+    <div className="group relative rounded-2xl border bg-card p-5 shadow-sm transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[0_8px_30px_rgba(99,102,241,0.15)] hover:border-primary/40">
       <div className="flex items-center gap-3">
-        <span className="grid h-10 w-10 place-items-center rounded-xl bg-secondary text-secondary-foreground">{icon}</span>
-        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Step {n}</span>
+        <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 text-primary shadow-inner ring-1 ring-primary/20 transition-all group-hover:from-primary/30 group-hover:to-primary/10">
+          {icon}
+        </span>
+        <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-primary">
+          Step {n}
+        </span>
       </div>
-      <h3 className="mt-3 font-medium">{title}</h3>
-      <p className="mt-1 text-sm text-muted-foreground">{children}</p>
+      <h3 className="mt-3 font-semibold tracking-tight">{title}</h3>
+      <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{children}</p>
+      {/* Subtle bottom accent line on hover */}
+      <span className="absolute bottom-0 left-6 right-6 h-0.5 scale-x-0 rounded-full bg-gradient-to-r from-primary/0 via-primary to-primary/0 transition-transform duration-300 group-hover:scale-x-100" />
     </div>
   );
 }
 
 function MethodCard({ name, full, scale, body }: { name: string; full: string; scale: string; body: string }) {
   return (
-    <div className="rounded-2xl border bg-card p-6 shadow-sm">
+    <div className="group rounded-2xl border bg-gradient-to-br from-card to-card/60 p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_8px_30px_rgba(99,102,241,0.12)] hover:border-primary/30">
       <div className="flex items-baseline justify-between">
-        <h3 className="text-lg font-semibold">{name}</h3>
-        <span className="rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium text-secondary-foreground">{scale}</span>
+        <h3 className="text-xl font-bold tracking-tight text-foreground group-hover:text-primary transition-colors">{name}</h3>
+        <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary ring-1 ring-primary/20">{scale}</span>
       </div>
-      <p className="text-xs uppercase tracking-wide text-muted-foreground">{full}</p>
-      <p className="mt-3 text-sm text-muted-foreground">{body}</p>
+      <p className="mt-0.5 text-[11px] uppercase tracking-widest text-muted-foreground">{full}</p>
+      <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{body}</p>
     </div>
   );
 }
 
 function Feature({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
   return (
-    <div>
-      <span className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary">{icon}</span>
-      <h3 className="mt-3 font-medium">{title}</h3>
-      <p className="mt-1 text-sm text-muted-foreground">{children}</p>
+    <div className="group rounded-2xl border bg-card/50 p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_8px_24px_rgba(99,102,241,0.10)] hover:border-primary/25">
+      <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-primary/15 to-emerald-500/10 text-primary shadow-inner ring-1 ring-primary/15 transition-all group-hover:from-primary/25 group-hover:to-emerald-500/15">
+        {icon}
+      </span>
+      <h3 className="mt-3 font-semibold">{title}</h3>
+      <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{children}</p>
     </div>
   );
 }

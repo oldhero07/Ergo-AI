@@ -165,7 +165,7 @@ function addCaveat(doc: jsPDF, x: number, y: number, maxWidth: number, method: s
   doc.setFontSize(8);
   doc.setTextColor(...CONTENT_MUTED);
   const lines = doc.splitTextToSize(
-    `Caveat: this is a lower-bound estimate from a single 2D camera view. It is not a substitute for a full multi-factor ${method} observation by a trained assessor.`,
+    `Caveat: this is a lower-bound estimate from a single camera view. It is not a substitute for a full multi-factor ${method} observation by a trained assessor.`,
     maxWidth,
   ) as string[];
   doc.text(lines, x, y);
@@ -321,7 +321,7 @@ function addCoverPage(doc: jsPDF, items: PdfReportItem[], meta: ReportMeta, meth
   const intro = doc.splitTextToSize(
     `Scores are computed from MediaPipe Pose landmarks located in each photo, in your browser. ${method} captures ${
       method === "REBA" ? "whole-body" : "upper-limb"
-    } posture risk. All values are a lower-bound estimate from a single 2D camera view and are not a substitute for a full observation by a trained assessor.`,
+    } posture risk. All values are a lower-bound estimate from a single camera view and are not a substitute for a full observation by a trained assessor.`,
     contentWidth,
   ) as string[];
   doc.text(intro, PAGE_MARGIN, y);
@@ -539,7 +539,7 @@ async function addPhotoPage(doc: jsPDF, item: PdfReportItem, isFirstPage: boolea
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8.5);
     doc.setTextColor(...CONTENT_DARK);
-    doc.text(`Assumptions (factors a single 2D photo cannot fully observe):`, PAGE_MARGIN, y);
+    doc.text(`Assumptions (factors a single photo cannot fully observe):`, PAGE_MARGIN, y);
     y += 12;
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8.5);
