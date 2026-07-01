@@ -5,8 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="google-site-verification" content="Fi_-Jduv1jm8zG9ij45u1wV7JGrZXuul31aHKJZGGx4" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="theme-color" content="#1e293b" />
+    <meta name="theme-color" content="#faf7f1" />
     <link rel="canonical" href="https://oldhero07.github.io/Ergo-AI/" />
+
+    <!-- Apply the saved theme before first paint to avoid a flash of light mode. -->
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem("ergo-theme") || "system";
+          var dark = t === "dark" || (t === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
+          document.documentElement.classList.toggle("dark", dark);
+        } catch (e) {}
+      })();
+    </script>
 
     <title>Ergo AI — Free online RULA &amp; REBA ergonomic assessment from a photo</title>
     <meta

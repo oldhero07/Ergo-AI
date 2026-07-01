@@ -12,6 +12,8 @@ import { analyzePhoto, analyzeVideo, type PoseAnalysis, type VideoAnalysis } fro
 import { isHeic } from "@/lib/image";
 import { validateVideoFile } from "@/lib/videoFile";
 import { VideoResults } from "@/components/VideoResults";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import type { AnalysisMode } from "@/types";
 import { exportPdfReport } from "@/lib/pdf";
 import { getMethod, methods } from "@/assessment/registry";
 import type { PostureInput } from "@/assessment/types";
@@ -30,6 +32,7 @@ export default function App() {
   const [phase, setPhase] = useState<Phase>("landing");
   const [results, setResults] = useState<ResultMap>({});
   const [methodId, setMethodId] = useState<string>("rula");
+  const [mode, setMode] = useState<AnalysisMode>("photo");
   const [reportMeta, setReportMeta] = useState({ assessor: "", organization: "", subject: "" });
   const [showAnimation, setShowAnimation] = useState(true);
   const [exporting, setExporting] = useState(false);
@@ -293,6 +296,19 @@ export default function App() {
     setVideoProgress(null);
   }, []);
 
+  // Switch between the photo and video entry flows: change mode and clear the
+  // current queue / any in-flight video so the two flows never bleed together.
+  const switchAnalysisMode = useCallback(
+    (m: AnalysisMode) => {
+      setMode(m);
+      setNotice(null);
+      setVideoError(null);
+      clearItems();
+      clearVideo();
+    },
+    [clearItems, clearVideo],
+  );
+
   // Full reset to a clean slate: clear photos + results, revoke blob URLs (so
   // memory isn't leaked across runs), and drop any export/animation flags. This
   // is what "Start over" does — each session begins fresh, nothing lingers.
@@ -373,29 +389,39 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <header className="border-b">
-        <div className="container py-4">
+      <header className="sticky top-0 z-20 border-b bg-background/80 backdrop-blur">
+        <div className="container flex items-center justify-between py-3.5">
           <button
             type="button"
             onClick={goHome}
-            className="flex items-center gap-2.5 rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex items-center gap-2.5 rounded-lg text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-label="Ergo AI — home"
           >
             <Logo className="h-9 w-9 shrink-0" />
             <div>
               <h1 className="text-lg font-semibold leading-none tracking-tight">Ergo AI</h1>
-              <p className="text-xs text-muted-foreground">RULA &amp; REBA ergonomic risk from a photo</p>
+              <p className="text-xs text-muted-foreground">RULA &amp; REBA ergonomic assessment</p>
             </div>
           </button>
+          <ThemeToggle />
         </div>
       </header>
 
       <main className="container py-10">
-        {phase === "landing" && <Landing onStart={() => setPhase("idle")} />}
+        {phase === "landing" && (
+          <Landing
+            onStart={(m) => {
+              setMode(m);
+              setPhase("idle");
+            }}
+          />
+        )}
 
         {phase === "idle" && (
           <div>
             <Uploader
+              mode={mode}
+              onSwitchMode={switchAnalysisMode}
               items={items}
               onAddFiles={addFiles}
               onVideo={runVideoAnalysis}
@@ -405,19 +431,19 @@ export default function App() {
               onUseSample={useSample}
             />
             {videoError && (
-              <p className="mx-auto mt-4 max-w-3xl rounded-md bg-red-50 px-4 py-2 text-center text-sm text-red-700 dark:bg-red-950/40 dark:text-red-400">
+              <p className="mx-auto mt-4 max-w-3xl rounded-xl bg-red-50 px-4 py-2 text-center text-sm text-red-700 dark:bg-red-950/40 dark:text-red-400">
                 Could not analyze the video: {videoError}
               </p>
             )}
             {notice && (
-              <p className="mx-auto mt-4 max-w-3xl rounded-md bg-amber-50 px-4 py-2 text-center text-sm text-amber-700 dark:bg-amber-950/40 dark:text-amber-400">
+              <p className="mx-auto mt-4 max-w-3xl rounded-xl bg-amber-50 px-4 py-2 text-center text-sm text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
                 {notice}
               </p>
             )}
-            <p className="mx-auto mt-6 max-w-2xl text-center text-sm text-muted-foreground">
-              Ergo AI uses Google’s MediaPipe Pose (Heavy) model to locate 33 body landmarks in your
-              photo, then derives the joint angles and computes RULA and REBA ergonomic-risk scores
-              from them — all in your browser.
+            <p className="mx-auto mt-6 max-w-lg text-center text-sm text-muted-foreground">
+              {mode === "video"
+                ? "Tip: a short, steady side-view clip of the working posture reads best."
+                : "Tip: a clear, full-body side view of the working posture reads best."}
             </p>
           </div>
         )}
@@ -577,11 +603,13 @@ export default function App() {
 
       <footer className="border-t">
         <div className="container flex flex-col items-center gap-1 py-6 text-center text-xs text-muted-foreground">
-          <p>Photos are processed on your device and never uploaded.</p>
-          <p>
-            RULA and REBA scores are a lower-bound estimate from a single 2D view, not a substitute
-            for a trained assessor.
-          </p>
+          <p>Everything runs in your browser — your photos and videos are never uploaded.</p>
+          {phase !== "landing" && (
+            <p>
+              RULA and REBA scores are a lower-bound estimate from a single 2D view, not a substitute
+              for a trained assessor.
+            </p>
+          )}
         </div>
       </footer>
     </div>

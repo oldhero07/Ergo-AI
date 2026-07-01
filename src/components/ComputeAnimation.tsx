@@ -5,7 +5,7 @@ const PHASES = [
   { label: "Detecting pose", caption: "Locating body landmarks" },
   { label: "Computing vectors", caption: "v = p₂ − p₁" },
   { label: "Solving angles", caption: "θ = cos⁻¹( a·b / |a||b| )" },
-  { label: "Running RULA", caption: "Group A × Group B → grand score" },
+  { label: "Scoring", caption: "Group A × Group B → grand score" },
 ] as const;
 
 const TICKER_ITEMS = [

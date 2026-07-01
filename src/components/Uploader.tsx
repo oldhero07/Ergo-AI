@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Upload, X, Images, Play, Trash2, Loader2 } from "lucide-react";
+import { Upload, X, Images, Play, Trash2, Loader2, Camera, Video, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { isVideoFile } from "@/lib/videoFile";
-import type { UploadItem } from "@/types";
+import { MAX_VIDEO_MB, MAX_DURATION_SEC } from "@/lib/videoConfig";
+import type { AnalysisMode, UploadItem } from "@/types";
 
 /**
  * Thumbnail tile. Chrome/Firefox can't render an iPhone HEIC in an <img>, so the
@@ -32,12 +33,12 @@ function Thumb({ url, name, converting }: { url: string; name: string; convertin
       </div>
     );
   }
-  return (
-    <img src={url} alt={name} onError={() => setFailed(true)} className="h-full w-full object-cover" />
-  );
+  return <img src={url} alt={name} onError={() => setFailed(true)} className="h-full w-full object-cover" />;
 }
 
 interface UploaderProps {
+  mode: AnalysisMode;
+  onSwitchMode: (m: AnalysisMode) => void;
   items: UploadItem[];
   onAddFiles: (files: File[]) => void;
   onVideo?: (file: File) => void;
@@ -48,6 +49,8 @@ interface UploaderProps {
 }
 
 export function Uploader({
+  mode,
+  onSwitchMode,
   items,
   onAddFiles,
   onVideo,
@@ -57,22 +60,26 @@ export function Uploader({
   onUseSample,
 }: UploaderProps) {
   const [dragging, setDragging] = useState(false);
+  const [wrongType, setWrongType] = useState<"image" | "video" | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const isVideoMode = mode === "video";
 
   const handleFiles = useCallback(
     (list: FileList | null) => {
       if (!list) return;
       const arr = Array.from(list);
-      // A video takes its own dedicated flow (one clip at a time); otherwise the
-      // files go to the photo batch (addFiles filters to images incl. HEIC).
       const video = arr.find(isVideoFile);
-      if (video && onVideo) {
-        onVideo(video);
-        return;
+      const images = arr.filter((f) => !isVideoFile(f));
+      setWrongType(null);
+      if (isVideoMode) {
+        if (video && onVideo) return onVideo(video);
+        if (images.length) return setWrongType("image");
+      } else {
+        if (images.length) return onAddFiles(images);
+        if (video) return setWrongType("video");
       }
-      onAddFiles(arr);
     },
-    [onAddFiles, onVideo],
+    [isVideoMode, onAddFiles, onVideo],
   );
 
   useEffect(() => {
@@ -86,6 +93,12 @@ export function Uploader({
 
   return (
     <div className="mx-auto w-full max-w-3xl">
+      {/* Photo / Video mode switch */}
+      <div role="tablist" aria-label="Analysis mode" className="mx-auto mb-6 inline-flex rounded-xl border bg-card p-1 shadow-sm">
+        <ModeTab active={!isVideoMode} icon={<Camera className="h-4 w-4" />} label="Photo" onClick={() => onSwitchMode("photo")} />
+        <ModeTab active={isVideoMode} icon={<Video className="h-4 w-4" />} label="Video" onClick={() => onSwitchMode("video")} />
+      </div>
+
       <div
         role="button"
         tabIndex={0}
@@ -104,23 +117,29 @@ export function Uploader({
           handleFiles(e.dataTransfer.files);
         }}
         className={cn(
-          "flex flex-col items-center justify-center rounded-xl border-2 border-dashed px-6 py-14 text-center transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring",
-          dragging ? "border-primary bg-accent" : "border-border hover:border-primary/50 hover:bg-accent/40",
+          "flex flex-col items-center justify-center rounded-3xl border-2 border-dashed px-6 py-14 text-center transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          dragging ? "border-primary bg-primary/5" : "border-border bg-card/50 hover:border-primary/50 hover:bg-accent/40",
         )}
       >
-        <div className="mb-4 grid h-14 w-14 place-items-center rounded-full bg-secondary">
-          <Upload className="h-6 w-6 text-muted-foreground" />
+        <div className="mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-primary/10 text-primary">
+          {isVideoMode ? <Video className="h-6 w-6" /> : <Upload className="h-6 w-6" />}
         </div>
-        <p className="text-base font-medium">Drag &amp; drop photos here</p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          or click to browse · paste from clipboard · one or many
+        <p className="text-base font-medium">
+          {isVideoMode ? "Drag & drop a video here" : "Drag & drop photos here"}
         </p>
-        <p className="mt-3 text-xs text-muted-foreground">JPG, PNG, iPhone HEIC — or a short video (MP4/MOV/WebM)</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {isVideoMode ? "or click to browse — one short clip" : "or click to browse · paste from clipboard · one or many"}
+        </p>
+        <p className="mt-3 text-xs text-muted-foreground">
+          {isVideoMode
+            ? `MP4, MOV, or WebM · up to ${MAX_VIDEO_MB} MB · first ${MAX_DURATION_SEC}s analyzed`
+            : "JPG, PNG, or iPhone HEIC"}
+        </p>
         <input
           ref={inputRef}
           type="file"
-          accept="image/*,.heic,.heif,video/*,.mp4,.mov,.webm,.m4v"
-          multiple
+          accept={isVideoMode ? "video/*,.mp4,.mov,.webm,.m4v" : "image/*,.heic,.heif"}
+          multiple={!isVideoMode}
           className="hidden"
           onChange={(e) => {
             handleFiles(e.target.files);
@@ -129,7 +148,23 @@ export function Uploader({
         />
       </div>
 
-      {onUseSample && items.length === 0 && (
+      {wrongType && (
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-2 rounded-xl border bg-amber-50 px-4 py-3 text-center text-sm text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+          {wrongType === "video" ? "That's a video." : "That's an image."}
+          <button
+            type="button"
+            onClick={() => {
+              setWrongType(null);
+              onSwitchMode(wrongType === "video" ? "video" : "photo");
+            }}
+            className="inline-flex items-center gap-1 font-medium text-primary underline-offset-2 hover:underline"
+          >
+            Switch to {wrongType === "video" ? "Video" : "Photo"} analysis <ArrowRight className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
+
+      {!isVideoMode && onUseSample && items.length === 0 && (
         <div className="mt-3 text-center">
           <Button variant="link" size="sm" onClick={onUseSample} className="text-muted-foreground">
             or use a sample photo
@@ -137,7 +172,7 @@ export function Uploader({
         </div>
       )}
 
-      {items.length > 0 && (
+      {!isVideoMode && items.length > 0 && (
         <div className="mt-6">
           <div className="mb-3 flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
@@ -150,10 +185,7 @@ export function Uploader({
           </div>
           <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5">
             {items.map((it) => (
-              <div
-                key={it.id}
-                className="group relative aspect-square overflow-hidden rounded-lg border bg-muted"
-              >
+              <div key={it.id} className="group relative aspect-square overflow-hidden rounded-xl border bg-muted">
                 <Thumb key={it.url} url={it.url} name={it.file.name} converting={it.converting} />
                 <button
                   onClick={(e) => {
@@ -176,5 +208,23 @@ export function Uploader({
         </div>
       )}
     </div>
+  );
+}
+
+function ModeTab({ active, icon, label, onClick }: { active: boolean; icon: React.ReactNode; label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={active}
+      onClick={onClick}
+      className={cn(
+        "inline-flex items-center gap-2 rounded-lg px-4 py-1.5 text-sm font-medium transition-colors",
+        active ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+      )}
+    >
+      {icon}
+      {label}
+    </button>
   );
 }

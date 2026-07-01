@@ -58,7 +58,12 @@ export default {
         sm: "calc(var(--radius) - 4px)",
       },
       fontFamily: {
+        sans: ['"Inter Variable"', "Inter", "ui-sans-serif", "system-ui", "sans-serif"],
         mono: ["ui-monospace", "SFMono-Regular", "Menlo", "Consolas", "monospace"],
+      },
+      boxShadow: {
+        card: "0 1px 2px hsl(24 20% 20% / 0.04), 0 4px 16px hsl(24 20% 20% / 0.06)",
+        "card-hover": "0 2px 4px hsl(24 20% 20% / 0.06), 0 8px 28px hsl(24 20% 20% / 0.10)",
       },
       keyframes: {
         "accordion-down": {

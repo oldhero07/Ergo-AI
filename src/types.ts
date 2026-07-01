@@ -1,3 +1,6 @@
+/** Which analysis flow the user chose from the landing. */
+export type AnalysisMode = "photo" | "video";
+
 export interface UploadItem {
   id: string;
   file: File;

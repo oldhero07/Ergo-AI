@@ -4,58 +4,60 @@
 
 @layer base {
   :root {
-    --background: 40 20% 99%;
-    --foreground: 222 32% 12%;
-    --card: 0 0% 100%;
-    --card-foreground: 222 32% 12%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222 32% 12%;
-    --primary: 222 47% 20%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 30% 96%;
-    --secondary-foreground: 222 32% 18%;
-    --muted: 210 30% 96%;
-    --muted-foreground: 215 16% 42%;
-    --accent: 210 30% 94%;
-    --accent-foreground: 222 32% 18%;
+    /* Warm & human: cream surfaces, warm stone neutrals, coral accent. */
+    --background: 40 33% 97%;
+    --foreground: 20 14% 15%;
+    --card: 40 40% 99%;
+    --card-foreground: 20 14% 15%;
+    --popover: 40 40% 99%;
+    --popover-foreground: 20 14% 15%;
+    --primary: 10 86% 63%; /* coral #F26B4E */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 36 25% 93%;
+    --secondary-foreground: 22 14% 22%;
+    --muted: 36 24% 93%;
+    --muted-foreground: 28 8% 42%;
+    --accent: 12 80% 94%; /* soft coral tint */
+    --accent-foreground: 12 55% 34%;
     --destructive: 0 72% 50%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214 20% 88%;
-    --input: 214 20% 88%;
-    --ring: 222 47% 30%;
-    --radius: 0.75rem;
+    --destructive-foreground: 0 0% 100%;
+    --border: 34 20% 87%;
+    --input: 34 20% 87%;
+    --ring: 10 86% 63%;
+    --radius: 1rem;
 
     --risk-low: 142 64% 38%;
-    --risk-medium: 45 93% 47%;
-    --risk-high: 25 90% 52%;
-    --risk-veryhigh: 0 72% 50%;
+    --risk-medium: 38 92% 50%;
+    --risk-high: 22 90% 54%;
+    --risk-veryhigh: 0 72% 51%;
   }
 
   .dark {
-    --background: 222 30% 9%;
-    --foreground: 210 30% 96%;
-    --card: 222 28% 12%;
-    --card-foreground: 210 30% 96%;
-    --popover: 222 28% 12%;
-    --popover-foreground: 210 30% 96%;
-    --primary: 210 40% 96%;
-    --primary-foreground: 222 47% 16%;
-    --secondary: 217 25% 18%;
-    --secondary-foreground: 210 30% 96%;
-    --muted: 217 25% 18%;
-    --muted-foreground: 215 20% 65%;
-    --accent: 217 25% 20%;
-    --accent-foreground: 210 30% 96%;
-    --destructive: 0 62% 46%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217 25% 22%;
-    --input: 217 25% 22%;
-    --ring: 213 27% 70%;
+    /* Warm charcoal, not pure black; coral lifted for contrast. */
+    --background: 24 12% 10%;
+    --foreground: 40 22% 92%;
+    --card: 24 11% 13%;
+    --card-foreground: 40 22% 92%;
+    --popover: 24 11% 13%;
+    --popover-foreground: 40 22% 92%;
+    --primary: 10 86% 66%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 24 8% 18%;
+    --secondary-foreground: 40 22% 92%;
+    --muted: 24 8% 18%;
+    --muted-foreground: 30 9% 63%;
+    --accent: 18 22% 22%;
+    --accent-foreground: 14 70% 82%;
+    --destructive: 0 62% 52%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 26 9% 22%;
+    --input: 26 9% 22%;
+    --ring: 10 86% 66%;
 
-    --risk-low: 142 55% 45%;
-    --risk-medium: 45 88% 55%;
-    --risk-high: 25 88% 58%;
-    --risk-veryhigh: 0 70% 58%;
+    --risk-low: 142 52% 47%;
+    --risk-medium: 40 88% 56%;
+    --risk-high: 22 88% 60%;
+    --risk-veryhigh: 0 72% 62%;
   }
 }
 
