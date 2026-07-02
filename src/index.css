@@ -4,60 +4,77 @@
 
 @layer base {
   :root {
-    /* Warm & human: cream surfaces, warm stone neutrals, coral accent. */
-    --background: 40 33% 97%;
-    --foreground: 20 14% 15%;
-    --card: 40 40% 99%;
-    --card-foreground: 20 14% 15%;
-    --popover: 40 40% 99%;
-    --popover-foreground: 20 14% 15%;
-    --primary: 10 86% 63%; /* coral #F26B4E */
+    /* Light "lab white": cool near-white surfaces, deep-teal accent.
+       (Dark is the app default - see the .dark block and the pre-paint
+       script in index.html - but tokens keep light in :root so the existing
+       `dark:` variant mechanics stay untouched.) */
+    --background: 210 30% 98%;
+    --foreground: 222 40% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 40% 12%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 40% 12%;
+    --primary: 174 85% 27%; /* deep bio-teal, AA on white */
     --primary-foreground: 0 0% 100%;
-    --secondary: 36 25% 93%;
-    --secondary-foreground: 22 14% 22%;
-    --muted: 36 24% 93%;
-    --muted-foreground: 28 8% 42%;
-    --accent: 12 80% 94%; /* soft coral tint */
-    --accent-foreground: 12 55% 34%;
-    --destructive: 0 72% 50%;
+    --secondary: 214 25% 94%;
+    --secondary-foreground: 222 30% 20%;
+    --muted: 214 25% 94%;
+    --muted-foreground: 218 14% 42%;
+    --accent: 174 60% 92%; /* soft teal tint */
+    --accent-foreground: 174 85% 20%;
+    --destructive: 0 72% 46%;
     --destructive-foreground: 0 0% 100%;
-    --border: 34 20% 87%;
-    --input: 34 20% 87%;
-    --ring: 10 86% 63%;
+    --border: 216 22% 88%;
+    --input: 216 22% 88%;
+    --ring: 174 85% 32%;
     --radius: 1rem;
 
-    --risk-low: 142 64% 38%;
-    --risk-medium: 38 92% 50%;
-    --risk-high: 22 90% 54%;
-    --risk-veryhigh: 0 72% 51%;
+    /* Sci-fi lab families (light variants are subtle, not neon). */
+    --glass-bg: 0 0% 100% / 0.65;
+    --glass-border: 174 60% 35% / 0.18;
+    --glow-primary: 174 85% 32%;
+    --glow-accent: 262 70% 50%;
+    --grid-line: 218 40% 40% / 0.07;
+
+    --risk-low: 152 70% 30%;
+    --risk-medium: 36 95% 32%;
+    --risk-high: 18 90% 42%;
+    --risk-veryhigh: 350 80% 44%;
   }
 
   .dark {
-    /* Warm charcoal, not pure black; coral lifted for contrast. */
-    --background: 24 12% 10%;
-    --foreground: 40 22% 92%;
-    --card: 24 11% 13%;
-    --card-foreground: 40 22% 92%;
-    --popover: 24 11% 13%;
-    --popover-foreground: 40 22% 92%;
-    --primary: 10 86% 66%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 24 8% 18%;
-    --secondary-foreground: 40 22% 92%;
-    --muted: 24 8% 18%;
-    --muted-foreground: 30 9% 63%;
-    --accent: 18 22% 22%;
-    --accent-foreground: 14 70% 82%;
-    --destructive: 0 62% 52%;
+    /* Deep-space biomechanics lab: near-black blue surfaces, bio-teal
+       primary, electric-violet accent, neon risk hues. */
+    --background: 222 45% 5%;
+    --foreground: 210 30% 92%;
+    --card: 222 40% 8%;
+    --card-foreground: 210 30% 92%;
+    --popover: 222 40% 8%;
+    --popover-foreground: 210 30% 92%;
+    --primary: 174 90% 45%; /* bio-teal / cyan */
+    --primary-foreground: 222 45% 6%;
+    --secondary: 222 30% 13%;
+    --secondary-foreground: 210 30% 88%;
+    --muted: 222 28% 12%;
+    --muted-foreground: 215 15% 64%;
+    --accent: 262 45% 18%; /* violet surface tint */
+    --accent-foreground: 262 85% 82%;
+    --destructive: 0 72% 56%;
     --destructive-foreground: 0 0% 98%;
-    --border: 26 9% 22%;
-    --input: 26 9% 22%;
-    --ring: 10 86% 66%;
+    --border: 220 26% 16%;
+    --input: 220 26% 16%;
+    --ring: 174 90% 45%;
 
-    --risk-low: 142 52% 47%;
-    --risk-medium: 40 88% 56%;
-    --risk-high: 22 88% 60%;
-    --risk-veryhigh: 0 72% 62%;
+    --glass-bg: 222 40% 10% / 0.55;
+    --glass-border: 190 80% 60% / 0.16;
+    --glow-primary: 174 90% 45%;
+    --glow-accent: 262 80% 66%;
+    --grid-line: 200 60% 55% / 0.06;
+
+    --risk-low: 152 76% 45%;
+    --risk-medium: 42 96% 55%;
+    --risk-high: 18 95% 58%;
+    --risk-veryhigh: 350 85% 58%;
   }
 }
 
@@ -69,6 +86,55 @@
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
     font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+@layer components {
+  /* Frosted glass panel - the core surface of the lab aesthetic. */
+  .glass {
+    background-color: hsl(var(--glass-bg));
+    border: 1px solid hsl(var(--glass-border));
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+
+  /* Monospace HUD readout: telemetry numbers, angle values, score digits. */
+  .hud-readout {
+    font-family: theme("fontFamily.mono");
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.04em;
+  }
+
+  /* Soft neon halo around interactive/highlight elements. */
+  .glow-ring {
+    box-shadow:
+      0 0 0 1px hsl(var(--glow-primary) / 0.35),
+      0 0 18px -2px hsl(var(--glow-primary) / 0.45);
+  }
+
+  /* Animated gradient hairline border (uses a padded background trick). */
+  .gradient-border {
+    position: relative;
+    background:
+      linear-gradient(hsl(var(--card)), hsl(var(--card))) padding-box,
+      linear-gradient(
+          120deg,
+          hsl(var(--glow-primary) / 0.9),
+          hsl(var(--glow-accent) / 0.6),
+          hsl(var(--glow-primary) / 0.9)
+        )
+        border-box;
+    border: 1px solid transparent;
+    background-size: 100% 100%, 300% 300%;
+    animation: gradient-pan 8s linear infinite;
+  }
+
+  /* Faint blueprint grid backdrop for hero/section backgrounds. */
+  .grid-bg {
+    background-image:
+      linear-gradient(hsl(var(--grid-line)) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--grid-line)) 1px, transparent 1px);
+    background-size: 32px 32px;
   }
 }
 
@@ -87,8 +153,17 @@
   }
 }
 
+@keyframes gradient-pan {
+  to {
+    background-position:
+      0 0,
+      300% 300%;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .ticker-track {
+  .ticker-track,
+  .gradient-border {
     animation: none;
   }
 }

@@ -59,11 +59,14 @@ export default {
       },
       fontFamily: {
         sans: ['"Inter Variable"', "Inter", "ui-sans-serif", "system-ui", "sans-serif"],
-        mono: ["ui-monospace", "SFMono-Regular", "Menlo", "Consolas", "monospace"],
+        mono: ['"JetBrains Mono Variable"', "ui-monospace", "SFMono-Regular", "Menlo", "Consolas", "monospace"],
       },
       boxShadow: {
-        card: "0 1px 2px hsl(24 20% 20% / 0.04), 0 4px 16px hsl(24 20% 20% / 0.06)",
-        "card-hover": "0 2px 4px hsl(24 20% 20% / 0.06), 0 8px 28px hsl(24 20% 20% / 0.10)",
+        card: "0 1px 2px hsl(222 40% 4% / 0.05), 0 4px 16px hsl(222 40% 4% / 0.07)",
+        "card-hover": "0 2px 4px hsl(222 40% 4% / 0.07), 0 8px 28px hsl(222 40% 4% / 0.12)",
+        glow: "0 0 0 1px hsl(var(--glow-primary) / 0.35), 0 0 24px -4px hsl(var(--glow-primary) / 0.5)",
+        "glow-sm": "0 0 0 1px hsl(var(--glow-primary) / 0.25), 0 0 12px -2px hsl(var(--glow-primary) / 0.4)",
+        "glow-accent": "0 0 0 1px hsl(var(--glow-accent) / 0.3), 0 0 24px -4px hsl(var(--glow-accent) / 0.45)",
       },
       keyframes: {
         "accordion-down": {
@@ -74,10 +77,25 @@ export default {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
+        "pulse-glow": {
+          "0%, 100%": { boxShadow: "0 0 0 1px hsl(var(--glow-primary) / 0.25), 0 0 12px -2px hsl(var(--glow-primary) / 0.35)" },
+          "50%": { boxShadow: "0 0 0 1px hsl(var(--glow-primary) / 0.45), 0 0 28px -2px hsl(var(--glow-primary) / 0.6)" },
+        },
+        scanline: {
+          "0%": { transform: "translateY(-100%)" },
+          "100%": { transform: "translateY(100%)" },
+        },
+        float: {
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-8px)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "pulse-glow": "pulse-glow 3s ease-in-out infinite",
+        scanline: "scanline 4s linear infinite",
+        float: "float 6s ease-in-out infinite",
       },
     },
   },
