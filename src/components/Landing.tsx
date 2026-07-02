@@ -21,7 +21,7 @@ export function Landing({ onStart }: { onStart: (mode: AnalysisMode) => void }) 
               <ShieldCheck className="h-3.5 w-3.5 text-primary" /> Runs in your browser · nothing is uploaded
             </span>
             <h1 className="mt-6 text-balance bg-gradient-to-r from-primary via-foreground to-foreground bg-clip-text text-4xl font-semibold tracking-tight text-transparent sm:text-5xl">
-              Lab-grade posture risk analysis, in your browser
+              Ergonomic risk scoring, made friendly
             </h1>
             <p className="mx-auto mt-4 max-w-xl text-pretty text-base text-muted-foreground sm:text-lg lg:mx-0">
               Get <strong className="font-semibold text-foreground">RULA</strong> and{" "}
