@@ -95,7 +95,7 @@ function SkeletonScene({ worldLandmarks, result, angles }: PoseViewer3DProps) {
       </group>
       {/* Ground grid at foot level */}
       <gridHelper args={[4, 16, palette.primary, palette.frame]} position={[0, -0.9, 0]}>
-        <meshBasicMaterial transparent opacity={0.25} />
+        <meshBasicMaterial transparent opacity={dark ? 0.25 : 0.65} />
       </gridHelper>
       <OrbitControls
         enableDamping
