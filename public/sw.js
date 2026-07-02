@@ -1,4 +1,4 @@
-const CACHE_NAME = "ergo-ai-cache-v2";
+const CACHE_NAME = "ergo-ai-cache-v3";
 
 // Paths containing these substrings will use a Cache-First strategy.
 const CACHE_FIRST_PATHS = [

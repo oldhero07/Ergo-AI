@@ -1,4 +1,5 @@
 import { FilesetResolver, HandLandmarker, type HandLandmarkerResult } from "@mediapipe/tasks-vision";
+import { getAssetBase } from "@/lib/assetBase";
 
 /**
  * Secondary hand-landmark model used to actually measure the wrist (the Pose
@@ -6,9 +7,9 @@ import { FilesetResolver, HandLandmarker, type HandLandmarkerResult } from "@med
  * and cached like the pose model so it keeps working offline after first use.
  * If it can't load, callers fall back to an assumed-neutral wrist.
  */
-const MODEL_SOURCES = [
+const modelSources = () => [
   "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task",
-  `${import.meta.env.BASE_URL}models/hand_landmarker.task`,
+  `${getAssetBase()}models/hand_landmarker.task`,
 ];
 const MODEL_CACHE = "ergo-models-v1";
 const MODEL_CACHE_KEY = "ergo-hand-landmarker";
@@ -24,7 +25,7 @@ async function getModelBytes(): Promise<Uint8Array> {
     /* Cache Storage unavailable - fall through to network. */
   }
   let lastError: unknown;
-  for (const url of MODEL_SOURCES) {
+  for (const url of modelSources()) {
     try {
       const res = await fetch(url);
       if (!res.ok) throw new Error(`Hand model fetch failed (HTTP ${res.status})`);
@@ -43,7 +44,7 @@ async function getModelBytes(): Promise<Uint8Array> {
 }
 
 async function create(delegate: "GPU" | "CPU"): Promise<HandLandmarker> {
-  const vision = await FilesetResolver.forVisionTasks(`${import.meta.env.BASE_URL}wasm`);
+  const vision = await FilesetResolver.forVisionTasks(`${getAssetBase()}wasm`);
   const modelAssetBuffer = await getModelBytes();
   return HandLandmarker.createFromOptions(vision, {
     baseOptions: { modelAssetBuffer, delegate },

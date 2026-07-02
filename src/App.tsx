@@ -1,5 +1,5 @@
-import { useCallback, useRef, useState } from "react";
-import { FileDown, Loader2, RotateCcw, AlertTriangle } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { FileDown, Loader2, RotateCcw, AlertTriangle, History, X } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { Uploader } from "@/components/Uploader";
 import { Landing } from "@/components/Landing";
@@ -9,7 +9,16 @@ import { AdjustmentsPanel } from "@/components/AdjustmentsPanel";
 import { MeasurementSummary } from "@/components/MeasurementSummary";
 import { COMPUTE_LOOP_MS } from "@/hooks/useComputeTimeline";
 import { Button } from "@/components/ui/button";
-import { analyzePhoto, analyzeVideo, type PoseAnalysis, type VideoAnalysis } from "@/lib/analyze";
+import type { PoseAnalysis, VideoAnalysis } from "@/lib/analyze";
+import { getPipeline } from "@/lib/pipeline";
+import { getBudget } from "@/lib/pipeline/budget";
+import {
+  clearSession,
+  loadSession,
+  saveSession,
+  shrinkToDataUrl,
+  type SessionSnapshot,
+} from "@/lib/sessionStore";
 import { isHeic } from "@/lib/image";
 import { validateVideoFile } from "@/lib/videoFile";
 import { VideoResults } from "@/components/VideoResults";
@@ -23,10 +32,27 @@ import type { UploadItem } from "@/types";
 type Phase = "landing" | "idle" | "computing" | "results" | "video";
 type ResultMap = Record<string, PoseAnalysis>;
 
-// Max photos per batch. Caps client-side memory: every photo holds a decoded
-// image plus its skeleton render, and PDF export builds all pages in RAM - on a
-// phone, hundreds at once can crash the tab. Raise only if targeting desktops.
-const MAX_BATCH = 30;
+// Device-aware quality budget: caps batch size and video sampling density on
+// low-memory devices so a big job can't crash the tab. Detection thresholds
+// and the model are never reduced - only how much we sample.
+const BUDGET = getBudget();
+const MAX_BATCH = BUDGET.maxBatch;
+
+/** Revoke any blob: object URLs a result set holds (worker-path images). */
+function revokeResultUrls(results: ResultMap): void {
+  for (const r of Object.values(results)) {
+    if (r.skeletonUrl?.startsWith("blob:")) URL.revokeObjectURL(r.skeletonUrl);
+    if (r.originalImageUrl?.startsWith("blob:")) URL.revokeObjectURL(r.originalImageUrl);
+  }
+}
+
+/** Revoke per-frame thumbnail object URLs of a video analysis (worker path). */
+function revokeVideoUrls(analysis: VideoAnalysis | null): void {
+  if (!analysis) return;
+  for (const f of analysis.frames) {
+    if (f.thumbUrl?.startsWith("blob:")) URL.revokeObjectURL(f.thumbUrl);
+  }
+}
 
 export default function App() {
   const [items, setItems] = useState<UploadItem[]>([]);
@@ -47,6 +73,21 @@ export default function App() {
   const [videoProgress, setVideoProgress] = useState<number | null>(null);
   const skipResolveRef = useRef<(() => void) | null>(null);
   const videoAbortRef = useRef<AbortController | null>(null);
+  const [restorable, setRestorable] = useState<SessionSnapshot | null>(null);
+  // Cache of small per-item thumbs so snapshot re-saves (adjustments/method
+  // switches) don't re-encode images every time.
+  const snapshotThumbsRef = useRef<Map<string, string>>(new Map());
+
+  // Offer to restore the last scored session (crash/refresh recovery).
+  useEffect(() => {
+    let alive = true;
+    void loadSession().then((snap) => {
+      if (alive && snap) setRestorable(snap);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   // HEIC has no in-browser <img> preview, so decode it to a JPEG in the
   // background once it's queued: this both shows a real thumbnail AND lets
@@ -169,9 +210,10 @@ export default function App() {
     const out: ResultMap = {};
 
     const work = (async () => {
+      const pipeline = getPipeline();
       for (const it of items) {
         try {
-          out[it.id] = await analyzePhoto(it.file, (loaded, total) => {
+          out[it.id] = await pipeline.analyzePhoto(it.file, (loaded, total) => {
             setModelProgress(total > 0 ? Math.min(100, Math.round((loaded / total) * 100)) : null);
             if (total > 0 && loaded >= total) setModelProgress(null); // download done
           });
@@ -201,9 +243,88 @@ export default function App() {
     await Promise.all([work, floor]);
     skipResolveRef.current = null;
     setModelProgress(null);
-    setResults(out);
+    setResults((prev) => {
+      revokeResultUrls(prev);
+      return out;
+    });
+    snapshotThumbsRef.current.clear();
     setPhase("results");
   }, [items]);
+
+  // Persist a compact snapshot of the scored session (crash/refresh recovery).
+  // Debounced so adjustment-panel tweaks don't hammer IndexedDB; thumbs are
+  // encoded once per item and cached.
+  useEffect(() => {
+    if (phase !== "results" || !items.length) return;
+    const timer = setTimeout(() => {
+      void (async () => {
+        const thumbs = snapshotThumbsRef.current;
+        const snapItems = await Promise.all(
+          items.map(async (it) => {
+            const r = results[it.id];
+            let thumb = thumbs.get(it.id);
+            if (!thumb && r?.skeletonUrl) {
+              thumb = (await shrinkToDataUrl(r.skeletonUrl)) ?? undefined;
+              if (thumb) thumbs.set(it.id, thumb);
+            }
+            return {
+              fileName: it.file.name,
+              detected: r?.detected ?? false,
+              error: r?.error,
+              angles: r?.angles,
+              input: r?.input,
+              wristMeasured: r?.wristMeasured,
+              thumb,
+            };
+          }),
+        );
+        await saveSession({ savedAt: Date.now(), methodId, items: snapItems });
+      })();
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [phase, items, results, methodId]);
+
+  // Rebuild a results view from a persisted snapshot. Original photos are not
+  // stored (privacy/quota), so images show the saved skeleton thumbnails.
+  const restoreSession = useCallback((snap: SessionSnapshot) => {
+    const compute = getMethod(snap.methodId).compute;
+    const restoredItems: UploadItem[] = [];
+    const restoredResults: ResultMap = {};
+    for (const s of snap.items) {
+      const id = crypto.randomUUID();
+      restoredItems.push({
+        id,
+        file: new File([], s.fileName, { type: "image/jpeg" }),
+        url: s.thumb ?? "",
+      });
+      restoredResults[id] = {
+        skeletonUrl: s.thumb ?? "",
+        originalImageUrl: s.thumb,
+        landmarks: [],
+        worldLandmarks: [],
+        width: 0,
+        height: 0,
+        detected: s.detected,
+        error: s.error,
+        angles: s.angles,
+        wristMeasured: s.wristMeasured,
+        input: s.input,
+        assessment: s.input ? compute(s.input) : undefined,
+      };
+    }
+    setItems(restoredItems);
+    setResults(restoredResults);
+    setMethodId(snap.methodId);
+    setMode("photo");
+    setRestorable(null);
+    snapshotThumbsRef.current.clear();
+    for (const s of snap.items) {
+      // Seed the thumb cache so re-saves reuse the stored thumbnails.
+      const item = restoredItems[snap.items.indexOf(s)];
+      if (s.thumb) snapshotThumbsRef.current.set(item.id, s.thumb);
+    }
+    setPhase("results");
+  }, []);
 
   // Video path: decode → sample frames → pose → per-frame scores → timeline view.
   // Runs as its own flow (one clip at a time), separate from the photo batch.
@@ -239,12 +360,13 @@ export default function App() {
       let aborted = false;
       const work = (async () => {
         try {
-          analysis = await analyzeVideo(
+          analysis = await getPipeline().analyzeVideo(
             file,
             (_stage, done, total) => {
               setVideoProgress(total > 0 ? Math.min(100, Math.round((done / total) * 100)) : null);
             },
             controller.signal,
+            { fps: BUDGET.fps, maxFrames: BUDGET.maxFrames, maxEdge: BUDGET.maxEdge },
           );
         } catch (e) {
           if ((e as Error).name === "AbortError" || controller.signal.aborted) aborted = true;
@@ -304,7 +426,10 @@ export default function App() {
       if (prev) URL.revokeObjectURL(prev);
       return null;
     });
-    setVideoAnalysis(null);
+    setVideoAnalysis((prev) => {
+      revokeVideoUrls(prev);
+      return null;
+    });
     setVideoError(null);
     setVideoProgress(null);
   }, []);
@@ -327,10 +452,16 @@ export default function App() {
   // is what "Start over" does - each session begins fresh, nothing lingers.
   const reset = useCallback(() => {
     setItems((prev) => {
-      prev.forEach((p) => URL.revokeObjectURL(p.url));
+      prev.forEach((p) => p.url && URL.revokeObjectURL(p.url));
       return [];
     });
-    setResults({});
+    setResults((prev) => {
+      revokeResultUrls(prev);
+      return {};
+    });
+    snapshotThumbsRef.current.clear();
+    void clearSession();
+    setRestorable(null);
     setExportError(null);
     setExporting(false);
     setShowAnimation(true);
@@ -344,16 +475,21 @@ export default function App() {
   // the intro screen rather than the uploader. Used by the header logo/title.
   const goHome = useCallback(() => {
     setItems((prev) => {
-      prev.forEach((p) => URL.revokeObjectURL(p.url));
+      prev.forEach((p) => p.url && URL.revokeObjectURL(p.url));
       return [];
     });
-    setResults({});
+    setResults((prev) => {
+      revokeResultUrls(prev);
+      return {};
+    });
     setExportError(null);
     setExporting(false);
     setShowAnimation(true);
     setNotice(null);
     setModelProgress(null);
     clearVideo();
+    // The snapshot survives "go home" (unlike "start over"), so re-offer it.
+    void loadSession().then(setRestorable);
     setPhase("landing");
   }, [clearVideo]);
 
@@ -422,12 +558,42 @@ export default function App() {
 
       <main className="container py-10">
         {phase === "landing" && (
-          <Landing
-            onStart={(m) => {
-              setMode(m);
-              setPhase("idle");
-            }}
-          />
+          <>
+            {restorable && (
+              <div className="mx-auto mb-6 flex max-w-3xl items-center justify-between gap-3 rounded-xl border bg-muted/30 px-4 py-3">
+                <div className="flex items-center gap-2.5 text-sm">
+                  <History className="h-4 w-4 shrink-0 text-primary" />
+                  <span>
+                    Restore your last session? {restorable.items.length} photo
+                    {restorable.items.length > 1 ? "s" : ""} scored{" "}
+                    {new Date(restorable.savedAt).toLocaleString()}.
+                  </span>
+                </div>
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <Button size="sm" onClick={() => restoreSession(restorable)}>
+                    Restore
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    aria-label="Dismiss restore"
+                    onClick={() => {
+                      setRestorable(null);
+                      void clearSession();
+                    }}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+            <Landing
+              onStart={(m) => {
+                setMode(m);
+                setPhase("idle");
+              }}
+            />
+          </>
         )}
 
         {phase === "idle" && (
@@ -458,6 +624,12 @@ export default function App() {
                 ? "Tip: a short, steady side-view clip of the working posture reads best."
                 : "Tip: a clear, full-body side view of the working posture reads best."}
             </p>
+            {BUDGET.reduced && (
+              <p className="mx-auto mt-2 max-w-lg text-center text-xs text-muted-foreground">
+                Reduced sampling quality is active to fit this device's memory - scoring
+                thresholds and the pose model are unchanged.
+              </p>
+            )}
           </div>
         )}
 
