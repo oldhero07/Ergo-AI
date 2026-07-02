@@ -104,6 +104,21 @@ function methodScale(maxScore: number): string {
  */
 function describeAssumptions(input: PostureInput, method: string): string {
   const parts: string[] = [];
+  if (method === "OWAS") {
+    parts.push(
+      input.armsAboveShoulder !== undefined
+        ? `Arms: ${input.armsAboveShoulder} above shoulder (estimated from both sides' pose)`
+        : "Arms: classified from the scored side only (assumed)",
+    );
+    parts.push(
+      input.legAngle !== undefined
+        ? `Knee flexion: ${fmt(input.legAngle)}° (estimated from pose)`
+        : "Legs: not visible - coded as standing, both straight (assumed)",
+    );
+    parts.push(input.load >= 2 ? "Load: 10-20 kg band (assumed from load setting)" : "Load: < 10 kg (assumed)");
+    parts.push("Walking / kneeling: not detectable from a single view (assumed absent)");
+    return parts.join(" · ");
+  }
   if (method === "REBA") {
     parts.push(
       input.legAngle !== undefined
@@ -231,8 +246,16 @@ function drawGroupBreakdown(doc: jsPDF, group: GroupBreakdown, x: number, y: num
   return cursor;
 }
 
-/** Risk-band legend rows for a method (RULA 1-7, REBA 1-15). */
+/** Risk-band legend rows for a method (RULA 1-7, REBA 1-15, OWAS AC 1-4). */
 function riskBandRows(method: string): { range: string; label: string; band: RiskBand }[] {
+  if (method === "OWAS") {
+    return [
+      { range: "1", label: "No action needed", band: "low" },
+      { range: "2", label: "Action in the near future", band: "medium" },
+      { range: "3", label: "Action as soon as possible", band: "high" },
+      { range: "4", label: "Action immediately", band: "veryhigh" },
+    ];
+  }
   if (method === "REBA") {
     return [
       { range: "1", label: "Negligible", band: "low" },
@@ -273,7 +296,16 @@ function addCoverPage(doc: jsPDF, items: PdfReportItem[], meta: ReportMeta, meth
     ["Organization", meta.organization?.trim() || "-"],
     ["Subject / task", meta.subject?.trim() || "-"],
     ["Date generated", new Date().toLocaleString()],
-    ["Method", `${method} (${method === "REBA" ? "Rapid Entire Body Assessment" : "Rapid Upper Limb Assessment"})`],
+    [
+      "Method",
+      `${method} (${
+        method === "REBA"
+          ? "Rapid Entire Body Assessment"
+          : method === "OWAS"
+            ? "Ovako Working Posture Analysing System"
+            : "Rapid Upper Limb Assessment"
+      })`,
+    ],
     ["Photos analyzed", `${items.length} (${scored.length} with a detected pose)`],
   ];
   if (scored.length) rows.push(["Grand score", `mean ${fmt(mean)} · max ${fmt(max)} (of ${fmt(maxScore)})`]);
@@ -320,7 +352,7 @@ function addCoverPage(doc: jsPDF, items: PdfReportItem[], meta: ReportMeta, meth
   doc.setTextColor(...CONTENT_MUTED);
   const intro = doc.splitTextToSize(
     `Scores are computed from MediaPipe Pose landmarks located in each photo, in your browser. ${method} captures ${
-      method === "REBA" ? "whole-body" : "upper-limb"
+      method === "REBA" ? "whole-body" : method === "OWAS" ? "whole-body posture-category" : "upper-limb"
     } posture risk. All values are a lower-bound estimate from a single camera view and are not a substitute for a full observation by a trained assessor.`,
     contentWidth,
   ) as string[];

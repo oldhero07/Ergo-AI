@@ -42,6 +42,13 @@ export interface PostureInput {
   activityStatic: boolean; // one or more body parts held static >1 min
   activityRepeated: boolean; // small-range actions repeated >4×/min
   activityUnstable: boolean; // rapid large-range changes / unstable base
+
+  // --- OWAS-specific input (optional; ignored by RULA/REBA) -------------------
+  /** How many arms are at/above shoulder level. Derived from both-sides pose
+   * data in `buildAutoInput` (upper-arm elevation ≥ 90°); undefined when the
+   * both-sides data is unavailable, in which case OWAS falls back to the
+   * scored side and flags the assumption. */
+  armsAboveShoulder?: "none" | "one" | "both";
 }
 
 export interface GroupBreakdown {

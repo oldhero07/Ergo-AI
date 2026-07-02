@@ -23,22 +23,32 @@ export function MeasurementSummary({
   staticRepetition: "assumed" | "detected";
 }) {
   const isReba = method === "REBA";
+  const isOwas = method === "OWAS";
   const legMeasured = input.legAngle !== undefined;
 
   const measured: string[] = ["Upper-arm angle", "Lower-arm angle", "Neck angle", "Trunk angle"];
   if (sideBendMeasured) measured.push("Neck / trunk side-bend");
   if (legMeasured) measured.push("Knee angle");
-  if (wristMeasured) measured.push("Wrist flexion");
+  if (!isOwas && wristMeasured) measured.push("Wrist flexion");
+  if (isOwas && input.armsAboveShoulder !== undefined) measured.push("Arm elevation (both sides)");
   if (staticRepetition === "detected") measured.push("Static / repetition");
 
-  const assumed: string[] = ["Neck / trunk twist", "Upper-arm abduction", "Arm support"];
-  if (!wristMeasured) assumed.push("Wrist (not measured)");
-  if (isReba) {
-    assumed.push("Load / force", "Coupling");
-    if (staticRepetition !== "detected") assumed.push("Activity (static / repeated)");
+  const assumed: string[] = [];
+  if (isOwas) {
+    // OWAS classifies posture categories; its unobservables differ from RULA/REBA.
+    assumed.push("Trunk twist");
+    if (input.armsAboveShoulder === undefined) assumed.push("Arm elevation (one side only)");
+    assumed.push("Walking / kneeling", "Load weight");
   } else {
-    assumed.push("Force / load");
-    if (staticRepetition !== "detected") assumed.push("Muscle use (static / repeated)");
+    assumed.push("Neck / trunk twist", "Upper-arm abduction", "Arm support");
+    if (!wristMeasured) assumed.push("Wrist (not measured)");
+    if (isReba) {
+      assumed.push("Load / force", "Coupling");
+      if (staticRepetition !== "detected") assumed.push("Activity (static / repeated)");
+    } else {
+      assumed.push("Force / load");
+      if (staticRepetition !== "detected") assumed.push("Muscle use (static / repeated)");
+    }
   }
 
   const pct = confidence !== undefined ? Math.round(confidence * 100) : null;

@@ -66,6 +66,14 @@ function band(grand: number): { band: RiskBand; label: string; action: string } 
   return { band: "veryhigh", label: "Change now", action: "Investigate and implement change immediately." };
 }
 
+/** OWAS "arms above shoulder" from both sides' upper-arm elevation (≥90° ≈ hand
+ * at/above shoulder level - an approximation from a single view, flagged as such). */
+function armsAboveShoulder(angles: AngleSet): "none" | "one" | "both" | undefined {
+  if (!angles.sides) return undefined;
+  const above = [angles.sides.left.upperArm >= 90, angles.sides.right.upperArm >= 90].filter(Boolean).length;
+  return above === 2 ? "both" : above === 1 ? "one" : "none";
+}
+
 /** Build an auto PostureInput from pose angles, with documented default assumptions. */
 export function buildAutoInput(angles: AngleSet, overrides: Partial<PostureInput> = {}): PostureInput {
   return {
@@ -100,6 +108,8 @@ export function buildAutoInput(angles: AngleSet, overrides: Partial<PostureInput
     activityStatic: false,
     activityRepeated: false,
     activityUnstable: false,
+    // OWAS-only; derived from both sides when available, ignored by RULA/REBA.
+    armsAboveShoulder: armsAboveShoulder(angles),
     ...overrides,
   };
 }
