@@ -1,4 +1,4 @@
-const CACHE_NAME = "ergo-ai-cache-v3";
+const CACHE_NAME = "ergo-ai-cache-v4";
 
 // Paths containing these substrings will use a Cache-First strategy.
 const CACHE_FIRST_PATHS = [
@@ -32,6 +32,27 @@ self.addEventListener("fetch", (event) => {
   // Only intercept standard HTTP/HTTPS GET requests to prevent caching issues with extensions, POSTs, etc.
   if (!url.startsWith("http") || request.method !== "GET") return;
 
+  // Network-First for navigation (the main HTML page / entry point)
+  // This ensures users get the latest deploy instantly when online, falling back to cache offline.
+  if (request.mode === "navigate") {
+    event.respondWith(
+      fetch(request)
+        .then((networkResponse) => {
+          if (networkResponse.status === 200) {
+            const responseClone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(request, responseClone);
+            });
+          }
+          return networkResponse;
+        })
+        .catch(() => {
+          return caches.match(request);
+        })
+    );
+    return;
+  }
+
   const isCacheFirst = CACHE_FIRST_PATHS.some((path) => url.includes(path));
 
   if (isCacheFirst) {
@@ -52,7 +73,7 @@ self.addEventListener("fetch", (event) => {
       })
     );
   } else {
-    // Stale-While-Revalidate for other assets (HTML, JS, CSS, fonts, etc.)
+    // Stale-While-Revalidate for other assets (JS, CSS, fonts, etc.)
     event.respondWith(
       caches.open(CACHE_NAME).then((cache) => {
         return cache.match(request).then((hit) => {
