@@ -91,6 +91,94 @@ export function AdjustmentsPanel({
   const set = <K extends keyof PostureInput>(key: K, value: PostureInput[K]) => onChange({ ...input, [key]: value });
   const isReba = methodId === "reba";
 
+  // OWAS classifies whole-posture categories, so its adjustable factors are a
+  // different, smaller set (arm elevation class, trunk twist, legs, load band).
+  if (methodId === "owas") {
+    return (
+      <div className="border-t border-border bg-card/40 backdrop-blur-md">
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          className="flex w-full items-center justify-between px-5 py-3.5 text-sm font-medium transition-colors hover:bg-accent/30"
+        >
+          <span className="flex items-center gap-2.5">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+            </span>
+            <span>Adjust factors a photo can&apos;t see</span>
+          </span>
+          <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform duration-200", open && "rotate-180")} />
+        </button>
+        {open && (
+          <div className="grid gap-6 px-5 pb-6 pt-1 sm:grid-cols-2">
+            <div className="space-y-2.5">
+              <div className="flex items-center gap-2 pb-1">
+                <span className="h-px flex-1 bg-border" />
+                <h5 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Back & arms</h5>
+                <span className="h-px flex-1 bg-border" />
+              </div>
+              <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card/50 px-3.5 py-2.5 text-sm">
+                <span className="text-muted-foreground">Arms at/above shoulder</span>
+                <div className="flex gap-1">
+                  {(["none", "one", "both"] as const).map((v) => (
+                    <button
+                      key={v}
+                      type="button"
+                      aria-pressed={(input.armsAboveShoulder ?? "none") === v}
+                      onClick={() => set("armsAboveShoulder", v)}
+                      className={cn(
+                        "rounded-lg px-2.5 py-1 text-xs font-semibold capitalize transition-all duration-150",
+                        (input.armsAboveShoulder ?? "none") === v
+                          ? "bg-primary text-primary-foreground shadow-glow-sm"
+                          : "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+                      )}
+                    >
+                      {v}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <Toggle label="Trunk twisted" checked={input.trunkTwisted} onChange={(v) => set("trunkTwisted", v)} />
+              <Toggle label="Trunk side-bent" checked={input.trunkSideBend} onChange={(v) => set("trunkSideBend", v)} />
+            </div>
+            <div className="space-y-2.5">
+              <div className="flex items-center gap-2 pb-1">
+                <span className="h-px flex-1 bg-border" />
+                <h5 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Legs & load</h5>
+                <span className="h-px flex-1 bg-border" />
+              </div>
+              <Toggle label="Seated / legs supported" checked={input.legsSupported} onChange={(v) => set("legsSupported", v)} />
+              <Toggle label="Weight on both legs (bilateral)" checked={input.legsBilateral} onChange={(v) => set("legsBilateral", v)} />
+              <div className="rounded-xl border border-border bg-card/50 px-3.5 py-2.5">
+                <label className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
+                  <span>Knee flexion</span>
+                  <span className="hud-readout rounded-md bg-secondary px-1.5 py-0.5 font-medium">
+                    {Math.round(input.legAngle ?? 0)}°
+                  </span>
+                </label>
+                <input
+                  type="range"
+                  min={0}
+                  max={150}
+                  value={input.legAngle ?? 0}
+                  onChange={(e) => set("legAngle", Number(e.target.value))}
+                  className="w-full accent-primary"
+                />
+              </div>
+              <ForceControl
+                label="Load (0-1 <10kg · 2 heavier)"
+                value={input.load}
+                onChange={(v) => set("load", v)}
+                steps={[0, 1, 2]}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="border-t border-border bg-card/40 backdrop-blur-md">
       <button

@@ -27,10 +27,12 @@ import { PhaseTransition } from "@/components/PhaseTransition";
 import type { AnalysisMode } from "@/types";
 import { exportPdfReport } from "@/lib/pdf";
 import { getMethod, methods } from "@/assessment/registry";
+import { estimateNioshGeometry } from "@/assessment/niosh/niosh";
+import { NioshCalculator, type NioshPrefill } from "@/components/NioshCalculator";
 import type { PostureInput } from "@/assessment/types";
 import type { UploadItem } from "@/types";
 
-type Phase = "landing" | "idle" | "computing" | "results" | "video";
+type Phase = "landing" | "idle" | "computing" | "results" | "video" | "niosh";
 type ResultMap = Record<string, PoseAnalysis>;
 
 // Device-aware quality budget: caps batch size and video sampling density on
@@ -75,6 +77,7 @@ export default function App() {
   const skipResolveRef = useRef<(() => void) | null>(null);
   const videoAbortRef = useRef<AbortController | null>(null);
   const [restorable, setRestorable] = useState<SessionSnapshot | null>(null);
+  const [nioshPrefill, setNioshPrefill] = useState<NioshPrefill | null>(null);
   // Cache of small per-item thumbs so snapshot re-saves (adjustments/method
   // switches) don't re-encode images every time.
   const snapshotThumbsRef = useRef<Map<string, string>>(new Map());
@@ -522,6 +525,23 @@ export default function App() {
     });
   }, []);
 
+  // Open the NIOSH lifting calculator, prefilling H/V geometry from the worst
+  // scored photo's 3D world landmarks when results are available.
+  const openNiosh = useCallback(() => {
+    let prefill: NioshPrefill | null = null;
+    const scored = items
+      .map((it) => results[it.id])
+      .filter((r) => r?.detected && r.worldLandmarks.length && r.assessment)
+      .sort((a, b) => (b.assessment?.grandScore ?? 0) - (a.assessment?.grandScore ?? 0));
+    if (scored[0]) prefill = estimateNioshGeometry(scored[0].worldLandmarks);
+    setNioshPrefill(prefill);
+    setPhase("niosh");
+  }, [items, results]);
+
+  const closeNiosh = useCallback(() => {
+    setPhase(Object.keys(results).length ? "results" : "landing");
+  }, [results]);
+
   const exportPdf = useCallback(async () => {
     setExporting(true);
     setExportError(null);
@@ -595,7 +615,23 @@ export default function App() {
                 setPhase("idle");
               }}
             />
+            <p className="mt-8 text-center text-sm text-muted-foreground">
+              Manual lifting task instead?{" "}
+              <button
+                type="button"
+                onClick={openNiosh}
+                className="font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                Open the NIOSH lifting calculator →
+              </button>
+            </p>
           </>
+        )}
+
+        {phase === "niosh" && (
+          <div className="animate-in fade-in duration-500">
+            <NioshCalculator prefill={nioshPrefill} onBack={closeNiosh} />
+          </div>
         )}
 
         {phase === "idle" && (
@@ -717,6 +753,9 @@ export default function App() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                <Button variant="outline" onClick={openNiosh}>
+                  NIOSH lifting
+                </Button>
                 <Button variant="outline" onClick={exportPdf} disabled={exporting}>
                   {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
                   Export PDF
