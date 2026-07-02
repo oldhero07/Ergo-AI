@@ -15,7 +15,9 @@ export type WorkerRequest =
       assetBase: string;
     }
   | { type: "analyzePhoto"; id: string; bitmap: ImageBitmap }
-  | { type: "analyzeFrame"; id: string; timeSec: number; bitmap: ImageBitmap };
+  | { type: "analyzeFrame"; id: string; timeSec: number; bitmap: ImageBitmap }
+  /** Preload the ML models (download + GPU init) before any image arrives. */
+  | { type: "warmup" };
 
 export interface PhotoResultPayload {
   id: string;

@@ -187,6 +187,7 @@ describe("videoCsv", () => {
       skippedNoPose: 1,
       skippedLowConfidence: 2,
       unreadableFrames: 0,
+      wristMeasured: true,
       sampledDurationSec: 5,
       fps: 4,
       temporal: { repeated: false, sustained: true },

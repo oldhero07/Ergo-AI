@@ -30,6 +30,8 @@ import { getMethod, methods } from "@/assessment/registry";
 import { estimateNioshGeometry } from "@/assessment/niosh/niosh";
 import { NioshCalculator, type NioshPrefill } from "@/components/NioshCalculator";
 import { PoseViewerLazy } from "@/components/PoseViewerLazy";
+import { RecommendationsPanel } from "@/components/RecommendationsPanel";
+import { downloadText, exportJson, photoCsv } from "@/lib/exportData";
 import type { PostureInput } from "@/assessment/types";
 import type { UploadItem } from "@/types";
 
@@ -64,7 +66,12 @@ export default function App() {
   const [results, setResults] = useState<ResultMap>({});
   const [methodId, setMethodId] = useState<string>("rula");
   const [mode, setMode] = useState<AnalysisMode>("photo");
-  const [reportMeta, setReportMeta] = useState({ assessor: "", organization: "", subject: "" });
+  const [reportMeta, setReportMeta] = useState<{
+    assessor: string;
+    organization: string;
+    subject: string;
+    logoDataUrl?: string;
+  }>({ assessor: "", organization: "", subject: "" });
   const [showAnimation, setShowAnimation] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
@@ -82,6 +89,18 @@ export default function App() {
   // Cache of small per-item thumbs so snapshot re-saves (adjustments/method
   // switches) don't re-encode images every time.
   const snapshotThumbsRef = useRef<Map<string, string>>(new Map());
+
+  // Warm the ML models the moment the user reaches the uploader, so the
+  // first Analyze click doesn't pay the model download + GPU init.
+  const warmedRef = useRef(false);
+  useEffect(() => {
+    if (phase !== "idle" || warmedRef.current) return;
+    warmedRef.current = true;
+    void getPipeline().warmUp((loaded, total) => {
+      setModelProgress(total > 0 ? Math.min(100, Math.round((loaded / total) * 100)) : null);
+      if (total > 0 && loaded >= total) setModelProgress(null);
+    });
+  }, [phase]);
 
   // Offer to restore the last scored session (crash/refresh recovery).
   useEffect(() => {
@@ -543,6 +562,40 @@ export default function App() {
     setPhase(Object.keys(results).length ? "results" : "landing");
   }, [results]);
 
+  // Raw data exports for spreadsheets / downstream analysis.
+  const exportCsv = useCallback(() => {
+    const rows = items
+      .filter((it) => results[it.id])
+      .map((it) => ({ fileName: it.file.name, analysis: results[it.id] }));
+    if (!rows.length) return;
+    downloadText(`ergo-ai-${methodId}-data.csv`, "text/csv", photoCsv(rows, methodId));
+  }, [items, results, methodId]);
+
+  const exportJsonFile = useCallback(() => {
+    const payload = {
+      app: "ergo-ai",
+      generatedAt: new Date().toISOString(),
+      method: methodId,
+      meta: { assessor: reportMeta.assessor, organization: reportMeta.organization, subject: reportMeta.subject },
+      items: items
+        .filter((it) => results[it.id])
+        .map((it) => {
+          const r = results[it.id];
+          return {
+            fileName: it.file.name,
+            detected: r.detected,
+            error: r.error,
+            angles: r.angles,
+            wristMeasured: r.wristMeasured,
+            input: r.input,
+            assessment: r.assessment,
+          };
+        }),
+    };
+    if (!payload.items.length) return;
+    downloadText(`ergo-ai-${methodId}-data.json`, "application/json", exportJson(payload));
+  }, [items, results, methodId, reportMeta]);
+
   const exportPdf = useCallback(async () => {
     setExporting(true);
     setExportError(null);
@@ -631,7 +684,7 @@ export default function App() {
 
         {phase === "niosh" && (
           <div className="animate-in fade-in duration-500">
-            <NioshCalculator prefill={nioshPrefill} onBack={closeNiosh} />
+            <NioshCalculator prefill={nioshPrefill} onBack={closeNiosh} reportMeta={reportMeta} />
           </div>
         )}
 
@@ -667,6 +720,11 @@ export default function App() {
               <p className="mx-auto mt-2 max-w-lg text-center text-xs text-muted-foreground">
                 Reduced sampling quality is active to fit this device's memory - scoring
                 thresholds and the pose model are unchanged.
+              </p>
+            )}
+            {modelProgress !== null && (
+              <p className="hud-readout mx-auto mt-2 max-w-lg text-center text-xs text-muted-foreground">
+                preparing pose engine in the background · {modelProgress}%
               </p>
             )}
           </div>
@@ -759,7 +817,13 @@ export default function App() {
                 </Button>
                 <Button variant="outline" onClick={exportPdf} disabled={exporting}>
                   {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
-                  Export PDF
+                  PDF
+                </Button>
+                <Button variant="outline" onClick={exportCsv}>
+                  CSV
+                </Button>
+                <Button variant="outline" onClick={exportJsonFile}>
+                  JSON
                 </Button>
                 <Button variant="outline" onClick={reset}>
                   <RotateCcw className="h-4 w-4" /> Start over
@@ -839,6 +903,7 @@ export default function App() {
                             onChange={(next) => updateInput(it.id, next)}
                           />
                         )}
+                        {r.input && <RecommendationsPanel result={r.assessment} input={r.input} />}
                         <PoseViewerLazy
                           worldLandmarks={r.worldLandmarks}
                           result={r.assessment}
@@ -874,20 +939,34 @@ export default function App() {
   );
 }
 
-/** Optional provenance for the PDF cover page (assessor, organization, subject/task). */
+/** Optional provenance for the PDF cover page (assessor, organization, subject/task, logo). */
 function ReportDetails({
   meta,
   onChange,
 }: {
-  meta: { assessor: string; organization: string; subject: string };
-  onChange: (next: { assessor: string; organization: string; subject: string }) => void;
+  meta: { assessor: string; organization: string; subject: string; logoDataUrl?: string };
+  onChange: (next: { assessor: string; organization: string; subject: string; logoDataUrl?: string }) => void;
 }) {
-  const set = (key: keyof typeof meta, value: string) => onChange({ ...meta, [key]: value });
-  const fields: { key: keyof typeof meta; label: string; placeholder: string }[] = [
+  const set = (key: "assessor" | "organization" | "subject", value: string) => onChange({ ...meta, [key]: value });
+  const fields: { key: "assessor" | "organization" | "subject"; label: string; placeholder: string }[] = [
     { key: "assessor", label: "Assessor", placeholder: "Your name" },
     { key: "organization", label: "Organization", placeholder: "Dept. / company" },
     { key: "subject", label: "Subject / task", placeholder: "e.g. Loin-loom weaving - beating" },
   ];
+
+  const onLogo = async (file: File | undefined) => {
+    if (!file) return;
+    // Downscale to a small data URL - the PDF draws it at ~64pt, and a raw
+    // camera-size logo would bloat both memory and the report.
+    const url = URL.createObjectURL(file);
+    try {
+      const small = await shrinkToDataUrl(url, 256);
+      if (small) onChange({ ...meta, logoDataUrl: small });
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  };
+
   return (
     <details className="mb-6 rounded-lg border bg-muted/20">
       <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-muted-foreground">
@@ -906,6 +985,25 @@ function ReportDetails({
             />
           </label>
         ))}
+        <div className="flex items-end gap-3 sm:col-span-3">
+          <label className="text-xs text-muted-foreground">
+            Logo (optional, drawn on the cover)
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => void onLogo(e.target.files?.[0])}
+              className="mt-1 block w-full text-xs text-muted-foreground file:mr-3 file:rounded-md file:border file:border-border file:bg-background file:px-2.5 file:py-1.5 file:text-xs file:text-foreground"
+            />
+          </label>
+          {meta.logoDataUrl && (
+            <>
+              <img src={meta.logoDataUrl} alt="report logo" className="h-10 w-10 rounded-md border object-contain" />
+              <Button size="sm" variant="ghost" onClick={() => onChange({ ...meta, logoDataUrl: undefined })}>
+                Remove
+              </Button>
+            </>
+          )}
+        </div>
       </div>
     </details>
   );

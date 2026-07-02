@@ -67,10 +67,17 @@ export async function analyzePhoto(file: File, onModelProgress?: ModelProgress):
         out.angles = angles;
         // Measure the wrist from a second (hand) model when possible; never let
         // its absence or failure block the score - fall back to assumed neutral.
+        // ROI-first around the scored wrist (better for small/distant hands);
+        // detectHandsCropped falls back to a full-frame scan internally.
         let wristFlex: number | null = null;
         try {
-          const hands = await detectHands(bitmap);
-          wristFlex = measureWristFlexion(out.landmarks, hands.landmarks, angles.side);
+          const wristIdx = angles.side === "left" ? 15 : 16;
+          const wrist = out.landmarks[wristIdx];
+          const hands =
+            wrist && (wrist.visibility ?? 0) > 0.3
+              ? await detectHandsCropped(bitmap, wrist.x, wrist.y)
+              : (await detectHands(bitmap)).landmarks;
+          wristFlex = measureWristFlexion(out.landmarks, hands, angles.side);
         } catch {
           /* hand model unavailable - wrist stays assumed neutral */
         }

@@ -37,6 +37,8 @@ export interface VideoAnalysis {
   fps: number;
   /** Detected over the clip and applied to every frame's muscle-use / activity. */
   temporal: { repeated: boolean; sustained: boolean };
+  /** Wrist flexion was actually measured by the hand model on at least one frame. */
+  wristMeasured: boolean;
 }
 
 /** A raw per-frame detection before smoothing/scoring - produced by either backend. */
@@ -180,5 +182,6 @@ export function assembleVideoAnalysis(
     sampledDurationSec: meta.sampledDurationSec,
     fps: meta.fps,
     temporal,
+    wristMeasured: raw.some((r) => r.wristFlex !== null),
   };
 }
