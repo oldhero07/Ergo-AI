@@ -746,7 +746,7 @@ export default function App() {
                       ? `Analyzing video - ${videoProgress}% (sampling frames)`
                       : undefined
                 }
-                onSkip={skipAnimation}
+                onSkip={mode === "video" ? undefined : skipAnimation}
               />
             ) : (
               <div className="flex min-h-[50vh] flex-col items-center justify-center gap-3 text-center">
