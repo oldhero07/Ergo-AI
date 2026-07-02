@@ -5,16 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="google-site-verification" content="Fi_-Jduv1jm8zG9ij45u1wV7JGrZXuul31aHKJZGGx4" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="theme-color" content="#faf7f1" />
+    <meta name="theme-color" content="#070b14" />
     <link rel="canonical" href="https://oldhero07.github.io/Ergo-AI/" />
 
-    <!-- Apply the saved theme before first paint to avoid a flash of light mode. -->
+    <!-- Apply the saved theme before first paint to avoid a theme flash.
+         Dark is the default look; "system" still tracks the OS preference. -->
     <script>
       (function () {
         try {
-          var t = localStorage.getItem("ergo-theme") || "system";
+          var t = localStorage.getItem("ergo-theme") || "dark";
           var dark = t === "dark" || (t === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
           document.documentElement.classList.toggle("dark", dark);
+          if (!dark) {
+            var m = document.querySelector('meta[name="theme-color"]');
+            if (m) m.setAttribute("content", "#f7fafc");
+          }
         } catch (e) {}
       })();
     </script>
