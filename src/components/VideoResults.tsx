@@ -1,13 +1,28 @@
 import { useMemo, useRef, useState, useEffect } from "react";
 import { AlertTriangle, FileDown, Loader2 } from "lucide-react";
 import type { VideoAnalysis } from "@/lib/analyze";
-import type { AssessmentResult, PostureInput } from "@/assessment/types";
+import type { AssessmentResult, PostureInput, RiskBand } from "@/assessment/types";
 import { getMethod, methods } from "@/assessment/registry";
-import { RISK_META } from "@/lib/risk";
 import { Scorecard } from "@/components/Scorecard";
 import { MeasurementSummary } from "@/components/MeasurementSummary";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { exportVideoPdfReport, type VideoPdfReport } from "@/lib/pdf";
+
+/** Static (JIT-safelisted) risk-band -> Tailwind class lookups. */
+const RISK_FILL_CLASSES: Record<RiskBand, string> = {
+  low: "fill-risk-low",
+  medium: "fill-risk-medium",
+  high: "fill-risk-high drop-shadow-[0_0_5px_hsl(var(--risk-high)_/_65%)]",
+  veryhigh: "fill-risk-veryhigh drop-shadow-[0_0_5px_hsl(var(--risk-veryhigh)_/_65%)]",
+};
+
+const RISK_TEXT_CLASSES: Record<RiskBand, string> = {
+  low: "text-risk-low",
+  medium: "text-risk-medium",
+  high: "text-risk-high",
+  veryhigh: "text-risk-veryhigh",
+};
 
 interface ScoredFrame {
   timeSec: number;
@@ -121,7 +136,7 @@ export function VideoResults({
     <div className="mx-auto w-full max-w-4xl">
       <div className="mb-4 flex flex-wrap items-center gap-4">
         <h2 className="text-xl font-semibold">Video analysis</h2>
-        <div role="tablist" aria-label="Assessment method" className="inline-flex rounded-lg border p-0.5">
+        <div role="tablist" aria-label="Assessment method" className="glass inline-flex rounded-lg p-0.5">
           {methods.map((m) => (
             <button
               key={m.id}
@@ -131,7 +146,7 @@ export function VideoResults({
               onClick={() => onMethodChange(m.id)}
               className={
                 "rounded-md px-3 py-1 text-sm font-medium transition-colors " +
-                (methodId === m.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")
+                (methodId === m.id ? "bg-primary text-primary-foreground shadow-glow-sm" : "text-muted-foreground hover:text-foreground")
               }
             >
               {m.name}
@@ -163,12 +178,12 @@ export function VideoResults({
           <Timeline scored={scored} playhead={playhead} onSeek={seek} />
 
           {stats && (
-            <div className="mt-4 grid grid-cols-3 gap-3 rounded-lg border bg-muted/30 p-4 text-center">
+            <div className="mt-4 grid grid-cols-3 gap-3">
               <Stat
                 label="peak score"
                 value={`${stats.peak.assessment.grandScore} / ${stats.maxScore}`}
                 sub={`at ${fmtTime(stats.peak.timeSec)} · ${stats.peak.assessment.riskLabel}`}
-                color={RISK_META[stats.peak.assessment.riskBand].color}
+                riskBand={stats.peak.assessment.riskBand}
                 onClick={() => seek(stats.peak.timeSec)}
               />
               <Stat label="mean score" value={stats.mean.toFixed(1)} sub={`across ${scored.length} frames`} />
@@ -217,7 +232,7 @@ export function VideoResults({
                   jump to this moment
                 </button>
               </div>
-              <div className="overflow-hidden rounded-xl border">
+              <div className="overflow-hidden rounded-xl border ring-1 ring-risk-high">
                 <img src={stats.peak.thumbUrl} alt="worst frame" className="aspect-video w-full bg-muted object-contain" />
                 <div className="border-t">
                   <Scorecard result={stats.peak.assessment} />
@@ -235,30 +250,34 @@ function Stat({
   label,
   value,
   sub,
-  color,
+  riskBand,
   onClick,
 }: {
   label: string;
   value: string;
   sub: string;
-  color?: string;
+  riskBand?: RiskBand;
   onClick?: () => void;
 }) {
   const inner = (
     <>
-      <div className="text-2xl font-semibold tabular-nums" style={color ? { color } : undefined}>
+      <div className={cn("hud-readout text-2xl font-semibold", riskBand ? RISK_TEXT_CLASSES[riskBand] : "text-foreground")}>
         {value}
       </div>
       <div className="text-xs text-muted-foreground">{label}</div>
       <div className="mt-0.5 text-[11px] text-muted-foreground/80">{sub}</div>
     </>
   );
-  return onClick ? (
-    <button type="button" onClick={onClick} className="rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring">
-      {inner}
-    </button>
-  ) : (
-    <div>{inner}</div>
+  return (
+    <div className="glass rounded-xl p-4 text-center">
+      {onClick ? (
+        <button type="button" onClick={onClick} className="w-full rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          {inner}
+        </button>
+      ) : (
+        <div>{inner}</div>
+      )}
+    </div>
   );
 }
 
@@ -276,7 +295,7 @@ function Timeline({ scored, playhead, onSeek }: { scored: ScoredFrame[]; playhea
       <svg
         viewBox={`0 0 ${W} ${H}`}
         preserveAspectRatio="none"
-        className="h-28 w-full cursor-pointer rounded-lg border bg-muted/20"
+        className="h-28 w-full cursor-pointer rounded-lg border bg-muted/20 grid-bg"
         role="img"
         aria-label="Risk score over time"
         onClick={(e) => {
@@ -288,7 +307,17 @@ function Timeline({ scored, playhead, onSeek }: { scored: ScoredFrame[]; playhea
         {scored.map((s, i) => {
           const x = (i / scored.length) * W;
           const h = (s.assessment.grandScore / maxScore) * (H - 12);
-          return <rect key={i} x={x} y={H - h} width={barW} height={h} fill={RISK_META[s.assessment.riskBand].color} rx={1} />;
+          return (
+            <rect
+              key={i}
+              x={x}
+              y={H - h}
+              width={barW}
+              height={h}
+              rx={1}
+              className={RISK_FILL_CLASSES[s.assessment.riskBand]}
+            />
+          );
         })}
         {/* playhead */}
         <line
