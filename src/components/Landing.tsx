@@ -252,8 +252,8 @@ function HeroVisual() {
 
           {/* Joint Nodes */}
           <g fill="hsl(var(--primary))" filter="url(#hero-glow)">
-            <circle cx="120" cy="44" r="3.5" fill="hsl(var(--background))" />
-            <circle cx="120" cy="44" r="8" fill="hsl(var(--primary))" fillOpacity={0.15} stroke="hsl(var(--primary))" strokeWidth={1} />
+            <circle cx="120" cy="44" r="8" fill="hsl(var(--primary))" />
+            <circle cx="120" cy="44" r="3.5" fill="hsl(var(--primary-foreground))" />
             <circle cx="104" cy="86" r="5" />
             <circle cx="138" cy="120" r="5" />
             <circle cx="128" cy="160" r="5" />

@@ -30,9 +30,11 @@ export const LM = {
   rightAnkle: 28,
 } as const;
 
-/** The joints the viewer renders (the ones the assessment actually scores). */
+/** The joints the viewer renders (the ones the assessment actually scores).
+ * The head is NOT a landmark here - it renders as a synthetic sphere at
+ * `headRef` (the ear midpoint the neck angle is measured to), so the neck
+ * bone and the head visual always connect. */
 export const JOINT_IDS: number[] = [
-  LM.nose,
   LM.leftShoulder,
   LM.rightShoulder,
   LM.leftElbow,

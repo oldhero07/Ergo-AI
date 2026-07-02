@@ -9,12 +9,14 @@
  * normal phone clips. */
 export const MAX_VIDEO_BYTES = 500 * 1024 * 1024; // 500 MB
 
-/** Only the first N seconds of a clip are analyzed. */
-export const MAX_DURATION_SEC = 30;
+/** Absolute ceiling for analyzed duration (user can pick up to this). */
+export const MAX_DURATION_SEC = 60;
+/** Default analyzed duration when the user hasn't changed the setting. */
+export const DEFAULT_DURATION_SEC = 30;
 /** Frames sampled per second of clip (≈ enough to catch posture changes). */
 export const SAMPLE_FPS = 4;
 /** Hard cap on sampled frames regardless of fps/duration. */
-export const MAX_FRAMES = 150;
+export const MAX_FRAMES = 300;
 /** Longest edge each frame is downscaled to before pose detection. */
 export const MAX_EDGE = 720;
 

@@ -65,11 +65,21 @@ function SkeletonScene({ worldLandmarks, result, angles }: PoseViewer3DProps) {
             const color = colorFor(jointComponent(id));
             return (
               <mesh key={id} position={p}>
-                <sphereGeometry args={[id === 0 ? 0.055 : 0.032, 20, 20]} />
+                <sphereGeometry args={[0.032, 20, 20]} />
                 <meshStandardMaterial color={color} emissive={color} emissiveIntensity={dark ? 0.55 : 0.12} />
               </mesh>
             );
           })}
+          {/* Head: drawn at the same reference point the neck bone ends at
+              (ear midpoint / nose fallback), so it never floats detached. */}
+          <mesh position={sk.headRef}>
+            <sphereGeometry args={[0.07, 24, 24]} />
+            <meshStandardMaterial
+              color={colorFor("neck")}
+              emissive={colorFor("neck")}
+              emissiveIntensity={dark ? 0.55 : 0.12}
+            />
+          </mesh>
           {/* Angle labels at the joints the score derives from */}
           {showLabels && angles && (
             <>

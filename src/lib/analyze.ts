@@ -98,6 +98,7 @@ export interface AnalyzeVideoOptions {
   fps?: number;
   maxFrames?: number;
   maxEdge?: number;
+  maxDurationSec?: number;
 }
 
 /** Render a small JPEG thumbnail of a frame bitmap (for the timeline/worst-frame UI). */

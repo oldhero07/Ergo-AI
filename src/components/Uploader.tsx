@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Upload, X, Images, Play, Trash2, Loader2, Camera, Video, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { VideoSettings, type VideoSettingsValues } from "@/components/VideoSettings";
 import { cn } from "@/lib/utils";
 import { isVideoFile } from "@/lib/videoFile";
-import { MAX_VIDEO_MB, MAX_DURATION_SEC } from "@/lib/videoConfig";
+import { MAX_VIDEO_MB } from "@/lib/videoConfig";
 import type { AnalysisMode, UploadItem } from "@/types";
 
 /**
@@ -46,6 +47,9 @@ interface UploaderProps {
   onClear: () => void;
   onAnalyze: () => void;
   onUseSample?: (key: "office" | "warehouse" | "assembly") => void;
+  videoSettings?: VideoSettingsValues;
+  onVideoSettingsChange?: (s: VideoSettingsValues) => void;
+  budgetReduced?: boolean;
 }
 
 export function Uploader({
@@ -58,6 +62,9 @@ export function Uploader({
   onClear,
   onAnalyze,
   onUseSample,
+  videoSettings,
+  onVideoSettingsChange,
+  budgetReduced,
 }: UploaderProps) {
   const [dragging, setDragging] = useState(false);
   const [wrongType, setWrongType] = useState<"image" | "video" | null>(null);
@@ -136,7 +143,7 @@ export function Uploader({
         </p>
         <p className="mt-3 text-xs text-muted-foreground">
           {isVideoMode
-            ? `MP4, MOV, or WebM · up to ${MAX_VIDEO_MB} MB · first ${MAX_DURATION_SEC}s analyzed`
+            ? `MP4, MOV, or WebM · up to ${MAX_VIDEO_MB} MB · first ${videoSettings?.durationSec ?? 30}s analyzed`
             : "JPG, PNG, or iPhone HEIC"}
         </p>
         <input
@@ -151,6 +158,10 @@ export function Uploader({
           }}
         />
       </div>
+
+      {isVideoMode && videoSettings && onVideoSettingsChange && (
+        <VideoSettings settings={videoSettings} onChange={onVideoSettingsChange} budgetReduced={budgetReduced} />
+      )}
 
       {wrongType && (
         <div className="mt-4 flex flex-wrap items-center justify-center gap-2 rounded-xl border bg-amber-50 px-4 py-3 text-center text-sm text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">

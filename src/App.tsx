@@ -22,6 +22,7 @@ import {
 import { isHeic } from "@/lib/image";
 import { validateVideoFile } from "@/lib/videoFile";
 import { VideoResults } from "@/components/VideoResults";
+import { DEFAULT_VIDEO_SETTINGS, type VideoSettingsValues } from "@/components/VideoSettings";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { PhaseTransition } from "@/components/PhaseTransition";
 import type { AnalysisMode } from "@/types";
@@ -82,6 +83,7 @@ export default function App() {
   const [videoAnalysis, setVideoAnalysis] = useState<VideoAnalysis | null>(null);
   const [videoError, setVideoError] = useState<string | null>(null);
   const [videoProgress, setVideoProgress] = useState<number | null>(null);
+  const [videoSettings, setVideoSettings] = useState<VideoSettingsValues>(DEFAULT_VIDEO_SETTINGS);
   const skipResolveRef = useRef<(() => void) | null>(null);
   const videoAbortRef = useRef<AbortController | null>(null);
   const [restorable, setRestorable] = useState<SessionSnapshot | null>(null);
@@ -390,7 +392,7 @@ export default function App() {
               setVideoProgress(total > 0 ? Math.min(100, Math.round((done / total) * 100)) : null);
             },
             controller.signal,
-            { fps: BUDGET.fps, maxFrames: BUDGET.maxFrames, maxEdge: BUDGET.maxEdge },
+            { fps: Math.min(videoSettings.fps, BUDGET.fps), maxFrames: Math.min(videoSettings.durationSec * videoSettings.fps, BUDGET.maxFrames), maxEdge: Math.min(videoSettings.maxEdge, BUDGET.maxEdge), maxDurationSec: videoSettings.durationSec },
           );
         } catch (e) {
           if ((e as Error).name === "AbortError" || controller.signal.aborted) aborted = true;
@@ -423,7 +425,7 @@ export default function App() {
         setPhase("video");
       }
     },
-    [MIN_COMPUTE_MS],
+    [MIN_COMPUTE_MS, videoSettings],
   );
 
   // Cancel an in-flight video analysis and return to the uploader.
@@ -700,6 +702,9 @@ export default function App() {
               onClear={clearItems}
               onAnalyze={runAnalysis}
               onUseSample={useSample}
+              videoSettings={videoSettings}
+              onVideoSettingsChange={setVideoSettings}
+              budgetReduced={BUDGET.reduced}
             />
             {videoError && (
               <p className="mx-auto mt-4 max-w-3xl rounded-xl bg-red-50 px-4 py-2 text-center text-sm text-red-700 dark:bg-red-950/40 dark:text-red-400">
