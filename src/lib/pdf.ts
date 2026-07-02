@@ -1,6 +1,14 @@
 import { jsPDF } from "jspdf";
 import type { PoseAnalysis } from "@/lib/analyze";
 import type { AssessmentResult, GroupBreakdown, PostureInput, RiskBand } from "@/assessment/types";
+import {
+  buildNioshRecommendations,
+  buildRecommendations,
+  type Recommendation,
+  type Severity,
+} from "@/assessment/recommendations";
+import { thresholdRows } from "@/assessment/thresholds";
+import type { NioshInput, NioshResult } from "@/assessment/niosh/niosh";
 
 /** One photo + its analysis, ready to be rendered onto a PDF page. */
 export interface PdfReportItem {
@@ -15,6 +23,8 @@ export interface ReportMeta {
   assessor?: string;
   organization?: string;
   subject?: string; // subject / task being assessed
+  /** Optional org/report logo, `data:` URL. Drawn top-right of the cover page when present. */
+  logoDataUrl?: string;
 }
 
 /** RGB fill/text colors per risk band - jsPDF wants plain RGB triples, not CSS `hsl(var(--x))`. */
@@ -91,6 +101,25 @@ function fmt(n: number): string {
 }
 
 const COUPLING_LABELS = ["good", "fair", "poor", "unacceptable"];
+
+/** pdf.ts works with method NAMES ("RULA"/"REBA"/"OWAS"); map to registry ids. */
+function methodNameToId(method: string): string {
+  if (method === "REBA") return "reba";
+  if (method === "OWAS") return "owas";
+  return "rula";
+}
+
+const SEVERITY_RGB: Record<Severity, [number, number, number]> = {
+  critical: [220, 38, 38],
+  important: [217, 119, 6],
+  advisory: CONTENT_MUTED,
+};
+
+const SEVERITY_TAG: Record<Severity, string> = {
+  critical: "[CRITICAL]",
+  important: "[IMPORTANT]",
+  advisory: "[ADVISORY]",
+};
 
 /** The 1-N scale a method's grand score sits on (RULA 1-7, REBA 1-15). */
 function methodScale(maxScore: number): string {
@@ -246,6 +275,108 @@ function drawGroupBreakdown(doc: jsPDF, group: GroupBreakdown, x: number, y: num
   return cursor;
 }
 
+/**
+ * Compact per-joint table: Joint | Measured | Band | Score | Next threshold.
+ * Rows come from `thresholdRows`, skipping "not measured" joints. Skipped
+ * entirely for OWAS (category-coded, not angle-banded) by the caller.
+ * Returns the new y cursor.
+ */
+function addThresholdTable(doc: jsPDF, y: number, input: PostureInput, methodId: string, pageWidth: number, title: string): number {
+  const rows = thresholdRows(methodId, input).filter((r) => r.measuredDeg !== undefined);
+  if (!rows.length) return y;
+
+  const colX = {
+    joint: PAGE_MARGIN,
+    measured: PAGE_MARGIN + 90,
+    band: PAGE_MARGIN + 170,
+    score: PAGE_MARGIN + 300,
+    next: PAGE_MARGIN + 350,
+  };
+
+  let cursor = ensureSpace(doc, y, 16 + rows.length * 12 + 8, pageWidth, title);
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.setTextColor(...CONTENT_DARK);
+  doc.text("Joint-by-joint thresholds", PAGE_MARGIN, cursor);
+  cursor += 12;
+
+  doc.setFontSize(8.5);
+  doc.text("Joint", colX.joint, cursor);
+  doc.text("Measured", colX.measured, cursor);
+  doc.text("Band", colX.band, cursor);
+  doc.text("Score", colX.score, cursor);
+  doc.text("Next threshold", colX.next, cursor);
+  cursor += 4;
+  doc.setDrawColor(...RULE_GRAY);
+  doc.setLineWidth(0.5);
+  doc.line(PAGE_MARGIN, cursor, pageWidth - PAGE_MARGIN, cursor);
+  cursor += 11;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8.5);
+  for (const row of rows) {
+    cursor = ensureSpace(doc, cursor, 12, pageWidth, title);
+    doc.setTextColor(...CONTENT_DARK);
+    doc.text(row.joint, colX.joint, cursor);
+    doc.text(`${fmt(row.measuredDeg!)}°`, colX.measured, cursor);
+    doc.text(row.band, colX.band, cursor);
+    doc.text(fmt(row.score), colX.score, cursor);
+    doc.setTextColor(...CONTENT_MUTED);
+    const nextLines = doc.splitTextToSize(row.nextThreshold ?? "-", pageWidth - PAGE_MARGIN - colX.next) as string[];
+    doc.text(nextLines, colX.next, cursor);
+    cursor += Math.max(1, nextLines.length) * 12;
+  }
+
+  return cursor + 6;
+}
+
+/**
+ * "Recommendations" section: severity-tagged, titled, wrapped-body items,
+ * capped at 5 per call. Returns the new y cursor.
+ */
+function addRecommendationsSection(doc: jsPDF, y: number, recs: Recommendation[], pageWidth: number, title: string): number {
+  if (!recs.length) return y;
+  const contentWidth = pageWidth - PAGE_MARGIN * 2;
+  const capped = recs.slice(0, 5);
+
+  let cursor = ensureSpace(doc, y, 18, pageWidth, title);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10.5);
+  doc.setTextColor(...CONTENT_DARK);
+  doc.text("Recommendations", PAGE_MARGIN, cursor);
+  cursor += 15;
+
+  for (const rec of capped) {
+    const tag = SEVERITY_TAG[rec.severity];
+    const tagRgb = SEVERITY_RGB[rec.severity];
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
+    const tagWidth = doc.getTextWidth(`${tag} `);
+    const titleLines = doc.splitTextToSize(rec.title, contentWidth - tagWidth) as string[];
+    const bodyLines = doc.splitTextToSize(rec.body, contentWidth) as string[];
+    const blockH = Math.max(1, titleLines.length) * 11 + bodyLines.length * 10 + 6;
+    cursor = ensureSpace(doc, cursor, blockH, pageWidth, title);
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
+    doc.setTextColor(...tagRgb);
+    doc.text(tag, PAGE_MARGIN, cursor);
+    doc.setTextColor(...CONTENT_DARK);
+    doc.text(titleLines, PAGE_MARGIN + tagWidth, cursor);
+    cursor += Math.max(1, titleLines.length) * 11;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    doc.setTextColor(...CONTENT_MUTED);
+    doc.text(bodyLines, PAGE_MARGIN, cursor);
+    cursor += bodyLines.length * 10 + 6;
+  }
+
+  return cursor;
+}
+
 /** Risk-band legend rows for a method (RULA 1-7, REBA 1-15, OWAS AC 1-4). */
 function riskBandRows(method: string): { range: string; label: string; band: RiskBand }[] {
   if (method === "OWAS") {
@@ -273,6 +404,20 @@ function riskBandRows(method: string): { range: string; label: string; band: Ris
   ];
 }
 
+/** Draw an optional logo top-right of the cover page. A bad/undecodable logo must
+ * never break the export, so failures are swallowed silently. */
+function drawCoverLogo(doc: jsPDF, pageWidth: number, logoDataUrl: string | undefined): void {
+  if (!logoDataUrl) return;
+  try {
+    const boxSize = 64;
+    const match = /^data:image\/(\w+);base64,/.exec(logoDataUrl);
+    const format = match ? match[1].toUpperCase() : "PNG";
+    doc.addImage(logoDataUrl, format, pageWidth - PAGE_MARGIN - boxSize, PAGE_MARGIN - 8, boxSize, boxSize);
+  } catch {
+    /* a malformed logo must never break the export */
+  }
+}
+
 /** Cover page: title, provenance (assessor/org/subject/date), batch totals, and a risk-band legend. */
 function addCoverPage(doc: jsPDF, items: PdfReportItem[], meta: ReportMeta, method: string, maxScore: number): void {
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -283,6 +428,7 @@ function addCoverPage(doc: jsPDF, items: PdfReportItem[], meta: ReportMeta, meth
     "Ergonomic Risk Assessment",
     `${method} method · grand-score scale ${methodScale(maxScore)}`,
   );
+  drawCoverLogo(doc, pageWidth, meta.logoDataUrl);
 
   const scored = items.filter((it) => it.analysis.detected && it.analysis.assessment);
   const scores = scored.map((it) => it.analysis.assessment!.grandScore);
@@ -537,6 +683,11 @@ async function addPhotoPage(doc: jsPDF, item: PdfReportItem, isFirstPage: boolea
   doc.text(angleLines, PAGE_MARGIN, y);
   y += angleLines.length * 10 + 8;
 
+  // Compact per-joint threshold table (skipped for OWAS - category-coded, not angle-banded).
+  if (analysis.input && a.method !== "OWAS") {
+    y = addThresholdTable(doc, y, analysis.input, methodNameToId(a.method), pageWidth, title);
+  }
+
   // Group A / Group B breakdown, side by side.
   const groupColW = (contentWidth - 12) / 2;
   const maxItems = Math.max(...a.groups.map((g) => g.items.length));
@@ -578,6 +729,11 @@ async function addPhotoPage(doc: jsPDF, item: PdfReportItem, isFirstPage: boolea
     doc.setTextColor(...CONTENT_MUTED);
     doc.text(assumptionLines, PAGE_MARGIN, y);
     y += assumptionLines.length * 10 + 6;
+  }
+
+  if (analysis.input) {
+    const recs = buildRecommendations(a, analysis.input);
+    y = addRecommendationsSection(doc, y, recs, pageWidth, title);
   }
 
   y = ensureSpace(doc, y, 36, pageWidth, title);
@@ -940,6 +1096,9 @@ export async function exportVideoPdfReport(report: VideoPdfReport, meta: ReportM
   doc.text(assumptionLines, PAGE_MARGIN, y2);
   y2 += assumptionLines.length * 10 + 8;
 
+  const worstRecs = buildRecommendations(a, report.worst.input);
+  y2 = addRecommendationsSection(doc, y2, worstRecs, pageWidth, `Worst frame · ${fmtClock(report.worst.timeSec)}`);
+
   addCaveat(doc, PAGE_MARGIN, y2, contentWidth, method);
 
   // Add visual methodology page
@@ -947,4 +1106,128 @@ export async function exportVideoPdfReport(report: VideoPdfReport, meta: ReportM
 
   addFooters(doc, method);
   doc.save(timestampedFilename(`${method}-video`));
+}
+
+/**
+ * One-page NIOSH Lifting Equation report: provenance, task variables, the six
+ * multipliers with formulas, RWL + Lifting Index verdict, and redesign
+ * recommendations targeting the limiting multipliers.
+ */
+export async function exportNioshPdf(input: NioshInput, result: NioshResult, meta: ReportMeta = {}): Promise<void> {
+  const doc = new jsPDF({ unit: "pt", format: "a4" });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const contentWidth = pageWidth - PAGE_MARGIN * 2;
+  const title = "NIOSH Lifting Equation";
+
+  let y = drawHeader(doc, pageWidth, "NIOSH Lifting Equation - RWL & Lifting Index", "Revised lifting equation (Waters, Putz-Anderson & Garg 1994)");
+  drawCoverLogo(doc, pageWidth, meta.logoDataUrl);
+
+  // Provenance
+  y += 4;
+  const provenance: [string, string][] = [
+    ["Assessor", meta.assessor?.trim() || "-"],
+    ["Organization", meta.organization?.trim() || "-"],
+    ["Subject / task", meta.subject?.trim() || "-"],
+    ["Date generated", new Date().toLocaleString()],
+  ];
+  const labelW = 110;
+  for (const [k, v] of provenance) {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9.5);
+    doc.setTextColor(...CONTENT_DARK);
+    doc.text(`${k}:`, PAGE_MARGIN, y);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(...CONTENT_MUTED);
+    doc.text(v, PAGE_MARGIN + labelW, y);
+    y += 15;
+  }
+  y += 6;
+
+  // Task variables
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10.5);
+  doc.setTextColor(...CONTENT_DARK);
+  doc.text("Task variables", PAGE_MARGIN, y);
+  y += 14;
+  const durationLabel = input.durationHours === 1 ? "<= 1 hour" : input.durationHours === 2 ? "<= 2 hours" : "<= 8 hours";
+  const vars: [string, string][] = [
+    ["Horizontal distance (H)", `${fmt(input.horizontalCm)} cm`],
+    ["Vertical height (V)", `${fmt(input.verticalCm)} cm`],
+    ["Vertical travel (D)", `${fmt(input.travelCm)} cm`],
+    ["Asymmetry angle (A)", `${fmt(input.asymmetryDeg)} deg`],
+    ["Frequency (F)", `${input.frequencyPerMin} lifts/min`],
+    ["Work duration", durationLabel],
+    ["Coupling", input.coupling],
+    ["Load handled", `${fmt(input.loadKg)} kg`],
+  ];
+  doc.setFontSize(8.5);
+  for (const [k, v] of vars) {
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(...CONTENT_DARK);
+    doc.text(k, PAGE_MARGIN, y);
+    doc.setTextColor(...CONTENT_MUTED);
+    doc.text(v, PAGE_MARGIN + 170, y);
+    y += 12;
+  }
+  y += 8;
+
+  // Multipliers
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10.5);
+  doc.setTextColor(...CONTENT_DARK);
+  doc.text("Multipliers", PAGE_MARGIN, y);
+  y += 14;
+  const formulas: Record<string, string> = {
+    HM: "25 / H",
+    VM: "1 - 0.003 x |V - 75|",
+    DM: "0.82 + 4.5 / D",
+    AM: "1 - 0.0032 x A",
+    FM: "frequency table (Table 5)",
+    CM: "coupling table (Table 7)",
+  };
+  doc.setFontSize(8.5);
+  for (const [key, value] of Object.entries(result.multipliers)) {
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...CONTENT_DARK);
+    doc.text(key, PAGE_MARGIN, y);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(...CONTENT_MUTED);
+    doc.text(formulas[key] ?? "", PAGE_MARGIN + 40, y);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...(value === 0 ? RISK_RGB.veryhigh : CONTENT_DARK));
+    doc.text(value.toFixed(3), PAGE_MARGIN + 220, y);
+    y += 12;
+  }
+  y += 10;
+
+  // Verdict strip
+  const liText = Number.isFinite(result.li) ? result.li.toFixed(2) : "out of range";
+  const rgb = RISK_RGB[result.riskBand];
+  doc.setFillColor(245, 245, 245);
+  doc.rect(PAGE_MARGIN, y - 10, contentWidth, 44, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.setTextColor(...CONTENT_DARK);
+  doc.text(`Recommended Weight Limit: ${result.rwlKg.toFixed(1)} kg`, PAGE_MARGIN + 10, y + 6);
+  doc.setTextColor(...rgb);
+  doc.text(`Lifting Index: ${liText} - ${result.riskLabel}`, PAGE_MARGIN + 10, y + 24);
+  y += 48;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8.5);
+  doc.setTextColor(...CONTENT_MUTED);
+  const actionLines = doc.splitTextToSize(result.actionLevel, contentWidth) as string[];
+  doc.text(actionLines, PAGE_MARGIN, y);
+  y += actionLines.length * 10 + 6;
+
+  for (const note of result.notes) {
+    const lines = doc.splitTextToSize(`Note: ${note}`, contentWidth) as string[];
+    doc.text(lines, PAGE_MARGIN, y);
+    y += lines.length * 10 + 2;
+  }
+  y += 6;
+
+  y = addRecommendationsSection(doc, y, buildNioshRecommendations(result), pageWidth, title);
+
+  addFooters(doc, "NIOSH");
+  doc.save(timestampedFilename("niosh"));
 }
