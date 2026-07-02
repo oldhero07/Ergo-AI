@@ -14,25 +14,25 @@ export interface AnnotatedImage {
 const CONNECTOR_COLOR = "#10b981"; // emerald
 const LANDMARK_COLOR = "#f43f5e"; // rose
 
+/** The 2D context surface both HTMLCanvasElement and OffscreenCanvas provide. */
+type Canvas2D = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
+
 /**
- * Draw the original image with MediaPipe's landmarks + connections on top -
- * the canonical "skeleton image" output. Returns a PNG data URL.
+ * Shared drawing core: original image + MediaPipe landmarks/connections.
+ * Works on either a DOM canvas context (main thread) or an
+ * OffscreenCanvasRenderingContext2D (analysis worker) - DrawingUtils only
+ * calls standard 2D-context methods, so the offscreen context is compatible.
  */
-export function annotateSkeleton(
+function drawSkeleton(
+  ctx: Canvas2D,
   source: ImageBitmap,
   result: PoseLandmarkerResult,
-): AnnotatedImage {
-  const scale = fitScale(source.width, source.height);
-  const width = Math.round(source.width * scale);
-  const height = Math.round(source.height * scale);
-
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext("2d")!;
+  width: number,
+  height: number,
+): void {
   ctx.drawImage(source, 0, 0, width, height);
 
-  const du = new DrawingUtils(ctx);
+  const du = new DrawingUtils(ctx as CanvasRenderingContext2D);
   const lineWidth = Math.max(2, Math.round(width / 220));
   const radius = Math.max(2, Math.round(width / 260));
 
@@ -48,8 +48,44 @@ export function annotateSkeleton(
       radius,
     });
   }
+}
+
+/**
+ * Draw the original image with MediaPipe's landmarks + connections on top -
+ * the canonical "skeleton image" output. Returns a PNG data URL.
+ * Main-thread variant (DOM canvas).
+ */
+export function annotateSkeleton(
+  source: ImageBitmap,
+  result: PoseLandmarkerResult,
+): AnnotatedImage {
+  const scale = fitScale(source.width, source.height);
+  const width = Math.round(source.width * scale);
+  const height = Math.round(source.height * scale);
+
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d")!;
+  drawSkeleton(ctx, source, result, width, height);
 
   return { dataUrl: canvas.toDataURL("image/png"), width, height };
+}
+
+/** Worker variant: same drawing, encoded to a PNG Blob via OffscreenCanvas. */
+export async function annotateSkeletonBlob(
+  source: ImageBitmap,
+  result: PoseLandmarkerResult,
+): Promise<{ blob: Blob; width: number; height: number }> {
+  const scale = fitScale(source.width, source.height);
+  const width = Math.round(source.width * scale);
+  const height = Math.round(source.height * scale);
+
+  const canvas = new OffscreenCanvas(width, height);
+  const ctx = canvas.getContext("2d")!;
+  drawSkeleton(ctx, source, result, width, height);
+
+  return { blob: await canvas.convertToBlob({ type: "image/png" }), width, height };
 }
 
 /**
@@ -68,4 +104,15 @@ export function renderOriginalJpeg(source: ImageBitmap, quality = 0.85): string 
   const ctx = canvas.getContext("2d")!;
   ctx.drawImage(source, 0, 0, width, height);
   return canvas.toDataURL("image/jpeg", quality);
+}
+
+/** Worker variant of `renderOriginalJpeg`: JPEG Blob via OffscreenCanvas. */
+export async function renderOriginalJpegBlob(source: ImageBitmap, quality = 0.85): Promise<Blob> {
+  const scale = fitScale(source.width, source.height);
+  const width = Math.round(source.width * scale);
+  const height = Math.round(source.height * scale);
+  const canvas = new OffscreenCanvas(width, height);
+  const ctx = canvas.getContext("2d")!;
+  ctx.drawImage(source, 0, 0, width, height);
+  return canvas.convertToBlob({ type: "image/jpeg", quality });
 }

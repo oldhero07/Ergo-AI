@@ -4,14 +4,27 @@ import { loadBitmap } from "@/lib/image";
 import { annotateSkeleton, renderOriginalJpeg } from "@/lib/annotate";
 import { computeAngles, measureWristFlexion, type AngleSet } from "@/lib/angles";
 import { detectHands } from "@/lib/handLandmarker";
+import { detectHandsCropped } from "@/lib/handRoi";
 import { buildAutoInput, computeRula } from "@/assessment/rula/rula";
 import type { AssessmentResult, PostureInput } from "@/assessment/types";
 import { sampleVideoFrames } from "@/lib/videoFrames";
+import {
+  OCCLUSION_CONFIDENCE,
+  WRIST_VIS_FLOOR,
+  assembleVideoAnalysis,
+  type RawVideoFrame,
+  type VideoAnalysis,
+  type VideoFrameResult,
+} from "@/lib/pipeline/shared";
+
+// Post-processing types now live in pipeline/shared.ts (used by both the
+// inline and worker backends); re-exported here so existing imports keep working.
+export type { VideoAnalysis, VideoFrameResult };
 
 export interface PoseAnalysis {
-  /** Annotated "skeleton" image (original + MediaPipe landmarks), PNG data URL. */
+  /** Annotated "skeleton" image (original + MediaPipe landmarks), PNG data or blob URL. */
   skeletonUrl: string;
-  /** Clean original re-encoded to a JPEG data URL - HEIC-safe, so the PDF can
+  /** Clean original re-encoded to a JPEG data/blob URL - HEIC-safe, so the PDF can
    * always embed it even when the source was an iPhone .heic the browser can't
    * decode in an <img>. Absent only when decoding itself failed. */
   originalImageUrl?: string;
@@ -72,99 +85,12 @@ export async function analyzePhoto(file: File, onModelProgress?: ModelProgress):
   }
 }
 
-/** One sampled video frame with a detected pose, scored method-agnostically (the
- * UI computes RULA or REBA from `input` on demand). */
-export interface VideoFrameResult {
-  timeSec: number;
-  angles: AngleSet;
-  input: PostureInput;
-  confidence: number;
-  /** Small JPEG data URL of the frame, for the worst-frame view and scrubbing. */
-  thumbUrl: string;
-}
-
-export interface VideoAnalysis {
-  frames: VideoFrameResult[];
-  /** Sampled frames that had no detectable pose (skipped). */
-  skippedNoPose: number;
-  /** Sampled frames dropped because landmark visibility was below the occlusion floor. */
-  skippedLowConfidence: number;
-  /** Frames that couldn't be decoded (seek timeout / glitch) and were skipped. */
-  unreadableFrames: number;
-  sampledDurationSec: number;
-  fps: number;
-  /** Detected over the clip and applied to every frame's muscle-use / activity. */
-  temporal: { repeated: boolean; sustained: boolean };
-}
-
 export type VideoProgress = (stage: "sampling", done: number, total: number) => void;
 
-/** Below this mean landmark visibility a frame is unreliable (occlusion) and is dropped. */
-const OCCLUSION_CONFIDENCE = 0.4;
-/** Rolling window (seconds) used to smooth per-frame angles before scoring. */
-const SMOOTH_WINDOW_SEC = 2.5;
-
-interface RawVideoFrame {
-  timeSec: number;
-  angles: AngleSet;
-  confidence: number;
-  thumbUrl: string;
-}
-
-/** Centered moving average of one angle channel at index `i`, ignoring gaps. */
-function smoothChannel(values: (number | undefined)[], i: number, halfWin: number): number | undefined {
-  let sum = 0;
-  let n = 0;
-  for (let j = Math.max(0, i - halfWin); j <= Math.min(values.length - 1, i + halfWin); j++) {
-    const v = values[j];
-    if (v !== undefined && Number.isFinite(v)) {
-      sum += v;
-      n++;
-    }
-  }
-  return n ? sum / n : undefined;
-}
-
-/** Count posture cycles via a Schmitt trigger around the mean (±7° hysteresis). */
-function countCycles(sig: number[]): number {
-  const mean = sig.reduce((a, b) => a + b, 0) / sig.length;
-  const hi = mean + 7;
-  const lo = mean - 7;
-  let state: "mid" | "low" | "high" = "mid";
-  let cycles = 0;
-  for (const v of sig) {
-    if (v > hi) {
-      if (state === "low") cycles++;
-      state = "high";
-    } else if (v < lo) {
-      state = "low";
-    }
-  }
-  return cycles;
-}
-
-/**
- * Detect, over the whole clip, whether a posture is repeated (≥4 cycles/min with
- * real amplitude) or held near-static. These are the RULA muscle-use / REBA
- * activity criteria that a single photo can't see - the one thing video adds.
- * (The RULA ">1 min static" rule can't be met on ≤30s clips; we flag clip-scoped
- * evidence, surfaced transparently in the UI.)
- */
-function detectTemporal(frames: VideoFrameResult[], durationSec: number): { repeated: boolean; sustained: boolean } {
-  const durMin = Math.max(durationSec / 60, 1 / 60);
-  let repeated = false;
-  let sustained = false;
-  for (const key of ["upperArm", "neck", "trunk"] as const) {
-    const sig = frames.map((f) => f.angles[key]).filter((v): v is number => Number.isFinite(v));
-    if (sig.length < 4) continue;
-    const range = Math.max(...sig) - Math.min(...sig);
-    if (range < 8) sustained = true; // this joint barely moved - posture held
-    if (range > 15) {
-      const cycles = countCycles(sig);
-      if (cycles >= 2 && cycles / durMin >= 4) repeated = true;
-    }
-  }
-  return { repeated, sustained };
+export interface AnalyzeVideoOptions {
+  fps?: number;
+  maxFrames?: number;
+  maxEdge?: number;
 }
 
 /** Render a small JPEG thumbnail of a frame bitmap (for the timeline/worst-frame UI). */
@@ -182,82 +108,16 @@ function thumbnail(bitmap: ImageBitmap, maxEdge = 320, quality = 0.7): string {
 }
 
 /**
- * Full video pipeline (lean V1): sample frames → detect pose per frame → derive
- * angles + a method-agnostic PostureInput. Frames with no pose are skipped (not
- * smoothed/interpolated yet - that's the temporal-tracking follow-up). The UI
- * scores each frame with the active method and builds the risk-over-time view.
- */
-interface RawVideoFrame {
-  timeSec: number;
-  angles: AngleSet;
-  confidence: number;
-  thumbUrl: string;
-  wristFlex: number | null;
-}
-
-/** Crop the area around the wrist and run the hand landmarker on it for max speed. */
-async function detectHandsCropped(
-  bitmap: ImageBitmap,
-  wristX: number,
-  wristY: number,
-  boxSizeFraction = 0.35, // Increased from 0.25 to prevent finger clipping
-): Promise<NormalizedLandmark[][]> {
-  const w = bitmap.width;
-  const h = bitmap.height;
-  const size = Math.round(Math.min(w, h) * boxSizeFraction);
-  if (size <= 0) return [];
-  const cx = wristX * w;
-  const cy = wristY * h;
-  let sx = Math.round(cx - size / 2);
-  let sy = Math.round(cy - size / 2);
-  sx = Math.max(0, Math.min(w - size, sx));
-  sy = Math.max(0, Math.min(h - size, sy));
-
-  try {
-    const cropped = await createImageBitmap(bitmap, sx, sy, size, size);
-    try {
-      const handsResult = await detectHands(cropped);
-      if (handsResult && handsResult.landmarks && handsResult.landmarks.length > 0) {
-        const ox = sx / w;
-        const oy = sy / h;
-        const sw = size / w;
-        const sh = size / h;
-        return handsResult.landmarks.map((landmarks) =>
-          landmarks.map((pt) => ({
-            ...pt,
-            x: ox + pt.x * sw,
-            y: oy + pt.y * sh,
-          }))
-        );
-      }
-    } finally {
-      cropped.close();
-    }
-  } catch {
-    /* crop decode failed - let fallback handle it */
-  }
-
-  // --- QUALITY ASSURANCE FALLBACK ---
-  // If cropped detection failed to find a hand (e.g. hand was extended outside the crop box),
-  // immediately fall back to scanning the full image frame so we never compromise on accuracy.
-  try {
-    const fullHandsResult = await detectHands(bitmap);
-    return fullHandsResult?.landmarks || [];
-  } catch {
-    return [];
-  }
-}
-
-/**
- * Full video pipeline (lean V1): sample frames → detect pose per frame → derive
- * angles + a method-agnostic PostureInput. Frames with no pose are skipped (not
- * smoothed/interpolated yet - that's the temporal-tracking follow-up). The UI
- * scores each frame with the active method and builds the risk-over-time view.
+ * Full video pipeline (main-thread backend): sample frames → detect pose per
+ * frame → derive angles → shared smoothing/temporal post-processing. Frames
+ * with no pose are skipped (not smoothed/interpolated). The UI scores each
+ * frame with the active method and builds the risk-over-time view.
  */
 export async function analyzeVideo(
   file: File,
   onProgress?: VideoProgress,
   signal?: AbortSignal,
+  options?: AnalyzeVideoOptions,
 ): Promise<VideoAnalysis> {
   const raw: RawVideoFrame[] = [];
   let skippedNoPose = 0;
@@ -265,7 +125,7 @@ export async function analyzeVideo(
 
   const meta = await sampleVideoFrames(
     file,
-    { onProgress: (d, t) => onProgress?.("sampling", d, t), signal },
+    { ...options, onProgress: (d, t) => onProgress?.("sampling", d, t), signal },
     async ({ timeSec, bitmap }) => {
       const result = await detectPose(bitmap);
       const landmarks = result.landmarks[0];
@@ -289,7 +149,7 @@ export async function analyzeVideo(
       let wristFlex: number | null = null;
       const wristIdx = angles.side === "left" ? 15 : 16; // LM.leftWrist / LM.rightWrist
       const wristVis = landmarks[wristIdx]?.visibility ?? 0;
-      if (wristVis > 0.45) {
+      if (wristVis > WRIST_VIS_FLOOR) {
         try {
           const mappedHands = await detectHandsCropped(bitmap, landmarks[wristIdx].x, landmarks[wristIdx].y);
           wristFlex = measureWristFlexion(landmarks, mappedHands, angles.side);
@@ -302,61 +162,5 @@ export async function analyzeVideo(
     },
   );
 
-  // Smooth the raw angles over a rolling window before scoring, so the timeline
-  // reflects sustained posture rather than single-frame detection jitter. We
-  // smooth angles (continuous), not the categorical scores (step functions).
-  const halfWin = Math.max(1, Math.round((SMOOTH_WINDOW_SEC * meta.fps) / 2));
-  const channel = (key: "upperArm" | "lowerArm" | "neck" | "trunk" | "legAngle") =>
-    raw.map((r) => r.angles[key] as number | undefined);
-  const ua = channel("upperArm");
-  const la = channel("lowerArm");
-  const nk = channel("neck");
-  const tk = channel("trunk");
-  const lg = channel("legAngle");
-  const wf = raw.map((r) => r.wristFlex ?? undefined);
-
-  const frames: VideoFrameResult[] = raw.map((r, i) => {
-    const smoothed: AngleSet = {
-      upperArm: smoothChannel(ua, i, halfWin) ?? r.angles.upperArm,
-      lowerArm: smoothChannel(la, i, halfWin) ?? r.angles.lowerArm,
-      neck: smoothChannel(nk, i, halfWin) ?? r.angles.neck,
-      trunk: smoothChannel(tk, i, halfWin) ?? r.angles.trunk,
-      legAngle: smoothChannel(lg, i, halfWin),
-      side: r.angles.side,
-      confidence: r.confidence,
-    };
-    const smoothedWrist = smoothChannel(wf, i, halfWin) ?? 0;
-    return {
-      timeSec: r.timeSec,
-      angles: smoothed,
-      input: buildAutoInput(smoothed, { wristAngle: smoothedWrist }),
-      confidence: r.confidence,
-      thumbUrl: r.thumbUrl,
-    };
-  });
-
-  // Static/repetition is the factor video can validate that a photo can't. When
-  // detected, apply it to every frame so the timeline + scores reflect it.
-  const temporal = detectTemporal(frames, meta.sampledDurationSec);
-  if (temporal.repeated || temporal.sustained) {
-    for (const f of frames) {
-      f.input = {
-        ...f.input,
-        muscleUseA: true,
-        muscleUseB: true,
-        activityStatic: temporal.sustained,
-        activityRepeated: temporal.repeated,
-      };
-    }
-  }
-
-  return {
-    frames,
-    skippedNoPose,
-    skippedLowConfidence,
-    unreadableFrames: meta.unreadableFrames,
-    sampledDurationSec: meta.sampledDurationSec,
-    fps: meta.fps,
-    temporal,
-  };
+  return assembleVideoAnalysis(raw, meta, { skippedNoPose, skippedLowConfidence });
 }

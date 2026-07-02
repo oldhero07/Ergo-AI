@@ -3,6 +3,7 @@ import {
   PoseLandmarker,
   type PoseLandmarkerResult,
 } from "@mediapipe/tasks-vision";
+import { getAssetBase } from "@/lib/assetBase";
 
 type Delegate = "GPU" | "CPU";
 
@@ -15,9 +16,9 @@ export type ModelProgress = (loaded: number, total: number) => void;
  * so it's primary; the self-hosted copy in /models is the fallback if the CDN is
  * blocked or unreachable.
  */
-const MODEL_SOURCES = [
+const modelSources = () => [
   "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_heavy/float16/latest/pose_landmarker_heavy.task",
-  `${import.meta.env.BASE_URL}models/pose_landmarker_heavy.task`,
+  `${getAssetBase()}models/pose_landmarker_heavy.task`,
 ];
 const MODEL_CACHE = "ergo-models-v1";
 /** Source-independent cache key, so a model cached from one source is reused even if the source list changes. */
@@ -88,7 +89,7 @@ async function downloadModelBytes(onProgress?: ModelProgress): Promise<Uint8Arra
   }
 
   let lastError: unknown;
-  for (const url of MODEL_SOURCES) {
+  for (const url of modelSources()) {
     try {
       const { bytes, cacheable } = await fetchWithProgress(url, onProgress);
       if (cacheable) {
@@ -120,7 +121,7 @@ function getModelBytes(onProgress?: ModelProgress): Promise<Uint8Array> {
 }
 
 async function create(delegate: Delegate, onProgress?: ModelProgress): Promise<PoseLandmarker> {
-  const vision = await FilesetResolver.forVisionTasks(`${import.meta.env.BASE_URL}wasm`);
+  const vision = await FilesetResolver.forVisionTasks(`${getAssetBase()}wasm`);
   const modelAssetBuffer = await getModelBytes(onProgress);
   return PoseLandmarker.createFromOptions(vision, {
     baseOptions: { modelAssetBuffer, delegate },
