@@ -4,7 +4,6 @@ dist-ssr
 *.local
 .DS_Store
 ergo-ai-report-*.pdf
-.claude/
 .vscode/*
 !.vscode/extensions.json
 npm-debug.log*
