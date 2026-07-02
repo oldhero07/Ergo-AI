@@ -27,12 +27,24 @@ export interface AnalysisPipeline {
     signal?: AbortSignal,
     options?: AnalyzeVideoOptions,
   ): Promise<VideoAnalysis>;
+  /** Best-effort model preload (download + init) before any image arrives. */
+  warmUp(onModelProgress?: ModelProgress): Promise<void>;
 }
 
 const inlinePipeline: AnalysisPipeline = {
   kind: "inline",
   analyzePhoto: inlineAnalyzePhoto,
   analyzeVideo: inlineAnalyzeVideo,
+  async warmUp(onModelProgress?: ModelProgress) {
+    try {
+      const { getPoseLandmarker } = await import("@/lib/poseLandmarker");
+      await getPoseLandmarker(onModelProgress);
+      const { getHandLandmarker } = await import("@/lib/handLandmarker");
+      await getHandLandmarker();
+    } catch {
+      /* warmup is best-effort */
+    }
+  },
 };
 
 function workerCapable(): boolean {
@@ -88,6 +100,14 @@ class AutoPipeline implements AnalysisPipeline {
       }
     }
     return inlinePipeline.analyzeVideo(file, onProgress, signal, options);
+  }
+
+  async warmUp(onModelProgress?: ModelProgress): Promise<void> {
+    if (this.worker) {
+      await this.worker.warmUp(onModelProgress);
+      return;
+    }
+    await inlinePipeline.warmUp(onModelProgress);
   }
 }
 

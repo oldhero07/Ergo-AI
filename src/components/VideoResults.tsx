@@ -8,6 +8,8 @@ import { MeasurementSummary } from "@/components/MeasurementSummary";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { exportVideoPdfReport, type VideoPdfReport } from "@/lib/pdf";
+import { downloadText, videoCsv } from "@/lib/exportData";
+import { RecommendationsPanel } from "@/components/RecommendationsPanel";
 
 /** Static (JIT-safelisted) risk-band -> Tailwind class lookups. */
 const RISK_FILL_CLASSES: Record<RiskBand, string> = {
@@ -37,6 +39,61 @@ const fmtTime = (s: number) => {
   return `${m}:${String(sec).padStart(2, "0")}`;
 };
 
+/**
+ * Re-grab ONE frame from the source clip at full sampling quality. Per-frame
+ * thumbnails are kept small (320 px) so a 120-frame timeline stays light, but
+ * the worst frame is the report's centerpiece - recapture it at up to 960 px
+ * from the still-available video blob. Resolves null on any failure (the
+ * caller falls back to the small thumb).
+ */
+function captureFrameHiRes(videoUrl: string, timeSec: number, maxEdge = 960): Promise<string | null> {
+  return new Promise((resolve) => {
+    const video = document.createElement("video");
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = "auto";
+    video.src = videoUrl;
+    const timer = setTimeout(() => {
+      cleanup();
+      resolve(null);
+    }, 10000);
+    const cleanup = () => {
+      clearTimeout(timer);
+      video.removeAttribute("src");
+      video.load();
+    };
+    video.addEventListener("error", () => {
+      cleanup();
+      resolve(null);
+    });
+    video.addEventListener("loadedmetadata", () => {
+      video.currentTime = Math.min(timeSec, Math.max(0, (video.duration || timeSec) - 0.05));
+    });
+    video.addEventListener("seeked", () => {
+      // One macrotask tick lets the seeked frame settle before reading pixels.
+      setTimeout(() => {
+        try {
+          const scale = Math.min(1, maxEdge / Math.max(video.videoWidth, video.videoHeight));
+          const w = Math.max(1, Math.round(video.videoWidth * scale));
+          const h = Math.max(1, Math.round(video.videoHeight * scale));
+          const canvas = document.createElement("canvas");
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) throw new Error("no 2d context");
+          ctx.drawImage(video, 0, 0, w, h);
+          const url = canvas.toDataURL("image/jpeg", 0.85);
+          cleanup();
+          resolve(url);
+        } catch {
+          cleanup();
+          resolve(null);
+        }
+      }, 0);
+    });
+  });
+}
+
 /** Risk-over-time view for an analyzed video: player + clickable timeline of
  * grand scores, peak/mean/time-in-high-risk stats, and the worst frame's score.
  * Scores are recomputed from each frame's PostureInput for the active method. */
@@ -59,6 +116,7 @@ export function VideoResults({
   const [playhead, setPlayhead] = useState(0);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [worstHiRes, setWorstHiRes] = useState<string | null>(null);
 
   const scored: ScoredFrame[] = useMemo(() => {
     const compute = getMethod(methodId).compute;
@@ -79,6 +137,21 @@ export function VideoResults({
     const highCount = scored.filter((s) => s.assessment.riskBand === "high" || s.assessment.riskBand === "veryhigh").length;
     return { peak, mean, highPct: Math.round((highCount / scored.length) * 100), maxScore: max };
   }, [scored]);
+
+  // Recapture the worst frame at high resolution whenever it changes (e.g.
+  // after a method switch moves the peak to a different timestamp).
+  useEffect(() => {
+    const t = stats?.peak.timeSec;
+    if (t === undefined) return;
+    let alive = true;
+    setWorstHiRes(null);
+    void captureFrameHiRes(videoUrl, t).then((url) => {
+      if (alive && url) setWorstHiRes(url);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [videoUrl, stats?.peak.timeSec]);
 
   const seek = (t: number) => {
     const v = videoRef.current;
@@ -111,7 +184,8 @@ export function VideoResults({
         },
         worst: {
           timeSec: stats.peak.timeSec,
-          thumbUrl: stats.peak.thumbUrl,
+          // Prefer the high-res recapture; the 320px timeline thumb is the fallback.
+          thumbUrl: worstHiRes ?? stats.peak.thumbUrl,
           assessment: stats.peak.assessment,
           input: stats.peak.input,
         },
@@ -154,10 +228,18 @@ export function VideoResults({
           ))}
         </div>
         {scored.length > 0 && (
-          <Button variant="outline" onClick={exportPdf} disabled={exporting} className="ml-auto">
-            {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
-            Export PDF
-          </Button>
+          <div className="ml-auto flex items-center gap-2">
+            <Button variant="outline" onClick={exportPdf} disabled={exporting}>
+              {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+              PDF
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => downloadText(`ergo-ai-${methodId}-video-data.csv`, "text/csv", videoCsv(analysis, methodId, fileName))}
+            >
+              CSV
+            </Button>
+          </div>
         )}
       </div>
       {exportError && <p className="mb-3 text-sm text-destructive">Could not generate the PDF: {exportError}</p>}
@@ -215,6 +297,7 @@ export function VideoResults({
               <MeasurementSummary
                 method={stats.peak.assessment.method}
                 input={stats.peak.input}
+                wristMeasured={analysis.wristMeasured}
                 staticRepetition={analysis.temporal.repeated || analysis.temporal.sustained ? "detected" : "assumed"}
               />
             </div>
@@ -233,10 +316,15 @@ export function VideoResults({
                 </button>
               </div>
               <div className="overflow-hidden rounded-xl border ring-1 ring-risk-high">
-                <img src={stats.peak.thumbUrl} alt="worst frame" className="aspect-video w-full bg-muted object-contain" />
+                <img
+                  src={worstHiRes ?? stats.peak.thumbUrl}
+                  alt="worst frame"
+                  className="aspect-video w-full bg-muted object-contain"
+                />
                 <div className="border-t">
                   <Scorecard result={stats.peak.assessment} />
                 </div>
+                <RecommendationsPanel result={stats.peak.assessment} input={stats.peak.input} />
               </div>
             </div>
           )}

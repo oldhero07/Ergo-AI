@@ -11,8 +11,8 @@
  * before sending the next bitmap), preserving the one-frame-in-memory
  * invariant of the original pipeline.
  */
-import { detectPose } from "@/lib/poseLandmarker";
-import { detectHands } from "@/lib/handLandmarker";
+import { detectPose, getPoseLandmarker } from "@/lib/poseLandmarker";
+import { detectHands, getHandLandmarker } from "@/lib/handLandmarker";
 import { detectHandsCropped } from "@/lib/handRoi";
 import { computeAngles, measureWristFlexion } from "@/lib/angles";
 import { annotateSkeletonBlob, renderOriginalJpegBlob } from "@/lib/annotate";
@@ -85,11 +85,19 @@ async function analyzePhoto(id: string, bitmap: ImageBitmap): Promise<void> {
 
     // Measure the wrist from the hand model when possible; never let its
     // absence or failure block the score - the UI falls back to assumed neutral.
+    // ROI-first: crop around the scored wrist (finds small/distant hands the
+    // full-frame pass misses); detectHandsCropped falls back to a full-frame
+    // scan internally when the crop finds nothing.
     let wristFlex: number | null = null;
     if (angles) {
       try {
-        const hands = await detectHands(bitmap);
-        wristFlex = measureWristFlexion(landmarks, hands.landmarks, angles.side);
+        const wristIdx = angles.side === "left" ? 15 : 16;
+        const wrist = landmarks[wristIdx];
+        const hands =
+          wrist && (wrist.visibility ?? 0) > 0.3
+            ? await detectHandsCropped(bitmap, wrist.x, wrist.y)
+            : (await detectHands(bitmap)).landmarks;
+        wristFlex = measureWristFlexion(landmarks, hands, angles.side);
       } catch {
         /* hand model unavailable - wrist stays assumed neutral */
       }
@@ -172,6 +180,16 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
       if (msg.type === "init") {
         configureAssetBase(msg.assetBase);
         post({ type: "ready" });
+      } else if (msg.type === "warmup") {
+        // Preload both models (download → cache → GPU init) so the first real
+        // analysis starts instantly. Failures are non-fatal: the next analyze
+        // call retries through the same singleton promises.
+        try {
+          await getPoseLandmarker((loaded, total) => post({ type: "modelProgress", loaded, total }));
+          await getHandLandmarker();
+        } catch {
+          /* warmup is best-effort */
+        }
       } else if (msg.type === "analyzePhoto") {
         await analyzePhoto(msg.id, msg.bitmap);
       } else if (msg.type === "analyzeFrame") {

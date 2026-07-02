@@ -5,7 +5,8 @@ import { Line } from "@react-three/drei";
 import type { Group, Mesh, MeshStandardMaterial } from "three";
 import { Color } from "three";
 import type { Line2 } from "three-stdlib";
-import { readPalette, type RiskPalette } from "@/three/riskColors";
+import type { RiskPalette } from "@/three/riskColors";
+import { usePalette } from "@/three/usePalette";
 
 /**
  * Purely decorative hero-slot scene: a primitive humanoid built from capsule
@@ -164,7 +165,11 @@ function colorForSeverity(sev: number, palette: RiskPalette): Color {
 }
 
 function Humanoid({ reducedMotion }: { reducedMotion: boolean }) {
-  const palette = useMemo(readPalette, []);
+  const { palette, dark } = usePalette();
+  // useFrame's closure runs outside the render cycle - keep the live palette
+  // in a ref so a theme toggle recolors the next frame, not a stale one.
+  const paletteRef = useRef(palette);
+  paletteRef.current = palette;
   const group = useRef<Group>(null);
   const cycleRef = useRef(0);
   const initial = useMemo(() => poseAt(0), []);
@@ -179,7 +184,7 @@ function Humanoid({ reducedMotion }: { reducedMotion: boolean }) {
     // Full a->b->c->a cycle every ~10s => 3 segments => ~3.33s per segment.
     cycleRef.current = (cycleRef.current + delta / 3.333) % KEYFRAMES.length;
     const { pose, severity } = poseAt(cycleRef.current);
-    const color = colorForSeverity(severity, palette);
+    const color = colorForSeverity(severity, paletteRef.current);
 
     BONES.forEach(([a, b], i) => {
       const line = boneRefs.current[i]?.current;
@@ -207,24 +212,28 @@ function Humanoid({ reducedMotion }: { reducedMotion: boolean }) {
   });
 
   const staticColor = reducedMotion ? palette.primary : palette.low;
+  // Neon emissive reads great on the dark theme but washes the figure into a
+  // pale ghost on the light background - drop it low there and rely on the
+  // (darker) light-mode token colors themselves for contrast.
+  const emissiveIntensity = dark ? 0.6 : 0.12;
 
   return (
     <group ref={group}>
       {BONES.map(([a, b], i) => (
         <Line
-          key={`${a}-${b}`}
+          key={`${a}-${b}-${dark}`}
           ref={boneRefs.current[i]}
           points={[initial.pose[a], initial.pose[b]]}
           color={staticColor}
-          lineWidth={4}
+          lineWidth={dark ? 4 : 5}
           transparent
-          opacity={0.9}
+          opacity={dark ? 0.9 : 1}
         />
       ))}
       {JOINTS.map((j, i) => (
-        <mesh key={j} ref={jointRefs.current[i]} position={initial.pose[j]}>
+        <mesh key={`${j}-${dark}`} ref={jointRefs.current[i]} position={initial.pose[j]}>
           <sphereGeometry args={[j === "head" ? 0.09 : 0.045, 16, 16]} />
-          <meshStandardMaterial color={staticColor} emissive={staticColor} emissiveIntensity={0.6} />
+          <meshStandardMaterial color={staticColor} emissive={staticColor} emissiveIntensity={emissiveIntensity} />
         </mesh>
       ))}
     </group>
@@ -232,7 +241,8 @@ function Humanoid({ reducedMotion }: { reducedMotion: boolean }) {
 }
 
 function Scene({ reducedMotion }: { reducedMotion: boolean }) {
-  const palette = useMemo(readPalette, []);
+  // No ground grid here: the landing section already has its own subtle
+  // grid-bg backdrop, and a second 3D grid plane reads as visual noise.
   return (
     <>
       <ambientLight intensity={0.65} />
@@ -240,9 +250,6 @@ function Scene({ reducedMotion }: { reducedMotion: boolean }) {
       <group position={[0, -0.9, 0]}>
         <Humanoid reducedMotion={reducedMotion} />
       </group>
-      <gridHelper args={[4, 16, palette.primary, palette.frame]} position={[0, -0.9, 0]}>
-        <meshBasicMaterial transparent opacity={0.2} />
-      </gridHelper>
     </>
   );
 }

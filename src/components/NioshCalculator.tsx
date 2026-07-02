@@ -1,10 +1,11 @@
 import { useMemo, useState } from "react";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, FileDown, Loader2 } from "lucide-react";
 import { computeNiosh } from "@/assessment/niosh/niosh";
 import type { NioshInput, NioshResult } from "@/assessment/niosh/niosh";
 import type { RiskBand } from "@/assessment/types";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { exportNioshPdf, type ReportMeta } from "@/lib/pdf";
 
 export interface NioshPrefill {
   horizontalCm: number;
@@ -233,11 +234,29 @@ function MultiplierTable({ result }: { result: NioshResult }) {
   );
 }
 
-export function NioshCalculator({ prefill, onBack }: { prefill?: NioshPrefill | null; onBack: () => void }) {
+export function NioshCalculator({
+  prefill,
+  onBack,
+  reportMeta,
+}: {
+  prefill?: NioshPrefill | null;
+  onBack: () => void;
+  reportMeta?: ReportMeta;
+}) {
   const [input, setInput] = useState<NioshInput>(() =>
     prefill ? { ...DEFAULT_INPUT, horizontalCm: prefill.horizontalCm, verticalCm: prefill.verticalCm } : DEFAULT_INPUT,
   );
   const [showPrefillChip, setShowPrefillChip] = useState(!!prefill);
+  const [exporting, setExporting] = useState(false);
+
+  const exportPdf = async () => {
+    setExporting(true);
+    try {
+      await exportNioshPdf(input, result, reportMeta);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const result = useMemo(() => computeNiosh(input), [input]);
   const set = <K extends keyof NioshInput>(key: K, value: NioshInput[K]) => setInput((prev) => ({ ...prev, [key]: value }));
@@ -258,6 +277,10 @@ export function NioshCalculator({ prefill, onBack }: { prefill?: NioshPrefill | 
             Revised lifting equation (Waters et al., 1994) · RWL &amp; Lifting Index
           </p>
         </div>
+        <Button variant="outline" onClick={() => void exportPdf()} disabled={exporting} className="ml-auto">
+          {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+          Export PDF
+        </Button>
       </div>
 
       {showPrefillChip && (

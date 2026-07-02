@@ -10,10 +10,16 @@ import type { Bone } from "@/three/skeleton";
 
 export type ComponentKey = Exclude<Bone["component"], "frame">;
 
-/** Read an HSL token like `--risk-low` and return a CSS hsl() color string. */
+/** Read an HSL token like `--risk-low` and return a CSS hsl() color string.
+ * Tokens are stored space-separated ("152 70% 30%"); three.js Color.setStyle
+ * only parses the legacy comma syntax, so emit "hsl(152, 70%, 30%)" - valid
+ * for both CSS and three materials. */
 function tokenColor(name: string): string {
   const raw = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-  return raw ? `hsl(${raw})` : "#888";
+  if (!raw) return "#888";
+  const parts = raw.split("/")[0].trim().split(/\s+/);
+  if (parts.length === 3) return `hsl(${parts[0]}, ${parts[1]}, ${parts[2]})`;
+  return `hsl(${raw})`;
 }
 
 export interface RiskPalette {

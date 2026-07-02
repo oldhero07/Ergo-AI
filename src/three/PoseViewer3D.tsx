@@ -14,7 +14,8 @@ import {
   type SkeletonPoints,
   type Vec3,
 } from "@/three/skeleton";
-import { componentSeverities, readPalette, severityColor } from "@/three/riskColors";
+import { componentSeverities, severityColor } from "@/three/riskColors";
+import { usePalette } from "@/three/usePalette";
 
 /**
  * Interactive 3D viewer of the ACTUAL detected pose: MediaPipe's metric world
@@ -28,7 +29,7 @@ export interface PoseViewer3DProps {
 }
 
 function SkeletonScene({ worldLandmarks, result, angles }: PoseViewer3DProps) {
-  const palette = useMemo(readPalette, []);
+  const { palette, dark } = usePalette();
   const sk = useMemo(() => buildSkeleton(worldLandmarks), [worldLandmarks]);
   const severities = useMemo(() => componentSeverities(result), [result]);
   const [showLabels, setShowLabels] = useState(true);
@@ -65,7 +66,7 @@ function SkeletonScene({ worldLandmarks, result, angles }: PoseViewer3DProps) {
             return (
               <mesh key={id} position={p}>
                 <sphereGeometry args={[id === 0 ? 0.055 : 0.032, 20, 20]} />
-                <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.55} />
+                <meshStandardMaterial color={color} emissive={color} emissiveIntensity={dark ? 0.55 : 0.12} />
               </mesh>
             );
           })}

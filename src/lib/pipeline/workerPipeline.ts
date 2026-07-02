@@ -149,6 +149,18 @@ export class WorkerPipeline {
     });
   }
 
+  /** Best-effort model preload so the first analysis doesn't pay the download. */
+  async warmUp(onModelProgress?: ModelProgress): Promise<void> {
+    try {
+      const worker = await this.ensureWorker();
+      this.modelProgressCb = onModelProgress ?? null;
+      const msg: WorkerRequest = { type: "warmup" };
+      worker.postMessage(msg);
+    } catch {
+      /* worker unavailable - the analyze call will fall back and warm inline */
+    }
+  }
+
   async analyzePhoto(file: File, onModelProgress?: ModelProgress): Promise<PoseAnalysis> {
     const worker = await this.ensureWorker();
     const bitmap = await loadBitmap(file);
