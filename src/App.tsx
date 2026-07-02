@@ -19,7 +19,7 @@ import {
   shrinkToDataUrl,
   type SessionSnapshot,
 } from "@/lib/sessionStore";
-import { isHeic } from "@/lib/image";
+
 import { validateVideoFile } from "@/lib/videoFile";
 import { VideoResults } from "@/components/VideoResults";
 import { DEFAULT_VIDEO_SETTINGS, type VideoSettingsValues } from "@/components/VideoSettings";
@@ -115,29 +115,6 @@ export default function App() {
     };
   }, []);
 
-  // HEIC has no in-browser <img> preview, so decode it to a JPEG in the
-  // background once it's queued: this both shows a real thumbnail AND lets
-  // analysis reuse the JPEG (decoded once, not twice - and fast on re-decode).
-  const convertHeicItem = useCallback(async (id: string, file: File) => {
-    try {
-      const { heicTo } = await import("heic-to");
-      const out = await heicTo({ blob: file, type: "image/jpeg", quality: 0.9 });
-      const blob = (Array.isArray(out) ? out[0] : out) as Blob;
-      const jpeg = new File([blob], file.name.replace(/\.(heic|heif)$/i, ".jpg"), { type: "image/jpeg" });
-      const newUrl = URL.createObjectURL(blob);
-      setItems((prev) =>
-        prev.map((it) => {
-          if (it.id !== id) return it;
-          URL.revokeObjectURL(it.url);
-          return { ...it, file: jpeg, url: newUrl, converting: false };
-        }),
-      );
-    } catch {
-      // Decode failed - clear the spinner; analysis still falls back to heic-to.
-      setItems((prev) => prev.map((it) => (it.id === id ? { ...it, converting: false } : it)));
-    }
-  }, []);
-
   const addFiles = useCallback(
     (files: File[]) => {
       // Accept anything the browser labels as an image, plus HEIC/HEIF by extension
@@ -160,8 +137,8 @@ export default function App() {
       if (overLimit > 0) {
         setNotice(
           room === 0
-            ? `You can analyze up to ${MAX_BATCH} photos at once - remove some to add more.`
-            : `Limit is ${MAX_BATCH} photos at once - added ${room}, skipped ${overLimit}.`,
+            ? `Caution: Only ${MAX_BATCH} photos allowed at once - please remove some to add more.`
+            : `Caution: Only ${MAX_BATCH} photos allowed at once - added ${room}, skipped ${overLimit}.`,
         );
       } else if (skipped > 0) {
         setNotice(`Added ${imgs.length} photo${imgs.length > 1 ? "s" : ""} - skipped ${skipped} non-image file${skipped > 1 ? "s" : ""}.`);
@@ -173,14 +150,11 @@ export default function App() {
         id: crypto.randomUUID(),
         file: f,
         url: URL.createObjectURL(f),
-        converting: isHeic(f),
+        converting: false,
       }));
       setItems((prev) => [...prev, ...newItems]);
-      newItems.forEach((it) => {
-        if (it.converting) void convertHeicItem(it.id, it.file);
-      });
     },
-    [items, convertHeicItem],
+    [items],
   );
 
   const removeItem = useCallback((id: string) => {
