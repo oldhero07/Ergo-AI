@@ -1,14 +1,28 @@
-import type { AssessmentResult, GroupBreakdown } from "@/assessment/types";
-import { RISK_META } from "@/lib/risk";
+import type { AssessmentResult, GroupBreakdown, RiskBand } from "@/assessment/types";
 import { cn } from "@/lib/utils";
 
-function Gauge({ score, max, color }: { score: number; max: number; color: string }) {
+/** Static (JIT-safelisted) class lookups so risk colors stay token-driven. */
+const RISK_PILL_CLASSES: Record<RiskBand, string> = {
+  low: "bg-risk-low/15 text-risk-low",
+  medium: "bg-risk-medium/15 text-risk-medium",
+  high: "bg-risk-high/15 text-risk-high",
+  veryhigh: "bg-risk-veryhigh/15 text-risk-veryhigh",
+};
+
+const RISK_BORDER_CLASSES: Record<RiskBand, string> = {
+  low: "border-risk-low",
+  medium: "border-risk-medium",
+  high: "border-risk-high",
+  veryhigh: "border-risk-veryhigh",
+};
+
+function Gauge({ score, max, riskBand }: { score: number; max: number; riskBand: RiskBand }) {
   const r = 46;
   const c = 2 * Math.PI * r;
   const frac = Math.max(0, Math.min(1, score / max));
   return (
     <svg viewBox="0 0 120 120" className="h-28 w-28 shrink-0" role="img" aria-label={`Score ${score} of ${max}`}>
-      {/* Glow filter */}
+      {/* Glow filter - soft neon halo behind the progress stroke */}
       <defs>
         <filter id="score-glow" x="-30%" y="-30%" width="160%" height="160%">
           <feGaussianBlur stdDeviation="3" result="blur" />
@@ -26,7 +40,7 @@ function Gauge({ score, max, color }: { score: number; max: number; color: strin
         cy="60"
         r={r}
         fill="none"
-        stroke={color}
+        className={cn(RISK_PILL_CLASSES[riskBand].split(" ")[1], "stroke-current")}
         strokeWidth="10"
         strokeLinecap="round"
         strokeDasharray={c}
@@ -36,10 +50,10 @@ function Gauge({ score, max, color }: { score: number; max: number; color: strin
         style={{ transition: "stroke-dashoffset 0.6s ease" }}
       />
       {/* Score text */}
-      <text x="60" y="57" textAnchor="middle" className="fill-foreground" style={{ fontSize: 30, fontWeight: 700 }}>
+      <text x="60" y="57" textAnchor="middle" className="hud-readout fill-foreground" style={{ fontSize: 30, fontWeight: 700 }}>
         {score}
       </text>
-      <text x="60" y="74" textAnchor="middle" className="fill-muted-foreground" style={{ fontSize: 11 }}>
+      <text x="60" y="74" textAnchor="middle" className="hud-readout fill-muted-foreground" style={{ fontSize: 11 }}>
         of {max}
       </text>
     </svg>
@@ -48,7 +62,7 @@ function Gauge({ score, max, color }: { score: number; max: number; color: strin
 
 function ScoreChip({ value }: { value: number }) {
   return (
-    <span className="inline-flex h-6 min-w-[1.75rem] items-center justify-center rounded-lg bg-secondary px-2 text-xs font-bold tabular-nums text-secondary-foreground">
+    <span className="hud-readout inline-flex h-6 min-w-[1.75rem] items-center justify-center rounded-lg bg-secondary px-2 text-xs font-bold text-secondary-foreground">
       {value}
     </span>
   );
@@ -56,7 +70,7 @@ function ScoreChip({ value }: { value: number }) {
 
 function Group({ group }: { group: GroupBreakdown }) {
   return (
-    <div className="rounded-xl border bg-card/60 p-4 backdrop-blur-sm">
+    <div className="glass rounded-xl p-4">
       <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{group.name}</h4>
       <div className="mt-3 space-y-2">
         {group.items.map((it) => (
@@ -69,11 +83,11 @@ function Group({ group }: { group: GroupBreakdown }) {
           </div>
         ))}
       </div>
-      <div className="mt-3 flex items-center justify-between border-t pt-3 text-sm font-semibold">
+      <div className="mt-3 flex items-center justify-between border-t border-border pt-3 text-sm font-semibold">
         <span>{group.scoreLabel}</span>
         <ScoreChip value={group.score} />
       </div>
-      <p className="mt-1.5 font-mono text-[10px] text-muted-foreground/70">
+      <p className="hud-readout mt-1.5 text-[10px] text-muted-foreground/70">
         posture {group.posture} · +muscle {group.muscle} · +force {group.force}
       </p>
     </div>
@@ -81,18 +95,19 @@ function Group({ group }: { group: GroupBreakdown }) {
 }
 
 export function Scorecard({ result, className }: { result: AssessmentResult; className?: string }) {
-  const meta = RISK_META[result.riskBand];
+  const pillClasses = RISK_PILL_CLASSES[result.riskBand];
+  const borderClass = RISK_BORDER_CLASSES[result.riskBand];
 
   return (
     <div className={cn("p-5", className)}>
       {/* Gauge + summary row */}
       <div className="flex flex-col items-center gap-5 sm:flex-row sm:gap-7">
-        <Gauge score={result.grandScore} max={result.maxScore} color={meta.color} />
+        <Gauge score={result.grandScore} max={result.maxScore} riskBand={result.riskBand} />
         <div className="flex-1 text-center sm:text-left">
           <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
             {result.method} grand score
           </div>
-          <div className="mt-1 text-3xl font-bold tracking-tight" style={{ color: meta.color }}>
+          <div className={cn("mt-1 inline-block rounded-lg px-2.5 py-0.5 text-3xl font-bold tracking-tight", pillClasses)}>
             {result.riskLabel}
           </div>
           <p className="mt-1 max-w-md text-sm text-muted-foreground">{result.actionLevel}</p>
@@ -100,12 +115,9 @@ export function Scorecard({ result, className }: { result: AssessmentResult; cla
       </div>
 
       {/* Risk band explanation card */}
-      <div
-        className="mt-5 flex items-start gap-3 rounded-xl border-l-4 px-4 py-3.5"
-        style={{ borderColor: meta.color, backgroundColor: meta.color + "12" }}
-      >
+      <div className={cn("mt-5 flex items-start gap-3 rounded-xl border-l-4 px-4 py-3.5", borderClass, pillClasses.split(" ")[0])}>
         <div>
-          <p className="text-sm font-semibold" style={{ color: meta.color }}>
+          <p className={cn("text-sm font-semibold", pillClasses.split(" ")[1])}>
             {result.riskBand === "low" && "👀 Low risk — monitor and re-evaluate if posture changes."}
             {result.riskBand === "medium" && "⚠️ Medium risk — investigate further and consider changes soon."}
             {result.riskBand === "high" && "🚨 High risk — investigate and implement changes promptly."}

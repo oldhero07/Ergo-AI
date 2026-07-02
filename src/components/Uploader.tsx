@@ -94,7 +94,11 @@ export function Uploader({
   return (
     <div className="mx-auto w-full max-w-3xl">
       {/* Photo / Video mode switch */}
-      <div role="tablist" aria-label="Analysis mode" className="mx-auto mb-6 inline-flex rounded-xl border bg-card p-1 shadow-sm">
+      <div
+        role="tablist"
+        aria-label="Analysis mode"
+        className="glass mx-auto mb-6 inline-flex rounded-xl p-1"
+      >
         <ModeTab active={!isVideoMode} icon={<Camera className="h-4 w-4" />} label="Photo" onClick={() => onSwitchMode("photo")} />
         <ModeTab active={isVideoMode} icon={<Video className="h-4 w-4" />} label="Video" onClick={() => onSwitchMode("video")} />
       </div>
@@ -117,8 +121,8 @@ export function Uploader({
           handleFiles(e.dataTransfer.files);
         }}
         className={cn(
-          "flex flex-col items-center justify-center rounded-3xl border-2 border-dashed px-6 py-14 text-center transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring",
-          dragging ? "border-primary bg-primary/5" : "border-border bg-card/50 hover:border-primary/50 hover:bg-accent/40",
+          "glass flex flex-col items-center justify-center rounded-3xl border-2 border-dashed px-6 py-14 text-center transition-all cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          dragging ? "border-primary shadow-glow-sm" : "border-border hover:border-primary/50 hover:bg-accent/40",
         )}
       >
         <div className="mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-primary/10 text-primary">
@@ -173,21 +177,21 @@ export function Uploader({
             <button
               type="button"
               onClick={() => onUseSample("office")}
-              className="inline-flex items-center gap-1.5 rounded-lg border bg-card px-3 py-1.5 text-xs font-medium transition-colors hover:bg-accent hover:text-foreground"
+              className="glass inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all hover:shadow-glow-sm hover:text-foreground"
             >
               💻 Office Desk Work
             </button>
             <button
               type="button"
               onClick={() => onUseSample("warehouse")}
-              className="inline-flex items-center gap-1.5 rounded-lg border bg-card px-3 py-1.5 text-xs font-medium transition-colors hover:bg-accent hover:text-foreground"
+              className="glass inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all hover:shadow-glow-sm hover:text-foreground"
             >
               📦 Warehouse Lifting
             </button>
             <button
               type="button"
               onClick={() => onUseSample("assembly")}
-              className="inline-flex items-center gap-1.5 rounded-lg border bg-card px-3 py-1.5 text-xs font-medium transition-colors hover:bg-accent hover:text-foreground"
+              className="glass inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all hover:shadow-glow-sm hover:text-foreground"
             >
               ⚙️ Assembly Standing
             </button>
@@ -208,7 +212,7 @@ export function Uploader({
           </div>
           <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5">
             {items.map((it) => (
-              <div key={it.id} className="group relative aspect-square overflow-hidden rounded-xl border bg-muted">
+              <div key={it.id} className="group relative aspect-square overflow-hidden rounded-xl bg-muted ring-1 ring-border transition-all hover:ring-primary/50">
                 <Thumb key={it.url} url={it.url} name={it.file.name} converting={it.converting} />
                 <button
                   onClick={(e) => {
@@ -245,8 +249,8 @@ function ModeTab({ active, icon, label, onClick }: { active: boolean; icon: Reac
       aria-selected={active}
       onClick={onClick}
       className={cn(
-        "inline-flex items-center gap-2 rounded-lg px-4 py-1.5 text-sm font-medium transition-colors",
-        active ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+        "inline-flex items-center gap-2 rounded-lg px-4 py-1.5 font-mono text-xs uppercase tracking-wider transition-all",
+        active ? "bg-primary text-primary-foreground shadow-glow-sm" : "text-muted-foreground hover:text-foreground",
       )}
     >
       {icon}
@@ -284,25 +288,25 @@ function PhotoGuide() {
               <svg viewBox="0 0 100 80" className="w-full h-full text-muted-foreground">
                 {/* Correct Side View (Green) */}
                 <g transform="translate(12, 5)">
-                  <circle cx="15" cy="15" r="4.5" className="fill-emerald-500/10 stroke-emerald-500" strokeWidth="1.5" />
-                  <path d="M 15 19.5 C 13.5 28 14 36 15 44 L 12 70" fill="none" className="stroke-emerald-500" strokeWidth="2.2" strokeLinecap="round" />
-                  <path d="M 15 21 L 22 34 L 18 46" fill="none" className="stroke-emerald-500" strokeWidth="2" strokeLinecap="round" />
-                  <circle cx="28" cy="62" r="5.5" fill="#10b981" />
-                  <path d="M 26 62 L 27.5 63.5 L 30 60.5" fill="none" stroke="#fff" strokeWidth="1.2" strokeLinecap="round" />
+                  <circle cx="15" cy="15" r="4.5" className="fill-risk-low/10 stroke-risk-low" strokeWidth="1.5" />
+                  <path d="M 15 19.5 C 13.5 28 14 36 15 44 L 12 70" fill="none" className="stroke-risk-low" strokeWidth="2.2" strokeLinecap="round" />
+                  <path d="M 15 21 L 22 34 L 18 46" fill="none" className="stroke-risk-low" strokeWidth="2" strokeLinecap="round" />
+                  <circle cx="28" cy="62" r="5.5" className="fill-risk-low" />
+                  <path d="M 26 62 L 27.5 63.5 L 30 60.5" fill="none" className="stroke-primary-foreground" strokeWidth="1.2" strokeLinecap="round" />
                 </g>
                 {/* Incorrect Front View (Red) */}
                 <g transform="translate(54, 5)" opacity="0.3">
-                  <circle cx="15" cy="15" r="4.5" className="fill-rose-500/10 stroke-rose-500" strokeWidth="1.5" />
-                  <path d="M 15 19.5 L 15 44 M 10 44 L 10 70 M 20 44 L 20 70" className="stroke-rose-500" strokeWidth="2" strokeLinecap="round" />
-                  <path d="M 9 21 L 5 36 M 21 21 L 25 36" className="stroke-rose-500" strokeWidth="1.8" strokeLinecap="round" />
-                  <circle cx="28" cy="62" r="5.5" fill="#ef4444" />
-                  <path d="M 26 60 L 30 64 M 30 60 L 26 64" stroke="#fff" strokeWidth="1.2" strokeLinecap="round" />
+                  <circle cx="15" cy="15" r="4.5" className="fill-risk-veryhigh/10 stroke-risk-veryhigh" strokeWidth="1.5" />
+                  <path d="M 15 19.5 L 15 44 M 10 44 L 10 70 M 20 44 L 20 70" className="stroke-risk-veryhigh" strokeWidth="2" strokeLinecap="round" />
+                  <path d="M 9 21 L 5 36 M 21 21 L 25 36" className="stroke-risk-veryhigh" strokeWidth="1.8" strokeLinecap="round" />
+                  <circle cx="28" cy="62" r="5.5" className="fill-risk-veryhigh" />
+                  <path d="M 26 60 L 30 64 M 30 60 L 26 64" className="stroke-primary-foreground" strokeWidth="1.2" strokeLinecap="round" />
                 </g>
               </svg>
             </div>
             <ul className="text-xs space-y-1 text-muted-foreground font-medium">
-              <li className="text-emerald-600 dark:text-emerald-400">✅ Side view (90° profile)</li>
-              <li className="text-rose-600 dark:text-rose-400">❌ Avoid frontal or diagonal shots</li>
+              <li className="text-risk-low">✅ Side view (90° profile)</li>
+              <li className="text-risk-veryhigh">❌ Avoid frontal or diagonal shots</li>
             </ul>
           </div>
 
@@ -319,24 +323,24 @@ function PhotoGuide() {
                 </g>
                 {/* Good camera (horizontal at waist) */}
                 <g transform="translate(8, 30)">
-                  <rect x="0" y="5" width="14" height="9" rx="2" className="fill-emerald-500/10 stroke-emerald-500" strokeWidth="1.2" />
-                  <circle cx="7" cy="9.5" r="2.2" className="fill-none stroke-emerald-500" strokeWidth="1" />
-                  <path d="M 14 9.5 L 68 9.5" stroke="#10b981" strokeWidth="1.5" strokeDasharray="3 3" />
-                  <circle cx="34" cy="9.5" r="5.5" fill="#10b981" />
-                  <path d="M 32 9.5 L 33.5 11 L 36 8" fill="none" stroke="#fff" strokeWidth="1.2" strokeLinecap="round" />
+                  <rect x="0" y="5" width="14" height="9" rx="2" className="fill-risk-low/10 stroke-risk-low" strokeWidth="1.2" />
+                  <circle cx="7" cy="9.5" r="2.2" className="fill-none stroke-risk-low" strokeWidth="1" />
+                  <path d="M 14 9.5 L 68 9.5" className="stroke-risk-low" strokeWidth="1.5" strokeDasharray="3 3" />
+                  <circle cx="34" cy="9.5" r="5.5" className="fill-risk-low" />
+                  <path d="M 32 9.5 L 33.5 11 L 36 8" fill="none" className="stroke-primary-foreground" strokeWidth="1.2" strokeLinecap="round" />
                 </g>
                 {/* Bad camera (overhead angle) */}
                 <g transform="translate(8, -6)" opacity="0.3">
-                  <rect x="0" y="5" width="14" height="9" rx="2" className="fill-rose-500/10 stroke-rose-500" strokeWidth="1.2" transform="rotate(25 7 9)" />
-                  <path d="M 14 12 L 72 38" stroke="#ef4444" strokeWidth="1.5" strokeDasharray="3 3" />
-                  <circle cx="38" cy="22" r="5.5" fill="#ef4444" />
-                  <path d="M 36 20 L 40 24 M 40 20 L 36 24" stroke="#fff" strokeWidth="1.2" strokeLinecap="round" />
+                  <rect x="0" y="5" width="14" height="9" rx="2" className="fill-risk-veryhigh/10 stroke-risk-veryhigh" strokeWidth="1.2" transform="rotate(25 7 9)" />
+                  <path d="M 14 12 L 72 38" className="stroke-risk-veryhigh" strokeWidth="1.5" strokeDasharray="3 3" />
+                  <circle cx="38" cy="22" r="5.5" className="fill-risk-veryhigh" />
+                  <path d="M 36 20 L 40 24 M 40 20 L 36 24" className="stroke-primary-foreground" strokeWidth="1.2" strokeLinecap="round" />
                 </g>
               </svg>
             </div>
             <ul className="text-xs space-y-1 text-muted-foreground font-medium">
-              <li className="text-emerald-600 dark:text-emerald-400">✅ Lens at subject's waist level</li>
-              <li className="text-rose-600 dark:text-rose-400">❌ Avoid high overhead/low angles</li>
+              <li className="text-risk-low">✅ Lens at subject's waist level</li>
+              <li className="text-risk-veryhigh">❌ Avoid high overhead/low angles</li>
             </ul>
           </div>
 
@@ -347,34 +351,34 @@ function PhotoGuide() {
               <svg viewBox="0 0 100 80" className="w-full h-full text-muted-foreground">
                 {/* Correct Full Body */}
                 <g transform="translate(10, 5)">
-                  <rect x="0" y="5" width="28" height="66" rx="4" fill="none" stroke="#10b981" strokeWidth="1.2" strokeDasharray="3 3" />
+                  <rect x="0" y="5" width="28" height="66" rx="4" fill="none" className="stroke-risk-low" strokeWidth="1.2" strokeDasharray="3 3" />
                   <g transform="translate(4, 5)">
-                    <circle cx="10" cy="10" r="4" className="fill-emerald-500/10 stroke-emerald-500" strokeWidth="1.2" />
-                    <path d="M 10 14 L 10 38 L 6 56 M 10 38 L 14 56" className="stroke-emerald-500" strokeWidth="1.8" />
-                    <path d="M 10 16 L 16 26 L 12 36" fill="none" className="stroke-emerald-500" strokeWidth="1.8" strokeLinecap="round" />
+                    <circle cx="10" cy="10" r="4" className="fill-risk-low/10 stroke-risk-low" strokeWidth="1.2" />
+                    <path d="M 10 14 L 10 38 L 6 56 M 10 38 L 14 56" className="stroke-risk-low" strokeWidth="1.8" />
+                    <path d="M 10 16 L 16 26 L 12 36" fill="none" className="stroke-risk-low" strokeWidth="1.8" strokeLinecap="round" />
                   </g>
-                  <circle cx="28" cy="62" r="5.5" fill="#10b981" />
-                  <path d="M 26 62 L 27.5 63.5 L 30 60.5" fill="none" stroke="#fff" strokeWidth="1.2" strokeLinecap="round" />
+                  <circle cx="28" cy="62" r="5.5" className="fill-risk-low" />
+                  <path d="M 26 62 L 27.5 63.5 L 30 60.5" fill="none" className="stroke-primary-foreground" strokeWidth="1.2" strokeLinecap="round" />
                 </g>
                 {/* Incorrect Cropped */}
                 <g transform="translate(56, 5)" opacity="0.3">
-                  <rect x="0" y="5" width="28" height="66" rx="4" fill="none" stroke="#rose-500" strokeWidth="1.2" strokeDasharray="3 3" />
+                  <rect x="0" y="5" width="28" height="66" rx="4" fill="none" className="stroke-risk-veryhigh" strokeWidth="1.2" strokeDasharray="3 3" />
                   <g transform="translate(4, 5)">
-                    <circle cx="10" cy="10" r="4" className="fill-rose-500/10 stroke-rose-500" strokeWidth="1.2" />
+                    <circle cx="10" cy="10" r="4" className="fill-risk-veryhigh/10 stroke-risk-veryhigh" strokeWidth="1.2" />
                     {/* leg truncated by crop line */}
-                    <path d="M 10 14 L 10 38 L 8 45" className="stroke-rose-500" strokeWidth="1.8" strokeLinecap="round" />
-                    <path d="M 10 16 L 16 26 L 14 28" fill="none" className="stroke-rose-500" strokeWidth="1.8" strokeLinecap="round" />
+                    <path d="M 10 14 L 10 38 L 8 45" className="stroke-risk-veryhigh" strokeWidth="1.8" strokeLinecap="round" />
+                    <path d="M 10 16 L 16 26 L 14 28" fill="none" className="stroke-risk-veryhigh" strokeWidth="1.8" strokeLinecap="round" />
                     {/* red crop cut line */}
-                    <line x1="-8" y1="42" x2="28" y2="42" stroke="#ef4444" strokeWidth="1.5" strokeDasharray="2 2" />
+                    <line x1="-8" y1="42" x2="28" y2="42" className="stroke-risk-veryhigh" strokeWidth="1.5" strokeDasharray="2 2" />
                   </g>
-                  <circle cx="28" cy="62" r="5.5" fill="#ef4444" />
-                  <path d="M 26 60 L 30 64 M 30 60 L 26 64" stroke="#fff" strokeWidth="1.2" strokeLinecap="round" />
+                  <circle cx="28" cy="62" r="5.5" className="fill-risk-veryhigh" />
+                  <path d="M 26 60 L 30 64 M 30 60 L 26 64" className="stroke-primary-foreground" strokeWidth="1.2" strokeLinecap="round" />
                 </g>
               </svg>
             </div>
             <ul className="text-xs space-y-1 text-muted-foreground font-medium">
-              <li className="text-emerald-600 dark:text-emerald-400">✅ Entire body in frame (head to toe)</li>
-              <li className="text-rose-600 dark:text-rose-400">❌ Avoid cropped limbs or hands</li>
+              <li className="text-risk-low">✅ Entire body in frame (head to toe)</li>
+              <li className="text-risk-veryhigh">❌ Avoid cropped limbs or hands</li>
             </ul>
           </div>
 

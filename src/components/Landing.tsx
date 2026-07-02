@@ -14,17 +14,25 @@ export function Landing({ onStart }: { onStart: (mode: AnalysisMode) => void }) 
       <section className="mx-auto max-w-5xl px-2 pt-6 pb-14 sm:pt-12">
         <div className="grid items-center gap-10 lg:grid-cols-2">
           <div className="text-center lg:text-left">
-            <span className="inline-flex items-center gap-1.5 rounded-full border bg-card px-3 py-1 text-xs font-medium text-muted-foreground shadow-sm">
+            <span className="glass glow-ring inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium text-muted-foreground">
               <ShieldCheck className="h-3.5 w-3.5 text-primary" /> Runs in your browser · nothing is uploaded
             </span>
-            <h1 className="mt-6 text-balance text-4xl font-semibold tracking-tight sm:text-5xl">
-              Ergonomic risk scoring, made friendly
+            <h1 className="mt-6 text-balance bg-gradient-to-r from-primary via-foreground to-foreground bg-clip-text text-4xl font-semibold tracking-tight text-transparent sm:text-5xl">
+              Lab-grade posture risk analysis, in your browser
             </h1>
             <p className="mx-auto mt-4 max-w-xl text-pretty text-base text-muted-foreground sm:text-lg lg:mx-0">
               Get <strong className="font-semibold text-foreground">RULA</strong> and{" "}
               <strong className="font-semibold text-foreground">REBA</strong> posture-risk scores from a photo or a
               short video - with a professional PDF report. Free, private, no sign-up.
             </p>
+
+            {/* HUD stat chips */}
+            <div className="mt-5 flex flex-wrap items-center justify-center gap-2 lg:justify-start">
+              <HudChip>33 landmarks · 3D</HudChip>
+              <HudChip>RULA · REBA</HudChip>
+              <HudChip>100% on-device</HudChip>
+            </div>
+
             <div className="mt-8 grid gap-3 sm:grid-cols-2">
               <EntryCard
                 icon={<Camera className="h-5 w-5" />}
@@ -42,14 +50,20 @@ export function Landing({ onStart }: { onStart: (mode: AnalysisMode) => void }) 
             </div>
             <p className="mt-3 text-xs text-muted-foreground">JPG, PNG, iPhone HEIC · MP4, MOV, WebM</p>
           </div>
-          <HeroVisual />
+          <div id="hero-visual-slot" className="hidden lg:block">
+            <HeroVisual />
+          </div>
         </div>
       </section>
 
       {/* How it works */}
-      <section className="border-t py-14">
+      <section className="relative overflow-hidden border-t py-14 grid-bg">
+        <div
+          className="motion-safe:animate-scanline pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-primary/0 via-primary/60 to-primary/0"
+          aria-hidden="true"
+        />
         <div className="mx-auto max-w-4xl px-2">
-          <h2 className="text-center text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          <h2 className="text-center font-mono text-sm font-semibold uppercase tracking-widest text-primary">
             How it works
           </h2>
           <div className="mt-8 relative">
@@ -89,7 +103,7 @@ export function Landing({ onStart }: { onStart: (mode: AnalysisMode) => void }) 
       </section>
 
       {/* Why / privacy */}
-      <section className="border-t py-14">
+      <section className="border-t py-14 grid-bg">
         <div className="mx-auto grid max-w-4xl gap-6 px-2 sm:grid-cols-3">
           <Feature icon={<ShieldCheck className="h-5 w-5" />} title="Private by design">
             Photos and videos are decoded and scored in your browser. Nothing is sent to a server.
@@ -124,6 +138,14 @@ export function Landing({ onStart }: { onStart: (mode: AnalysisMode) => void }) 
   );
 }
 
+function HudChip({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="hud-readout glass inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-medium text-muted-foreground">
+      {children}
+    </span>
+  );
+}
+
 function EntryCard({
   icon,
   title,
@@ -142,14 +164,14 @@ function EntryCard({
       type="button"
       onClick={onClick}
       className={
-        "group flex items-center gap-3 rounded-2xl border p-4 text-left shadow-card transition-all hover:-translate-y-0.5 hover:shadow-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
-        (primary ? "border-primary/40 bg-primary/5" : "bg-card")
+        "group glass flex items-center gap-3 rounded-2xl p-4 text-left transition-all hover:-translate-y-1 hover:shadow-glow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
+        (primary ? "border-primary/40 bg-primary/5" : "")
       }
     >
       <span
         className={
           "grid h-11 w-11 shrink-0 place-items-center rounded-xl " +
-          (primary ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground")
+          (primary ? "bg-primary text-primary-foreground shadow-glow-sm" : "bg-secondary text-secondary-foreground")
         }
       >
         {icon}
@@ -165,13 +187,13 @@ function EntryCard({
   );
 }
 
-/** A warm, animated product motif: an annotated pose skeleton with a glowing RULA gauge and diagnostic HUD. */
+/** A static, token-colored product motif: an annotated pose skeleton with an angle arc and a RULA gauge. */
 function HeroVisual() {
   return (
-    <div className="mx-auto hidden w-full max-w-sm rounded-3xl border bg-gradient-to-br from-card to-card/50 p-6 shadow-[0_0_50px_-12px_rgba(99,102,241,0.25)] lg:block backdrop-blur-sm relative overflow-hidden">
-      {/* Decorative ambient background blur lights */}
+    <div className="glass mx-auto w-full max-w-sm rounded-3xl p-6 shadow-glow relative overflow-hidden">
+      {/* Decorative ambient background blur lights - token colors only */}
       <div className="absolute -left-20 -top-20 h-40 w-40 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
-      <div className="absolute -right-20 -bottom-20 h-40 w-40 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
+      <div className="absolute -right-20 -bottom-20 h-40 w-40 rounded-full bg-accent/20 blur-3xl pointer-events-none" />
 
       <svg viewBox="0 0 260 250" className="w-full relative z-10" role="img" aria-label="Pose skeleton with angle and risk score">
         <defs>
@@ -179,7 +201,7 @@ function HeroVisual() {
           <pattern id="hero-grid" width="20" height="20" patternUnits="userSpaceOnUse">
             <circle cx="20" cy="20" r="0.75" fill="currentColor" opacity="0.1" />
           </pattern>
-          {/* Premium neon glow */}
+          {/* Soft neon glow */}
           <filter id="hero-glow" x="-20%" y="-20%" width="140%" height="140%">
             <feGaussianBlur stdDeviation="2.5" result="blur" />
             <feMerge>
@@ -189,44 +211,30 @@ function HeroVisual() {
           </filter>
         </defs>
 
-        <style>
-          {`
-            @keyframes hero-float-skeleton {
-              0%, 100% { transform: translateY(0px); }
-              50% { transform: translateY(-8px); }
-            }
-            @keyframes hero-hud-blink {
-              0%, 100% { opacity: 0.3; }
-              50% { opacity: 0.85; }
-            }
-            .animate-hero-skeleton {
-              animation: hero-float-skeleton 6s infinite ease-in-out;
-              transform-origin: center;
-            }
-            .animate-hero-hud {
-              animation: hero-hud-blink 2s infinite ease-in-out;
-            }
-          `}
-        </style>
-
         {/* Ambient Grid */}
         <rect width="260" height="250" fill="url(#hero-grid)" className="text-muted-foreground" />
 
+        {/* HUD corner brackets */}
+        <path d="M 10 24 L 10 10 L 24 10" fill="none" stroke="hsl(var(--primary))" strokeWidth="1.5" opacity="0.5" />
+        <path d="M 236 10 L 250 10 L 250 24" fill="none" stroke="hsl(var(--primary))" strokeWidth="1.5" opacity="0.5" />
+        <path d="M 250 226 L 250 240 L 236 240" fill="none" stroke="hsl(var(--primary))" strokeWidth="1.5" opacity="0.5" />
+        <path d="M 24 240 L 10 240 L 10 226" fill="none" stroke="hsl(var(--primary))" strokeWidth="1.5" opacity="0.5" />
+
         {/* Diagnostic HUD Overlay */}
-        <g className="animate-hero-hud" fill="currentColor" opacity="0.6">
-          <rect x={10} y={10} width={6} height={6} rx={1} fill="hsl(var(--primary))" />
-          <text x={22} y={16} className="font-mono" style={{ fontSize: 8, letterSpacing: "0.05em", fontWeight: 600 }}>
+        <g fill="currentColor" opacity="0.7">
+          <rect x={10} y={32} width={6} height={6} rx={1} fill="hsl(var(--primary))" />
+          <text x={22} y={38} className="font-mono fill-foreground" style={{ fontSize: 8, letterSpacing: "0.05em", fontWeight: 600 }}>
             POSE ENGINE: ACTIVE
           </text>
-          <text x={10} y={32} className="font-mono text-muted-foreground" style={{ fontSize: 7 }}>
-            FPS: 60.0 / CONF: 98.4%
+          <text x={10} y={52} className="font-mono fill-muted-foreground" style={{ fontSize: 7 }}>
+            33 LANDMARKS / CONF: 98.4%
           </text>
         </g>
 
-        {/* Main Floating Biomechanical Model */}
-        <g className="animate-hero-skeleton">
-          {/* Skeleton Bones - Electric Blue */}
-          <g stroke="hsl(var(--primary))" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none" opacity="0.8" filter="url(#hero-glow)">
+        {/* Main Biomechanical Model */}
+        <g>
+          {/* Skeleton Bones */}
+          <g stroke="hsl(var(--primary))" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none" opacity="0.85" filter="url(#hero-glow)">
             <path d="M120 44 L104 86" />
             <path d="M104 86 L138 120" />
             <path d="M138 120 L128 160" />
@@ -234,9 +242,9 @@ function HeroVisual() {
             <path d="M98 176 L110 214" />
           </g>
 
-          {/* Joint Nodes - Bright Emerald */}
-          <g fill="#34d399" filter="url(#hero-glow)">
-            <circle cx="120" cy="44" r="3.5" fill="#fff" /> {/* Head marker center */}
+          {/* Joint Nodes */}
+          <g fill="hsl(var(--primary))" filter="url(#hero-glow)">
+            <circle cx="120" cy="44" r="3.5" fill="hsl(var(--background))" />
             <circle cx="120" cy="44" r="8" fill="hsl(var(--primary))" fillOpacity={0.15} stroke="hsl(var(--primary))" strokeWidth={1} />
             <circle cx="104" cy="86" r="5" />
             <circle cx="138" cy="120" r="5" />
@@ -246,19 +254,19 @@ function HeroVisual() {
           </g>
 
           {/* Measured Angle Highlight - Concentric Angle Arc around Elbow Joint (138, 120) */}
-          <path d="M 124 106 A 20 20 0 0 0 133 139" stroke="#f43f5e" strokeWidth="2" fill="none" filter="url(#hero-glow)" />
-          
-          <rect x={128} y={94} width={42} height={16} rx={4} fill="#f43f5e" fillOpacity={0.15} />
+          <path d="M 124 106 A 20 20 0 0 0 133 139" stroke="hsl(var(--risk-high))" strokeWidth="2" fill="none" filter="url(#hero-glow)" />
+
+          <rect x={128} y={94} width={42} height={16} rx={4} fill="hsl(var(--risk-high))" fillOpacity={0.15} />
           <text x={132} y={106} className="fill-foreground font-mono" style={{ fontSize: 9, fontWeight: 700 }}>
             θ = 42.6°
           </text>
         </g>
 
-        {/* HUD Gauge Panel - Shifted Right to x=208 to prevent overlaps */}
+        {/* HUD Gauge Panel */}
         <g transform="translate(208,80)">
           {/* Gauge Background ring */}
           <circle r="32" fill="none" stroke="hsl(var(--muted))" strokeWidth="8" />
-          {/* Gauge Active Ring - Warning Orange/Coral */}
+          {/* Gauge Active Ring */}
           <circle
             r="32"
             fill="none"
@@ -271,7 +279,7 @@ function HeroVisual() {
             filter="url(#hero-glow)"
           />
           {/* Inner glass overlay */}
-          <circle r="26" fill="currentColor" fillOpacity={0.03} />
+          <circle r="26" fill="currentColor" fillOpacity={0.03} className="text-foreground" />
           {/* Score Text */}
           <text x="0" y="7" textAnchor="middle" className="fill-foreground font-mono" style={{ fontSize: 22, fontWeight: 800 }}>
             3
@@ -281,9 +289,9 @@ function HeroVisual() {
           RULA SCORE
         </text>
 
-        {/* Biomechanical key lines - Shifted to match the new gauge position */}
-        <path d="M 198 20 L 238 20 L 238 40" fill="none" stroke="currentColor" strokeWidth="0.5" opacity="0.3" />
-        <path d="M 20 230 L 20 200 L 40 200" fill="none" stroke="currentColor" strokeWidth="0.5" opacity="0.3" />
+        {/* Biomechanical key lines */}
+        <path d="M 198 20 L 238 20 L 238 40" fill="none" stroke="currentColor" className="text-muted-foreground" strokeWidth="0.5" opacity="0.3" />
+        <path d="M 20 230 L 20 200 L 40 200" fill="none" stroke="currentColor" className="text-muted-foreground" strokeWidth="0.5" opacity="0.3" />
       </svg>
     </div>
   );
@@ -291,12 +299,12 @@ function HeroVisual() {
 
 function Step({ icon, n, title, children }: { icon: React.ReactNode; n: string; title: string; children: React.ReactNode }) {
   return (
-    <div className="group relative rounded-2xl border bg-card p-5 shadow-sm transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[0_8px_30px_rgba(99,102,241,0.15)] hover:border-primary/40">
+    <div className="group glass relative rounded-2xl p-5 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-glow-sm">
       <div className="flex items-center gap-3">
-        <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 text-primary shadow-inner ring-1 ring-primary/20 transition-all group-hover:from-primary/30 group-hover:to-primary/10">
+        <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-primary/30 to-primary/5 text-primary ring-1 ring-primary/25 transition-all group-hover:from-primary/40 group-hover:to-primary/10">
           {icon}
         </span>
-        <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-primary">
+        <span className="hud-readout inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-widest text-primary">
           Step {n}
         </span>
       </div>
@@ -310,12 +318,14 @@ function Step({ icon, n, title, children }: { icon: React.ReactNode; n: string; 
 
 function MethodCard({ name, full, scale, body }: { name: string; full: string; scale: string; body: string }) {
   return (
-    <div className="group rounded-2xl border bg-gradient-to-br from-card to-card/60 p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_8px_30px_rgba(99,102,241,0.12)] hover:border-primary/30">
+    <div className="group glass rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-glow-sm">
       <div className="flex items-baseline justify-between">
-        <h3 className="text-xl font-bold tracking-tight text-foreground group-hover:text-primary transition-colors">{name}</h3>
-        <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary ring-1 ring-primary/20">{scale}</span>
+        <h3 className="text-xl font-bold tracking-tight text-foreground transition-colors group-hover:text-primary">{name}</h3>
+        <span className="hud-readout rounded-full bg-primary/10 px-2.5 py-0.5 font-mono text-xs font-semibold text-primary ring-1 ring-primary/20">
+          {scale}
+        </span>
       </div>
-      <p className="mt-0.5 text-[11px] uppercase tracking-widest text-muted-foreground">{full}</p>
+      <p className="mt-0.5 font-mono text-[11px] uppercase tracking-widest text-primary">{full}</p>
       <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{body}</p>
     </div>
   );
@@ -323,8 +333,8 @@ function MethodCard({ name, full, scale, body }: { name: string; full: string; s
 
 function Feature({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
   return (
-    <div className="group rounded-2xl border bg-card/50 p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_8px_24px_rgba(99,102,241,0.10)] hover:border-primary/25">
-      <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-primary/15 to-emerald-500/10 text-primary shadow-inner ring-1 ring-primary/15 transition-all group-hover:from-primary/25 group-hover:to-emerald-500/15">
+    <div className="group glass rounded-2xl p-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-glow-sm">
+      <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-primary/25 to-accent/20 text-primary ring-1 ring-primary/15 transition-all group-hover:from-primary/35 group-hover:to-accent/30">
         {icon}
       </span>
       <h3 className="mt-3 font-semibold">{title}</h3>

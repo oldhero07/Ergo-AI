@@ -47,7 +47,7 @@ export function ComputeAnimation({ note, onSkip }: { note?: string; onSkip?: () 
 
   return (
     <div className="flex min-h-[50vh] flex-col items-center justify-center gap-5 text-center">
-      <svg ref={rootRef} viewBox="0 0 280 300" className="h-72 w-64 text-primary" role="img" aria-label="Computing">
+      <svg ref={rootRef} viewBox="0 0 280 300" className="h-72 w-64 rounded-2xl text-primary grid-bg" role="img" aria-label="Computing">
         <defs>
           <marker id="ca-arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto" markerUnits="userSpaceOnUse">
             <path d="M0,0.5 L5.5,3 L0,5.5 Z" fill="hsl(var(--risk-medium))" />
@@ -97,7 +97,7 @@ export function ComputeAnimation({ note, onSkip }: { note?: string; onSkip?: () 
         {/* Dynamic laser scanning beam */}
         <g className="animate-ca-scan">
           <line x1="10" y1="0" x2="270" y2="0" stroke="hsl(var(--primary))" strokeWidth="2" filter="url(#ca-glow)" />
-          <line x1="10" y1="0" x2="270" y2="0" stroke="#fff" strokeWidth="0.75" opacity="0.9" />
+          <line x1="10" y1="0" x2="270" y2="0" stroke="hsl(var(--primary-foreground))" strokeWidth="0.75" opacity="0.9" />
         </g>
 
         {/* abstract wireframe skeleton */}
@@ -111,9 +111,9 @@ export function ComputeAnimation({ note, onSkip }: { note?: string; onSkip?: () 
         </g>
         
         {/* Skeleton Joint Nodes */}
-        <g fill="#34d399" filter="url(#ca-glow)">
+        <g fill="hsl(var(--primary))" filter="url(#ca-glow)">
           <circle data-anim="node" cx={140} cy={36} r={12} fill="hsl(var(--primary))" />
-          <circle data-anim="node" cx={140} cy={36} r={5} fill="#fff" />
+          <circle data-anim="node" cx={140} cy={36} r={5} fill="hsl(var(--primary-foreground))" />
           <circle data-anim="node" cx={128} cy={86} r={5} />
           <circle data-anim="node" cx={154} cy={124} r={5} />
           <circle data-anim="node" cx={146} cy={166} r={5} />
@@ -161,7 +161,7 @@ export function ComputeAnimation({ note, onSkip }: { note?: string; onSkip?: () 
             data-anim="gauge-ring"
             r={30}
             fill="none"
-            stroke="hsl(var(--risk-high))"
+            stroke="hsl(var(--risk-medium))"
             strokeWidth={7}
             strokeLinecap="round"
             transform="rotate(-90)"
@@ -181,13 +181,13 @@ export function ComputeAnimation({ note, onSkip }: { note?: string; onSkip?: () 
         {/* Score Chips */}
         <g fill="currentColor">
           <g data-anim="chip">
-            <rect x={194} y={106} width={20} height={16} rx={4} fill="hsl(var(--primary))" fillOpacity={0.15} stroke="hsl(var(--primary)/30)" strokeWidth={0.5} />
+            <rect x={194} y={106} width={20} height={16} rx={4} fill="hsl(var(--primary))" fillOpacity={0.15} stroke="hsl(var(--primary) / 0.3)" strokeWidth={0.5} />
             <text x={204} y={118} textAnchor="middle" className="font-mono font-semibold" style={{ fontSize: 9 }}>
               A
             </text>
           </g>
           <g data-anim="chip">
-            <rect x={222} y={106} width={20} height={16} rx={4} fill="hsl(var(--primary))" fillOpacity={0.15} stroke="hsl(var(--primary)/30)" strokeWidth={0.5} />
+            <rect x={222} y={106} width={20} height={16} rx={4} fill="hsl(var(--primary))" fillOpacity={0.15} stroke="hsl(var(--primary) / 0.3)" strokeWidth={0.5} />
             <text x={232} y={118} textAnchor="middle" className="font-mono font-semibold" style={{ fontSize: 9 }}>
               B
             </text>

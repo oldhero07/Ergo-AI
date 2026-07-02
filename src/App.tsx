@@ -23,6 +23,7 @@ import { isHeic } from "@/lib/image";
 import { validateVideoFile } from "@/lib/videoFile";
 import { VideoResults } from "@/components/VideoResults";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { PhaseTransition } from "@/components/PhaseTransition";
 import type { AnalysisMode } from "@/types";
 import { exportPdfReport } from "@/lib/pdf";
 import { getMethod, methods } from "@/assessment/registry";
@@ -557,6 +558,7 @@ export default function App() {
       </header>
 
       <main className="container py-10">
+        <PhaseTransition phaseKey={phase}>
         {phase === "landing" && (
           <>
             {restorable && (
@@ -809,6 +811,7 @@ export default function App() {
             </div>
           </div>
         )}
+        </PhaseTransition>
       </main>
 
       <footer className="border-t">

@@ -13,7 +13,7 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
       className={cn(
         "flex w-full items-center justify-between gap-3 rounded-xl border px-3.5 py-2.5 text-left text-sm transition-all duration-200",
         checked
-          ? "border-primary/40 bg-primary/8 shadow-sm"
+          ? "border-primary/40 bg-primary/8 shadow-glow-sm"
           : "border-border bg-card/50 hover:border-border/80 hover:bg-card",
       )}
     >
@@ -59,9 +59,9 @@ function ForceControl({
             aria-pressed={value === v}
             onClick={() => onChange(v)}
             className={cn(
-              "h-7 w-7 rounded-lg text-xs font-bold tabular-nums transition-all duration-150",
+              "hud-readout h-7 w-7 rounded-lg text-xs font-bold transition-all duration-150",
               value === v
-                ? "bg-primary text-primary-foreground shadow-sm"
+                ? "bg-primary text-primary-foreground shadow-glow-sm"
                 : "bg-secondary text-secondary-foreground hover:bg-secondary/80",
             )}
           >
@@ -92,12 +92,12 @@ export function AdjustmentsPanel({
   const isReba = methodId === "reba";
 
   return (
-    <div className="border-t">
+    <div className="border-t border-border bg-card/40 backdrop-blur-md">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className="flex w-full items-center justify-between px-5 py-3.5 text-sm font-medium transition-colors hover:bg-muted/30"
+        className="flex w-full items-center justify-between px-5 py-3.5 text-sm font-medium transition-colors hover:bg-accent/30"
       >
         <span className="flex items-center gap-2.5">
           <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -105,7 +105,7 @@ export function AdjustmentsPanel({
           </span>
           <span>Adjust factors a photo can&apos;t see</span>
           {!open && (
-            <span className="ml-1 rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold text-white">
+            <span className="rounded-full bg-risk-medium/15 px-2 py-0.5 text-[10px] font-bold text-risk-medium">
               ⚠ score may be incomplete
             </span>
           )}
@@ -127,7 +127,7 @@ export function AdjustmentsPanel({
             <div className="rounded-xl border border-border bg-card/50 px-3.5 py-2.5">
               <label className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
                 <span>Wrist flexion / extension</span>
-                <span className="rounded-md bg-secondary px-1.5 py-0.5 font-mono font-medium tabular-nums">
+                <span className="hud-readout rounded-md bg-secondary px-1.5 py-0.5 font-medium">
                   {Math.round(input.wristAngle)}°
                 </span>
               </label>
@@ -207,7 +207,7 @@ export function AdjustmentsPanel({
                 <div className="rounded-xl border border-border bg-card/50 px-3.5 py-2.5">
                   <label className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
                     <span>Knee flexion</span>
-                    <span className="rounded-md bg-secondary px-1.5 py-0.5 font-mono font-medium tabular-nums">
+                    <span className="hud-readout rounded-md bg-secondary px-1.5 py-0.5 font-medium">
                       {Math.round(input.legAngle ?? 0)}°
                     </span>
                   </label>
