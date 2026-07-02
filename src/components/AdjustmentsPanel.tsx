@@ -87,7 +87,7 @@ export function AdjustmentsPanel({
   methodId: string;
   onChange: (next: PostureInput) => void;
 }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const set = <K extends keyof PostureInput>(key: K, value: PostureInput[K]) => onChange({ ...input, [key]: value });
   const isReba = methodId === "reba";
 

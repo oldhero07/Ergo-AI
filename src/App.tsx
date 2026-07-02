@@ -853,7 +853,7 @@ export default function App() {
                   <div key={it.id} className={`overflow-hidden rounded-xl border ${sortIdx === 0 && items.length > 1 && results[it.id]?.assessment ? 'ring-2 ring-destructive/60' : ''}`}>
                       {sortIdx === 0 && items.length > 1 && results[it.id]?.assessment && (
                         <div className="flex items-center gap-1.5 bg-destructive/10 px-4 py-1.5 text-xs font-semibold text-destructive">
-                          <span>🔴</span> Worst posture in batch · investigate first
+                          <AlertTriangle className="h-4 w-4" /> Worst posture in batch · investigate first
                         </div>
                       )}
                       <div className="grid sm:grid-cols-2">

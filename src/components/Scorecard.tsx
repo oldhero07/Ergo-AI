@@ -1,5 +1,6 @@
 import type { AssessmentResult, GroupBreakdown, RiskBand } from "@/assessment/types";
 import { cn } from "@/lib/utils";
+import { CheckCircle2, AlertTriangle, ShieldAlert, OctagonAlert } from "lucide-react";
 
 /** Static (JIT-safelisted) class lookups so risk colors stay token-driven. */
 const RISK_PILL_CLASSES: Record<RiskBand, string> = {
@@ -116,12 +117,18 @@ export function Scorecard({ result, className }: { result: AssessmentResult; cla
 
       {/* Risk band explanation card */}
       <div className={cn("mt-5 flex items-start gap-3 rounded-xl border-l-4 px-4 py-3.5", borderClass, pillClasses.split(" ")[0])}>
+        <div className={cn("mt-0.5 shrink-0", pillClasses.split(" ")[1])}>
+          {result.riskBand === "low" && <CheckCircle2 className="h-5 w-5" />}
+          {result.riskBand === "medium" && <AlertTriangle className="h-5 w-5" />}
+          {result.riskBand === "high" && <ShieldAlert className="h-5 w-5" />}
+          {result.riskBand === "veryhigh" && <OctagonAlert className="h-5 w-5" />}
+        </div>
         <div>
           <p className={cn("text-sm font-semibold", pillClasses.split(" ")[1])}>
-            {result.riskBand === "low" && "👀 Low risk — monitor and re-evaluate if posture changes."}
-            {result.riskBand === "medium" && "⚠️ Medium risk — investigate further and consider changes soon."}
-            {result.riskBand === "high" && "🚨 High risk — investigate and implement changes promptly."}
-            {result.riskBand === "veryhigh" && "🔴 Very high risk — stop task and redesign immediately."}
+            {result.riskBand === "low" && "Low risk — monitor and re-evaluate if posture changes."}
+            {result.riskBand === "medium" && "Medium risk — investigate further and consider changes soon."}
+            {result.riskBand === "high" && "High risk — investigate and implement changes promptly."}
+            {result.riskBand === "veryhigh" && "Very high risk — stop task and redesign immediately."}
           </p>
           <p className="mt-1 text-sm text-muted-foreground">
             {result.riskBand === "low" && "Minor ergonomic concerns. Document and review at the next scheduled assessment."}

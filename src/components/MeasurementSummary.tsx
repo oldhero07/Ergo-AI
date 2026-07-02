@@ -1,4 +1,4 @@
-import { Check, Info, Minus } from "lucide-react";
+import { Check, Info, Minus, Activity } from "lucide-react";
 import type { PostureInput } from "@/assessment/types";
 
 /**
@@ -56,52 +56,54 @@ export function MeasurementSummary({
   return (
     <div className="px-5 py-5">
       {/* Confidence banner */}
-      <div className="mb-4 flex items-start gap-2.5 rounded-xl border border-risk-medium/20 bg-risk-medium/5 px-4 py-3">
-        <Info className="mt-0.5 h-4 w-4 shrink-0 text-risk-medium" />
-        <p className="text-xs leading-relaxed text-muted-foreground">
-          The grand score is a{" "}
-          <strong className="font-semibold text-foreground">lower bound</strong> —{" "}
-          {assumed.length} factor{assumed.length !== 1 ? "s" : ""} the camera can&apos;t see are
-          assumed neutral. Adjust them below to complete the assessment.
-          {pct !== null && (
-            <span className="hud-readout ml-2 inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium">
-              pose confidence {pct}%
-            </span>
-          )}
-        </p>
+      <div className="mb-6 flex flex-col gap-4 rounded-xl border border-primary/20 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-start gap-3">
+          <Info className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            The initial score is a <strong className="font-medium text-foreground">baseline</strong> because{" "}
+            {assumed.length} factor{assumed.length !== 1 ? "s" : ""} cannot be seen by the camera.{" "}
+            Review and adjust the assumed factors below for a complete assessment.
+          </p>
+        </div>
+        {pct !== null && (
+          <div className="flex shrink-0 items-center gap-2 rounded-lg bg-primary/10 px-3 py-1.5 text-primary">
+            <Activity className="h-4 w-4" />
+            <span className="text-xs font-semibold uppercase tracking-wider">AI Confidence {pct}%</span>
+          </div>
+        )}
       </div>
 
       {/* Measured vs Assumed columns */}
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="glass rounded-xl p-4">
-          <h5 className="mb-2.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-risk-low">
-            <span className="h-1.5 w-1.5 rounded-full bg-risk-low" />
-            Measured ({measured.length})
+        <div className="rounded-xl border border-border bg-card p-4">
+          <h5 className="mb-3 flex items-center gap-2 text-xs font-semibold text-foreground">
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/15">
+              <Check className="h-3 w-3 text-primary" />
+            </span>
+            Measured Automatically ({measured.length})
           </h5>
-          <ul className="space-y-1.5">
+          <ul className="space-y-2">
             {measured.map((m) => (
-              <li key={m} className="flex items-center gap-2 text-sm">
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-risk-low/15">
-                  <Check className="h-3 w-3 text-risk-low" />
-                </span>
-                <span className="hud-readout font-medium">{m}</span>
+              <li key={m} className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span className="h-1.5 w-1.5 rounded-full bg-primary/40" />
+                {m}
               </li>
             ))}
           </ul>
         </div>
 
-        <div className="glass rounded-xl p-4">
-          <h5 className="mb-2.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-            <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/50" />
-            Assumed neutral ({assumed.length})
+        <div className="rounded-xl border border-border bg-card p-4">
+          <h5 className="mb-3 flex items-center gap-2 text-xs font-semibold text-foreground">
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-muted">
+              <Minus className="h-3 w-3 text-muted-foreground" />
+            </span>
+            Assumed Neutral ({assumed.length})
           </h5>
-          <ul className="space-y-1.5">
+          <ul className="space-y-2">
             {assumed.map((m) => (
               <li key={m} className="flex items-center gap-2 text-sm text-muted-foreground">
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted">
-                  <Minus className="h-3 w-3" />
-                </span>
-                <span className="hud-readout">{m}</span>
+                <span className="h-1.5 w-1.5 rounded-full bg-border" />
+                {m}
               </li>
             ))}
           </ul>
