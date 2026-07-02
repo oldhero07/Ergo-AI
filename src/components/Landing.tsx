@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { Camera, Video, ScanLine, Gauge, ShieldCheck, ArrowRight, Cpu, FileText } from "lucide-react";
 import { Logo } from "@/components/Logo";
+import { HeroSceneLazy } from "@/components/HeroSceneLazy";
 import type { AnalysisMode } from "@/types";
 
 /**
@@ -8,6 +10,7 @@ import type { AnalysisMode } from "@/types";
  * the chosen flow (photo or video) via `onStart`.
  */
 export function Landing({ onStart }: { onStart: (mode: AnalysisMode) => void }) {
+  const [show3d, setShow3d] = useState(false);
   return (
     <div className="animate-in fade-in duration-500">
       {/* Hero */}
@@ -50,8 +53,13 @@ export function Landing({ onStart }: { onStart: (mode: AnalysisMode) => void }) 
             </div>
             <p className="mt-3 text-xs text-muted-foreground">JPG, PNG, iPhone HEIC · MP4, MOV, WebM</p>
           </div>
-          <div id="hero-visual-slot" className="hidden lg:block">
-            <HeroVisual />
+          <div id="hero-visual-slot" className="relative hidden min-h-[420px] lg:block">
+            <div className={show3d ? "invisible absolute inset-0" : ""}>
+              <HeroVisual />
+            </div>
+            <div className={show3d ? "absolute inset-0" : "sr-only"} aria-hidden={!show3d}>
+              <HeroSceneLazy onReady={() => setShow3d(true)} />
+            </div>
           </div>
         </div>
       </section>

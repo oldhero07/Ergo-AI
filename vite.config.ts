@@ -15,4 +15,17 @@ export default defineConfig({
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          // One shared lazy chunk for the whole 3D stack so the hero scene and
+          // the pose viewer don't each bundle their own copy of three.js.
+          if (/node_modules[\\/](three|@react-three)[\\/]/.test(id)) {
+            return "three-vendor";
+          }
+        },
+      },
+    },
+  },
 });

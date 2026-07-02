@@ -29,6 +29,7 @@ import { exportPdfReport } from "@/lib/pdf";
 import { getMethod, methods } from "@/assessment/registry";
 import { estimateNioshGeometry } from "@/assessment/niosh/niosh";
 import { NioshCalculator, type NioshPrefill } from "@/components/NioshCalculator";
+import { PoseViewerLazy } from "@/components/PoseViewerLazy";
 import type { PostureInput } from "@/assessment/types";
 import type { UploadItem } from "@/types";
 
@@ -838,6 +839,11 @@ export default function App() {
                             onChange={(next) => updateInput(it.id, next)}
                           />
                         )}
+                        <PoseViewerLazy
+                          worldLandmarks={r.worldLandmarks}
+                          result={r.assessment}
+                          angles={r.angles}
+                        />
                       </>
                     ) : (
                       <div className="flex items-center gap-2 border-t px-5 py-4 text-sm text-amber-600">
