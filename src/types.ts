@@ -4,7 +4,8 @@ export type AnalysisMode = "photo" | "video";
 export interface UploadItem {
   id: string;
   file: File;
+  /** Small preview-thumbnail object URL ("" while it's still being prepared). */
   url: string;
-  /** HEIC only: true while we decode it to a viewable JPEG in the background. */
+  /** True while the preview thumb (and, for HEIC, the analysis JPEG) is prepared off-thread. */
   converting?: boolean;
 }

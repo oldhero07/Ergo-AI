@@ -14,6 +14,31 @@ async function decodeHeic(file: File): Promise<ImageBitmap> {
   return (await heicTo({ blob: file, type: "bitmap" })) as ImageBitmap;
 }
 
+/** Longest edge fed to analysis. Detection resizes to a much smaller model
+ * input and annotation renders at MAX_RENDER_SIZE, so decoding a 24-48MP photo
+ * at full resolution only cost memory and worker-transfer time. */
+export const MAX_ANALYZE_EDGE = 2048;
+
+/** Downscale a decoded bitmap to MAX_ANALYZE_EDGE (no-op when already smaller).
+ * Downscaling is a memory optimization, never a correctness requirement: if a
+ * browser rejects the resize options (older engines) or the resize throws, fall
+ * back to the full-resolution bitmap rather than failing the whole decode. */
+async function capBitmap(bitmap: ImageBitmap): Promise<ImageBitmap> {
+  const scale = fitScale(bitmap.width, bitmap.height, MAX_ANALYZE_EDGE);
+  if (scale >= 1) return bitmap;
+  try {
+    const scaled = await createImageBitmap(bitmap, {
+      resizeWidth: Math.max(1, Math.round(bitmap.width * scale)),
+      resizeHeight: Math.max(1, Math.round(bitmap.height * scale)),
+      resizeQuality: "high",
+    });
+    bitmap.close();
+    return scaled;
+  } catch {
+    return bitmap; // resize unsupported/failed - analyze at full resolution
+  }
+}
+
 /**
  * Decode a File into an ImageBitmap, honoring EXIF orientation so that the
  * landmarks we compute line up with what the user sees (phone photos are often
@@ -23,19 +48,19 @@ async function decodeHeic(file: File): Promise<ImageBitmap> {
 export async function loadBitmap(file: File): Promise<ImageBitmap> {
   if (isHeic(file)) {
     try {
-      return await decodeHeic(file);
+      return await capBitmap(await decodeHeic(file));
     } catch {
       // Fall through to the native decoder - Safari on Apple devices can often
       // read HEIC directly even when conversion fails.
     }
   }
   try {
-    return await createImageBitmap(file, { imageOrientation: "from-image" });
+    return await capBitmap(await createImageBitmap(file, { imageOrientation: "from-image" }));
   } catch (err) {
     // Last-ditch: maybe it was an unlabeled HEIC. Try the HEIC decoder once more.
     if (!isHeic(file)) {
       try {
-        return await decodeHeic(file);
+        return await capBitmap(await decodeHeic(file));
       } catch {
         /* ignore - throw the original, more descriptive error below */
       }

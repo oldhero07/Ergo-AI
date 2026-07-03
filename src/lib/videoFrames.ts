@@ -88,6 +88,36 @@ function seekTo(video: HTMLVideoElement, t: number): Promise<void> {
   });
 }
 
+/**
+ * Streamed/recorded WebM (MediaRecorder output: screen recorders, Loom-style
+ * browser recorders) reports `duration = Infinity` until the browser is forced
+ * to scan the file. The standard workaround: seek far past the end and wait
+ * for `durationchange` to deliver the real value. Time-boxed; resolves the
+ * final duration (may still be non-finite if the file is truly broken).
+ */
+function resolveInfiniteDuration(video: HTMLVideoElement): Promise<number> {
+  return new Promise((resolve) => {
+    let timer = 0;
+    const cleanup = () => {
+      clearTimeout(timer);
+      video.removeEventListener("durationchange", onChange);
+      video.currentTime = 0; // rewind for the real sampling seeks
+    };
+    const onChange = () => {
+      if (Number.isFinite(video.duration)) {
+        cleanup();
+        resolve(video.duration);
+      }
+    };
+    video.addEventListener("durationchange", onChange);
+    timer = window.setTimeout(() => {
+      cleanup();
+      resolve(video.duration);
+    }, METADATA_TIMEOUT_MS);
+    video.currentTime = Number.MAX_SAFE_INTEGER;
+  });
+}
+
 /** Wait for metadata, time-boxed so a file that never loads can't hang the run. */
 function loadMetadata(video: HTMLVideoElement): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -151,14 +181,22 @@ export async function sampleVideoFrames(
     await loadMetadata(video);
     throwIfAborted(signal);
 
-    const fullDuration = video.duration;
+    let fullDuration = video.duration;
+    if (fullDuration === Infinity) {
+      // MediaRecorder-produced WebM (screen/browser recordings) - resolve the
+      // real duration with a far-seek before rejecting the file.
+      fullDuration = await resolveInfiniteDuration(video);
+      throwIfAborted(signal);
+    }
     if (!Number.isFinite(fullDuration) || fullDuration <= 0) {
       throw new Error("This video has no readable duration.");
     }
     // No decodable video track (audio-only, or a codec the browser can't decode
     // such as HEVC/AV1) - metadata loads but there are no pixels to sample.
     if (!video.videoWidth || !video.videoHeight) {
-      throw new Error("Couldn't decode this video format. Try exporting it as MP4 (H.264).");
+      throw new Error(
+        "Couldn't decode this video format - iPhone HEVC clips often need conversion. Export or share it as MP4 (H.264) and try again.",
+      );
     }
 
     const duration = Math.min(fullDuration, maxDurationSec);

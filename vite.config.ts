@@ -10,6 +10,10 @@ export default defineConfig({
   // client-side routing, so relative resolution is always correct.
   base: "./",
   plugins: [react()],
+  // ES-format workers so the prepare worker can lazy-load heic-to (dynamic
+  // import) instead of bundling the 3MB decoder into every visitor's payload.
+  // Matches the `type: "module"` the workers are already spawned with.
+  worker: { format: "es" },
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),

@@ -1,0 +1,64 @@
+/**
+ * Shared image-preparation core, used by the prepare worker and (as a rare
+ * fallback) inline on the main thread: decode a photo exactly once (heic-to
+ * wasm for iPhone HEIC, the native decoder otherwise) and re-encode it as
+ * small JPEGs - a grid-preview thumbnail for every file, plus an
+ * analysis-sized JPEG for HEIC so the slow wasm decode never has to run again
+ * at analysis time. DOM-free (OffscreenCanvas only) so it behaves identically
+ * in both contexts.
+ */
+import { isHeic, MAX_ANALYZE_EDGE } from "@/lib/image";
+
+/** Longest edge of the grid-preview thumbnail. Big enough to double as the
+ * PDF's last-resort original-photo fallback, tiny next to a raw camera file. */
+export const THUMB_EDGE = 512;
+/** Longest edge of the analysis JPEG a HEIC is re-encoded to. Must match the
+ * cap loadBitmap applies (MAX_ANALYZE_EDGE) so this pre-encode sails through it
+ * untouched - keep them equal by sourcing the one constant. */
+export const ANALYSIS_EDGE = MAX_ANALYZE_EDGE;
+
+export interface PreparedBlobs {
+  /** Small JPEG for the upload-grid tile (null if encoding failed). */
+  thumbBlob: Blob | null;
+  /** HEIC only: analysis-ready JPEG re-encode of the photo. */
+  analysisBlob: Blob | null;
+}
+
+async function decodeToBitmap(file: File): Promise<ImageBitmap> {
+  if (isHeic(file)) {
+    try {
+      const { heicTo } = await import("heic-to");
+      return await heicTo({ blob: file, type: "bitmap" });
+    } catch {
+      // Fall through - Safari's native decoder can often read HEIC directly.
+    }
+  }
+  return createImageBitmap(file, { imageOrientation: "from-image" });
+}
+
+async function encodeJpeg(bitmap: ImageBitmap, maxEdge: number, quality: number): Promise<Blob | null> {
+  try {
+    const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
+    const w = Math.max(1, Math.round(bitmap.width * scale));
+    const h = Math.max(1, Math.round(bitmap.height * scale));
+    const canvas = new OffscreenCanvas(w, h);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.drawImage(bitmap, 0, 0, w, h);
+    return await canvas.convertToBlob({ type: "image/jpeg", quality });
+  } catch {
+    return null;
+  }
+}
+
+export async function prepareImageBlobs(file: File): Promise<PreparedBlobs> {
+  const bitmap = await decodeToBitmap(file);
+  try {
+    return {
+      thumbBlob: await encodeJpeg(bitmap, THUMB_EDGE, 0.8),
+      analysisBlob: isHeic(file) ? await encodeJpeg(bitmap, ANALYSIS_EDGE, 0.92) : null,
+    };
+  } finally {
+    bitmap.close();
+  }
+}

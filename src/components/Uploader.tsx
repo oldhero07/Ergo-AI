@@ -16,12 +16,12 @@ import type { AnalysisMode, UploadItem } from "@/types";
  */
 function Thumb({ url, name, converting }: { url: string; name: string; converting?: boolean }) {
   const [failed, setFailed] = useState(false);
-  if (converting) {
+  if (converting || !url) {
     return (
       <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 p-2 text-center">
         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         <span className="line-clamp-2 break-all text-[10px] leading-tight text-muted-foreground">{name}</span>
-        <span className="text-[9px] text-muted-foreground/70">decoding HEIC…</span>
+        <span className="text-[9px] text-muted-foreground/70">preparing preview…</span>
       </div>
     );
   }
@@ -50,6 +50,12 @@ interface UploaderProps {
   videoSettings?: VideoSettingsValues;
   onVideoSettingsChange?: (s: VideoSettingsValues) => void;
   budgetReduced?: boolean;
+  /** Batch-limit / skipped-files caution, shown right under the dropzone. */
+  notice?: string | null;
+  /** Photo-batch cap, surfaced in the dropzone hint. */
+  maxBatch?: number;
+  /** True while queued HEICs are still converting - Analyze waits for them. */
+  preparing?: boolean;
 }
 
 export function Uploader({
@@ -65,6 +71,9 @@ export function Uploader({
   videoSettings,
   onVideoSettingsChange,
   budgetReduced,
+  notice,
+  maxBatch,
+  preparing,
 }: UploaderProps) {
   const [dragging, setDragging] = useState(false);
   const [wrongType, setWrongType] = useState<"image" | "video" | null>(null);
@@ -144,7 +153,7 @@ export function Uploader({
         <p className="mt-3 text-xs text-muted-foreground">
           {isVideoMode
             ? `MP4, MOV, or WebM · up to ${MAX_VIDEO_MB} MB · first ${videoSettings?.durationSec ?? 30}s analyzed`
-            : "JPG, PNG, or iPhone HEIC"}
+            : `JPG, PNG, or iPhone HEIC${maxBatch ? ` · up to ${maxBatch} photos` : ""}`}
         </p>
         <input
           ref={inputRef}
@@ -161,6 +170,13 @@ export function Uploader({
 
       {isVideoMode && videoSettings && onVideoSettingsChange && (
         <VideoSettings settings={videoSettings} onChange={onVideoSettingsChange} budgetReduced={budgetReduced} />
+      )}
+
+      {/* Right under the dropzone so it can't scroll out of view below a big grid. */}
+      {!isVideoMode && notice && (
+        <p className="mt-4 rounded-xl bg-amber-50 px-4 py-2 text-center text-sm text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
+          {notice}
+        </p>
       )}
 
       {wrongType && (
@@ -239,8 +255,11 @@ export function Uploader({
             ))}
           </div>
           <div className="mt-6 flex justify-center">
-            <Button size="lg" onClick={onAnalyze}>
-              <Play className="h-4 w-4" /> Analyze {items.length > 1 ? `${items.length} photos` : "photo"}
+            <Button size="lg" onClick={onAnalyze} disabled={preparing}>
+              {preparing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+              {preparing
+                ? "Preparing photos…"
+                : `Analyze ${items.length > 1 ? `${items.length} photos` : "photo"}`}
             </Button>
           </div>
         </div>

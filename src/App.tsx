@@ -19,7 +19,7 @@ import {
   shrinkToDataUrl,
   type SessionSnapshot,
 } from "@/lib/sessionStore";
-
+import { prepareImage } from "@/lib/prepare";
 import { validateVideoFile } from "@/lib/videoFile";
 import { VideoResults } from "@/components/VideoResults";
 import { DEFAULT_VIDEO_SETTINGS, type VideoSettingsValues } from "@/components/VideoSettings";
@@ -91,6 +91,9 @@ export default function App() {
   // Cache of small per-item thumbs so snapshot re-saves (adjustments/method
   // switches) don't re-encode images every time.
   const snapshotThumbsRef = useRef<Map<string, string>>(new Map());
+  // Ids of items currently in the queue - lets a late prepare-worker result
+  // detect that its item was removed and revoke the orphaned thumb URL.
+  const liveIdsRef = useRef<Set<string>>(new Set());
 
   // Warm the ML models the moment the user reaches the uploader, so the
   // first Analyze click doesn't pay the model download + GPU init.
@@ -113,6 +116,27 @@ export default function App() {
     return () => {
       alive = false;
     };
+  }, []);
+
+  // Prepare each queued photo off the main thread: a real small thumbnail for
+  // the grid (rendering 30 full-resolution object URLs is what froze/crashed
+  // big drops) and, for HEIC, a JPEG re-encode that replaces the file so
+  // analysis skips the slow wasm decode entirely. Failure is non-fatal: the
+  // tile falls back to the raw object URL / queued placeholder as before.
+  const prepareItem = useCallback(async (id: string, file: File) => {
+    const prepared = await prepareImage(file);
+    if (!liveIdsRef.current.has(id)) {
+      if (prepared.thumbUrl) URL.revokeObjectURL(prepared.thumbUrl);
+      return;
+    }
+    const url = prepared.thumbUrl ?? URL.createObjectURL(file);
+    setItems((prev) =>
+      prev.map((it) =>
+        it.id === id
+          ? { ...it, url, file: prepared.analysisFile ?? it.file, converting: false }
+          : it,
+      ),
+    );
   }, []);
 
   const addFiles = useCallback(
@@ -149,27 +173,31 @@ export default function App() {
       const newItems = toAdd.map((f) => ({
         id: crypto.randomUUID(),
         file: f,
-        url: URL.createObjectURL(f),
-        converting: false,
+        url: "", // filled in once the preview thumb is ready (spinner meanwhile)
+        converting: true,
       }));
+      for (const it of newItems) liveIdsRef.current.add(it.id);
       setItems((prev) => [...prev, ...newItems]);
+      for (const it of newItems) void prepareItem(it.id, it.file);
     },
-    [items],
+    [items, prepareItem],
   );
 
   const removeItem = useCallback((id: string) => {
     setNotice(null);
+    liveIdsRef.current.delete(id);
     setItems((prev) => {
       const it = prev.find((p) => p.id === id);
-      if (it) URL.revokeObjectURL(it.url);
+      if (it?.url) URL.revokeObjectURL(it.url);
       return prev.filter((p) => p.id !== id);
     });
   }, []);
 
   const clearItems = useCallback(() => {
     setNotice(null);
+    liveIdsRef.current.clear();
     setItems((prev) => {
-      prev.forEach((p) => URL.revokeObjectURL(p.url));
+      prev.forEach((p) => p.url && URL.revokeObjectURL(p.url));
       return [];
     });
   }, []);
@@ -202,8 +230,15 @@ export default function App() {
   // from the real GSAP timeline duration so it can't drift out of sync with it.
   const MIN_COMPUTE_MS = Math.max(4500, COMPUTE_LOOP_MS);
 
+  // Block analysis until every queued photo has finished preparing off-thread.
+  // For HEIC this waits on the JPEG re-encode that replaces the file; for all
+  // photos it guarantees a valid preview URL exists, so a result card (or the
+  // saved-session thumbnail) can never render a blank/broken image.
+  const preparing = items.some((it) => it.converting);
+
   const runAnalysis = useCallback(async () => {
     if (!items.length) return; // nothing queued - ignore stray clicks
+    if (items.some((it) => it.converting)) return; // photos still preparing
     setPhase("computing");
     setShowAnimation(true);
     const startedAt = performance.now();
@@ -312,6 +347,7 @@ export default function App() {
         assessment: s.input ? compute(s.input) : undefined,
       };
     }
+    liveIdsRef.current = new Set(restoredItems.map((it) => it.id));
     setItems(restoredItems);
     setResults(restoredResults);
     setMethodId(snap.methodId);
@@ -451,6 +487,7 @@ export default function App() {
   // memory isn't leaked across runs), and drop any export/animation flags. This
   // is what "Start over" does - each session begins fresh, nothing lingers.
   const reset = useCallback(() => {
+    liveIdsRef.current.clear();
     setItems((prev) => {
       prev.forEach((p) => p.url && URL.revokeObjectURL(p.url));
       return [];
@@ -474,6 +511,7 @@ export default function App() {
   // Back to the landing page: same clean-slate teardown as `reset`, but lands on
   // the intro screen rather than the uploader. Used by the header logo/title.
   const goHome = useCallback(() => {
+    liveIdsRef.current.clear();
     setItems((prev) => {
       prev.forEach((p) => p.url && URL.revokeObjectURL(p.url));
       return [];
@@ -679,15 +717,13 @@ export default function App() {
               videoSettings={videoSettings}
               onVideoSettingsChange={setVideoSettings}
               budgetReduced={BUDGET.reduced}
+              notice={notice}
+              maxBatch={MAX_BATCH}
+              preparing={preparing}
             />
             {videoError && (
               <p className="mx-auto mt-4 max-w-3xl rounded-xl bg-red-50 px-4 py-2 text-center text-sm text-red-700 dark:bg-red-950/40 dark:text-red-400">
                 Could not analyze the video: {videoError}
-              </p>
-            )}
-            {notice && (
-              <p className="mx-auto mt-4 max-w-3xl rounded-xl bg-amber-50 px-4 py-2 text-center text-sm text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
-                {notice}
               </p>
             )}
             <p className="mx-auto mt-6 max-w-lg text-center text-sm text-muted-foreground">
