@@ -42,30 +42,26 @@ async function capBitmap(bitmap: ImageBitmap): Promise<ImageBitmap> {
 /**
  * Decode a File into an ImageBitmap, honoring EXIF orientation so that the
  * landmarks we compute line up with what the user sees (phone photos are often
- * rotated via EXIF rather than pixel data). HEIC/HEIF go through heic-to; if that
- * fails we still try the native decoder (Safari can read HEIC directly).
+ * rotated via EXIF rather than pixel data).
+ *
+ * The browser's native decoder is tried FIRST, even for HEIC: Apple devices
+ * (Safari, and every iOS browser - all WebKit) decode HEIC natively and fast,
+ * so the 2.9MB libheif wasm build (which also holds a second ~190MB copy of the
+ * image in its own heap per decode) never loads there. Only non-Apple browsers,
+ * where native HEIC decoding fails, fall back to heic-to.
  */
 export async function loadBitmap(file: File): Promise<ImageBitmap> {
-  if (isHeic(file)) {
-    try {
-      return await capBitmap(await decodeHeic(file));
-    } catch {
-      // Fall through to the native decoder - Safari on Apple devices can often
-      // read HEIC directly even when conversion fails.
-    }
-  }
   try {
     return await capBitmap(await createImageBitmap(file, { imageOrientation: "from-image" }));
   } catch (err) {
-    // Last-ditch: maybe it was an unlabeled HEIC. Try the HEIC decoder once more.
-    if (!isHeic(file)) {
-      try {
-        return await capBitmap(await decodeHeic(file));
-      } catch {
-        /* ignore - throw the original, more descriptive error below */
-      }
+    // Native decode failed. For HEIC this is the expected non-Apple path; for a
+    // non-HEIC file it may be an unlabeled/mis-typed HEIC. Either way, try the
+    // libheif build once before giving up.
+    try {
+      return await capBitmap(await decodeHeic(file));
+    } catch {
+      throw err; // throw the original native error - it's more descriptive
     }
-    throw err;
   }
 }
 

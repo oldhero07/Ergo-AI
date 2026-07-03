@@ -8,15 +8,16 @@ import { MAX_VIDEO_MB } from "@/lib/videoConfig";
 import type { AnalysisMode, UploadItem } from "@/types";
 
 /**
- * Thumbnail tile. Chrome/Firefox can't render an iPhone HEIC in an <img>, so the
- * raw object URL fails to load - but the file IS attached and will be decoded
- * (heic-to / libheif) at analysis time. Rather than show a broken-image glyph
- * (which reads as "upload failed"), fall back to a labelled placeholder so it's
- * clear the photo is queued and will be analyzed.
+ * Thumbnail tile. Three states:
+ *  - converting: the prep worker is still decoding this photo (spinner).
+ *  - done but no preview: a HEIC that couldn't be previewed on this browser
+ *    (non-Apple, native decode unavailable). Not an error and not a spinner - a
+ *    calm labelled placeholder so it's clear the photo is queued, not broken.
+ *  - preview ready: the actual thumbnail image.
  */
 function Thumb({ url, name, converting }: { url: string; name: string; converting?: boolean }) {
   const [failed, setFailed] = useState(false);
-  if (converting || !url) {
+  if (converting) {
     return (
       <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 p-2 text-center">
         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -25,12 +26,12 @@ function Thumb({ url, name, converting }: { url: string; name: string; convertin
       </div>
     );
   }
-  if (failed) {
+  if (!url || failed) {
     return (
       <div className="flex h-full w-full flex-col items-center justify-center gap-1 p-2 text-center">
         <Images className="h-5 w-5 text-muted-foreground" />
         <span className="line-clamp-2 break-all text-[10px] leading-tight text-muted-foreground">{name}</span>
-        <span className="text-[9px] text-muted-foreground/70">queued · preview not supported</span>
+        <span className="text-[9px] text-muted-foreground/70">queued · no preview on this browser</span>
       </div>
     );
   }

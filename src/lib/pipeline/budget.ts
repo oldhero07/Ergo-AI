@@ -17,6 +17,9 @@ export interface AnalysisBudget {
   maxFrames: number;
   /** Max photos per batch. */
   maxBatch: number;
+  /** Max HEIC photos per batch (lower - each non-native HEIC decode is a ~380MB
+   * memory spike via libheif, so it's bounded more tightly than plain images). */
+  maxHeicBatch: number;
   /** True when below the full-quality tier (drives the UI note). */
   reduced: boolean;
 }
@@ -26,10 +29,10 @@ export function getBudget(): AnalysisBudget {
   const gb = (navigator as { deviceMemory?: number }).deviceMemory ?? 4;
   const cores = navigator.hardwareConcurrency ?? 4;
   if (gb <= 2 || cores <= 2) {
-    return { maxEdge: 480, fps: 2, maxFrames: 80, maxBatch: 12, reduced: true };
+    return { maxEdge: 480, fps: 2, maxFrames: 80, maxBatch: 12, maxHeicBatch: 6, reduced: true };
   }
   if (gb <= 4) {
-    return { maxEdge: 640, fps: 3, maxFrames: 120, maxBatch: 20, reduced: true };
+    return { maxEdge: 640, fps: 3, maxFrames: 120, maxBatch: 20, maxHeicBatch: 10, reduced: true };
   }
-  return { maxEdge: MAX_EDGE, fps: SAMPLE_FPS, maxFrames: MAX_FRAMES, maxBatch: 30, reduced: false };
+  return { maxEdge: MAX_EDGE, fps: SAMPLE_FPS, maxFrames: MAX_FRAMES, maxBatch: 30, maxHeicBatch: 15, reduced: false };
 }

@@ -19,6 +19,7 @@ import {
   shrinkToDataUrl,
   type SessionSnapshot,
 } from "@/lib/sessionStore";
+import { isHeic } from "@/lib/image";
 import { prepareImage } from "@/lib/prepare";
 import { validateVideoFile } from "@/lib/videoFile";
 import { VideoResults } from "@/components/VideoResults";
@@ -44,6 +45,9 @@ type ResultMap = Record<string, PoseAnalysis>;
 // and the model are never reduced - only how much we sample.
 const BUDGET = getBudget();
 const MAX_BATCH = BUDGET.maxBatch;
+// HEIC is capped lower than plain images: on non-Apple browsers each decode is a
+// ~380MB libheif spike, so a huge iPhone-photo drop can't exhaust memory.
+const MAX_HEIC_BATCH = BUDGET.maxHeicBatch;
 
 /** Revoke any blob: object URLs a result set holds (worker-path images). */
 function revokeResultUrls(results: ResultMap): void {
@@ -121,15 +125,17 @@ export default function App() {
   // Prepare each queued photo off the main thread: a real small thumbnail for
   // the grid (rendering 30 full-resolution object URLs is what froze/crashed
   // big drops) and, for HEIC, a JPEG re-encode that replaces the file so
-  // analysis skips the slow wasm decode entirely. Failure is non-fatal: the
-  // tile falls back to the raw object URL / queued placeholder as before.
+  // analysis skips the slow wasm decode entirely. Failure is non-fatal.
   const prepareItem = useCallback(async (id: string, file: File) => {
     const prepared = await prepareImage(file);
     if (!liveIdsRef.current.has(id)) {
       if (prepared.thumbUrl) URL.revokeObjectURL(prepared.thumbUrl);
       return;
     }
-    const url = prepared.thumbUrl ?? URL.createObjectURL(file);
+    // No thumb: for a plain image the raw file URL still renders, so use it. For
+    // HEIC a raw URL can't render on non-Apple browsers (broken-image flash), so
+    // leave it empty and let the tile show a calm "queued" placeholder instead.
+    const url = prepared.thumbUrl ?? (isHeic(file) ? "" : URL.createObjectURL(file));
     setItems((prev) =>
       prev.map((it) =>
         it.id === id
@@ -155,17 +161,39 @@ export default function App() {
         return;
       }
 
-      const room = Math.max(0, MAX_BATCH - items.length);
-      const toAdd = imgs.slice(0, room);
-      const overLimit = imgs.length - room;
-      if (overLimit > 0) {
+      // Fill against two caps at once: the overall batch limit and the tighter
+      // HEIC limit (each non-native HEIC decode is a big memory spike). Walk the
+      // dropped files in order, taking each until either cap for its type is hit.
+      let overallRoom = Math.max(0, MAX_BATCH - items.length);
+      let heicRoom = Math.max(0, MAX_HEIC_BATCH - items.filter((it) => isHeic(it.file)).length);
+      const toAdd: File[] = [];
+      let skippedOverall = 0;
+      let skippedHeic = 0;
+      for (const f of imgs) {
+        const heic = isHeic(f);
+        if (overallRoom <= 0) {
+          skippedOverall++;
+        } else if (heic && heicRoom <= 0) {
+          skippedHeic++;
+        } else {
+          toAdd.push(f);
+          overallRoom--;
+          if (heic) heicRoom--;
+        }
+      }
+
+      if (skippedOverall > 0) {
         setNotice(
-          room === 0
+          toAdd.length === 0
             ? `Caution: Only ${MAX_BATCH} photos allowed at once - please remove some to add more.`
-            : `Caution: Only ${MAX_BATCH} photos allowed at once - added ${room}, skipped ${overLimit}.`,
+            : `Caution: Only ${MAX_BATCH} photos allowed at once - added ${toAdd.length}, skipped ${skippedOverall + skippedHeic}.`,
+        );
+      } else if (skippedHeic > 0) {
+        setNotice(
+          `Caution: up to ${MAX_HEIC_BATCH} iPhone (HEIC) photos at once on this device - added ${toAdd.length}, skipped ${skippedHeic}. Convert to JPG to add more.`,
         );
       } else if (skipped > 0) {
-        setNotice(`Added ${imgs.length} photo${imgs.length > 1 ? "s" : ""} - skipped ${skipped} non-image file${skipped > 1 ? "s" : ""}.`);
+        setNotice(`Added ${toAdd.length} photo${toAdd.length > 1 ? "s" : ""} - skipped ${skipped} non-image file${skipped > 1 ? "s" : ""}.`);
       } else {
         setNotice(null);
       }

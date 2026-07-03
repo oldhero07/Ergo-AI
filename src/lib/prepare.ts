@@ -29,14 +29,15 @@ const PREPARE_TIMEOUT_MS = 45000;
  * libheif memory isn't still resident when analysis warms the GPU models. */
 const IDLE_TERMINATE_MS = 20000;
 
-// More workers only on machines with headroom: each can hold one decoded photo
-// (a 48MP HEIC decodes to ~190MB of pixels) plus a libheif wasm heap, so this
-// scales cautiously - HEIC batches gain ~linearly with each extra worker.
+// A second worker only on machines with real headroom. Each worker can hold one
+// decoded photo (~190MB for a 48MP image) plus, on non-Apple browsers, a libheif
+// wasm heap of similar size - so two concurrent workers already peak near
+// ~760MB. We cap at 2 (never 3): the extra parallelism isn't worth another
+// ~380MB spike on the low-end machines this is meant to protect.
 function poolSize(): number {
   const gb = (navigator as { deviceMemory?: number }).deviceMemory ?? 4;
   const cores = navigator.hardwareConcurrency ?? 4;
-  if (gb <= 4 || cores <= 4) return 1;
-  return cores >= 8 ? 3 : 2;
+  return gb > 4 && cores >= 8 ? 2 : 1;
 }
 
 class PreparePool {

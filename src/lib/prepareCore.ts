@@ -1,9 +1,9 @@
 /**
  * Shared image-preparation core, used by the prepare worker and (as a rare
- * fallback) inline on the main thread: decode a photo exactly once (heic-to
- * wasm for iPhone HEIC, the native decoder otherwise) and re-encode it as
- * small JPEGs - a grid-preview thumbnail for every file, plus an
- * analysis-sized JPEG for HEIC so the slow wasm decode never has to run again
+ * fallback) inline on the main thread: decode a photo exactly once (native
+ * decoder first, libheif only where HEIC isn't natively supported) and
+ * re-encode it as small JPEGs - a grid-preview thumbnail for every file, plus
+ * an analysis-sized JPEG for HEIC so a slow wasm decode never has to run again
  * at analysis time. DOM-free (OffscreenCanvas only) so it behaves identically
  * in both contexts.
  */
@@ -25,15 +25,20 @@ export interface PreparedBlobs {
 }
 
 async function decodeToBitmap(file: File): Promise<ImageBitmap> {
-  if (isHeic(file)) {
+  // Native decoder first, even for HEIC: Apple devices (Safari + all iOS
+  // browsers) read HEIC natively and fast, so libheif (2.9MB + a ~190MB wasm
+  // heap per decode) never loads there. Non-Apple browsers reject HEIC here and
+  // fall through to the libheif build below.
+  try {
+    return await createImageBitmap(file, { imageOrientation: "from-image" });
+  } catch (err) {
     try {
       const { heicTo } = await import("heic-to");
-      return await heicTo({ blob: file, type: "bitmap" });
+      return (await heicTo({ blob: file, type: "bitmap" })) as ImageBitmap;
     } catch {
-      // Fall through - Safari's native decoder can often read HEIC directly.
+      throw err;
     }
   }
-  return createImageBitmap(file, { imageOrientation: "from-image" });
 }
 
 async function encodeJpeg(bitmap: ImageBitmap, maxEdge: number, quality: number): Promise<Blob | null> {
