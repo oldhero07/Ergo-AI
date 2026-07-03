@@ -39,6 +39,24 @@ async function capBitmap(bitmap: ImageBitmap): Promise<ImageBitmap> {
   }
 }
 
+// Re‑bake a decoded bitmap onto an OffscreenCanvas to force a single pixel path.
+// This normalises any orientation or GPU‑backend divergence.
+async function rebakeBitmap(bitmap: ImageBitmap): Promise<ImageBitmap> {
+  try {
+    const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return bitmap;
+    ctx.drawImage(bitmap, 0, 0);
+    const rebaked = await createImageBitmap(canvas);
+    bitmap.close();
+    return rebaked;
+  } catch {
+    // OffscreenCanvas may be unsupported; fall back to original bitmap.
+    return bitmap;
+  }
+}
+
+
 /** Hard cap on a single analysis decode. The prepare pass already time-boxes
  * decoding; this gives the analysis pass the same guarantee, so a corrupt or
  * pathological file that makes a decoder hang (rather than reject) can't wedge
@@ -77,13 +95,17 @@ export async function loadBitmap(file: File): Promise<ImageBitmap> {
 
 async function decodeFile(file: File): Promise<ImageBitmap> {
   try {
-    return await capBitmap(await createImageBitmap(file, { imageOrientation: "from-image" }));
+    const raw = await createImageBitmap(file, { imageOrientation: "from-image" });
+    const rebaked = await rebakeBitmap(raw);
+    return await capBitmap(rebaked);
   } catch {
     // Native decode failed. For HEIC this is the expected non-Apple path; for a
     // non-HEIC file it may be an unlabeled/mis-typed HEIC. Either way, try the
     // libheif build once before giving up.
     try {
-      return await capBitmap(await decodeHeic(file));
+      const raw = await decodeHeic(file);
+      const rebaked = await rebakeBitmap(raw);
+      return await capBitmap(rebaked);
     } catch {
       throw new Error("This image file appears to be corrupted or in a format the browser can't read.");
     }

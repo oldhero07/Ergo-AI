@@ -44,6 +44,8 @@ export interface AngleSet {
   /** Measured lateral flexion (side-bend) from 3D landmarks, when reliable. */
   neckSideBend?: boolean;
   trunkSideBend?: boolean;
+  /** Indicates whether the gravity up vector was reliably estimated from 3D landmarks. */
+  gravityReliable?: boolean;
   confidence: number; // mean visibility of the scored side's key joints
 }
 
@@ -193,6 +195,39 @@ const SIDEBEND_TRUNK_DEG = 15;
 const SIDEBEND_NECK_DEG = 18;
 const WORLD_VIS_FLOOR = 0.5;
 
+/** Estimate gravity up vector from 3D world landmarks.
+ * Returns a normalized vector pointing upwards relative to the person and a reliability flag.
+ * Uses the trunk line (shoulder midpoint to hip midpoint) as an estimate.
+ */
+function estimateGravityUp3D(world: Landmark[]): { vector: P3; reliable: boolean } {
+  // Ensure required landmarks are present
+  const required = [LM.leftShoulder, LM.rightShoulder, LM.leftHip, LM.rightHip];
+  const visOk = required.every((i) => (world[i]?.visibility ?? 0) > WORLD_VIS_FLOOR);
+  if (!visOk) {
+    // Fallback to default up vector
+    return { vector: { x: 0, y: -1, z: 0 }, reliable: false };
+  }
+  const shMid3D = {
+    x: (world[LM.leftShoulder].x + world[LM.rightShoulder].x) / 2,
+    y: (world[LM.leftShoulder].y + world[LM.rightShoulder].y) / 2,
+    z: (world[LM.leftShoulder].z + world[LM.rightShoulder].z) / 2,
+  };
+  const hipMid3D = {
+    x: (world[LM.leftHip].x + world[LM.rightHip].x) / 2,
+    y: (world[LM.leftHip].y + world[LM.rightHip].y) / 2,
+    z: (world[LM.leftHip].z + world[LM.rightHip].z) / 2,
+  };
+  const trunkVec = sub3D(shMid3D, hipMid3D);
+  const length = Math.hypot(trunkVec.x, trunkVec.y, trunkVec.z);
+  if (length === 0) {
+    return { vector: { x: 0, y: -1, z: 0 }, reliable: false };
+  }
+  // Gravity up is opposite to trunk direction (since trunk points downwards)
+  const up = { x: -trunkVec.x / length, y: -trunkVec.y / length, z: -trunkVec.z / length };
+  return { vector: up, reliable: true };
+}
+
+
 /**
  * Compute the assessment angles from a detected pose. Both arms/legs are scored
  * and the worse (among sufficiently visible) side is reported; neck and trunk use
@@ -224,6 +259,7 @@ export function computeAngles(
   // Neck & trunk from the body midline (side-independent).
   let neck: number;
   let trunk: number;
+  let gravityInfo: { vector: P3; reliable: boolean } | undefined;
 
   const earVis = vis(lms, LM.leftEar) >= vis(lms, LM.rightEar) ? LM.leftEar : LM.rightEar;
 
@@ -250,7 +286,8 @@ export function computeAngles(
     neck = angleBetween3D(sub3D(head3D, shMid3D), sub3D(shMid3D, hipMid3D));
 
     // Trunk: angle between trunk-vector (hipMid -> shoulderMid) and vertical gravity vector pointing UP
-    trunk = angleBetween3D(sub3D(shMid3D, hipMid3D), { x: 0, y: -1, z: 0 });
+    gravityInfo = estimateGravityUp3D(world);
+    trunk = angleBetween3D(sub3D(shMid3D, hipMid3D), gravityInfo.vector);
   } else {
     // 2D Fallback
     const shoulderMid = mid(pt(lms, LM.leftShoulder), pt(lms, LM.rightShoulder));
@@ -298,5 +335,6 @@ export function computeAngles(
     neckSideBend,
     trunkSideBend,
     confidence,
+    gravityReliable: gravityInfo?.reliable ?? false,
   };
 }
