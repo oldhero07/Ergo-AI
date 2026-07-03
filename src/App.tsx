@@ -149,13 +149,18 @@ export default function App() {
     (files: File[]) => {
       // Accept anything the browser labels as an image, plus HEIC/HEIF by extension
       // (some browsers report an empty MIME type for iPhone .heic files).
-      const imgs = files.filter((f) => f.type.startsWith("image/") || /\.(heic|heif)$/i.test(f.name));
+      const imgs = files.filter(
+        (f) =>
+          f.type.startsWith("image/") &&
+          !/\.(heic|heif)$/i.test(f.name) &&
+          !/image\/(heic|heif)/i.test(f.type)
+      );
       const skipped = files.length - imgs.length;
       if (!imgs.length) {
         // Everything dropped/selected was a non-image (PDF, video, doc, …).
         setNotice(
           skipped > 0
-            ? `That file isn't a supported image. Upload a JPG, PNG, or iPhone HEIC.`
+            ? `That file isn't a supported image. Upload a JPG or PNG.`
             : null,
         );
         return;

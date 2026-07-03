@@ -1,17 +1,6 @@
 /** iPhone/HEIF photos that the browser's native decoder usually can't read. */
-export function isHeic(file: File): boolean {
-  return /image\/(heic|heif)/i.test(file.type) || /\.(heic|heif)$/i.test(file.name);
-}
-
-/**
- * Decode a HEIC/HEIF file straight to an ImageBitmap via heic-to (a modern
- * libheif build, lazy-loaded only when needed). Unlike the old heic2any/libheif,
- * this decodes Apple's newer HDR "tmap"/gain-map HEICs that iPhones now produce.
- * libheif applies the container's rotation, so the bitmap is already upright.
- */
-async function decodeHeic(file: File): Promise<ImageBitmap> {
-  const { heicTo } = await import("heic-to");
-  return (await heicTo({ blob: file, type: "bitmap" })) as ImageBitmap;
+export function isHeic(_file: File): boolean {
+  return false;
 }
 
 /** Longest edge fed to analysis. Detection resizes to a much smaller model
@@ -51,12 +40,6 @@ const DECODE_TIMEOUT_MS = 30000;
  * landmarks we compute line up with what the user sees (phone photos are often
  * rotated via EXIF rather than pixel data).
  *
- * The browser's native decoder is tried FIRST, even for HEIC: Apple devices
- * (Safari, and every iOS browser - all WebKit) decode HEIC natively and fast,
- * so the 2.9MB libheif wasm build (which also holds a second ~190MB copy of the
- * image in its own heap per decode) never loads there. Only non-Apple browsers,
- * where native HEIC decoding fails, fall back to heic-to.
- *
  * Time-boxed and translates any decode failure into a plain-language message -
  * a corrupt/truncated/unsupported file yields a clear result card, never a hang.
  */
@@ -79,14 +62,7 @@ async function decodeFile(file: File): Promise<ImageBitmap> {
   try {
     return await capBitmap(await createImageBitmap(file, { imageOrientation: "from-image" }));
   } catch {
-    // Native decode failed. For HEIC this is the expected non-Apple path; for a
-    // non-HEIC file it may be an unlabeled/mis-typed HEIC. Either way, try the
-    // libheif build once before giving up.
-    try {
-      return await capBitmap(await decodeHeic(file));
-    } catch {
-      throw new Error("This image file appears to be corrupted or in a format the browser can't read.");
-    }
+    throw new Error("This image file appears to be corrupted or in a format the browser can't read.");
   }
 }
 

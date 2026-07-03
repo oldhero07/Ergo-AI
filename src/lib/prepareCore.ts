@@ -25,20 +25,7 @@ export interface PreparedBlobs {
 }
 
 async function decodeToBitmap(file: File): Promise<ImageBitmap> {
-  // Native decoder first, even for HEIC: Apple devices (Safari + all iOS
-  // browsers) read HEIC natively and fast, so libheif (2.9MB + a ~190MB wasm
-  // heap per decode) never loads there. Non-Apple browsers reject HEIC here and
-  // fall through to the libheif build below.
-  try {
-    return await createImageBitmap(file, { imageOrientation: "from-image" });
-  } catch (err) {
-    try {
-      const { heicTo } = await import("heic-to");
-      return (await heicTo({ blob: file, type: "bitmap" })) as ImageBitmap;
-    } catch {
-      throw err;
-    }
-  }
+  return await createImageBitmap(file, { imageOrientation: "from-image" });
 }
 
 async function encodeJpeg(bitmap: ImageBitmap, maxEdge: number, quality: number): Promise<Blob | null> {

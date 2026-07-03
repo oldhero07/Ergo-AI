@@ -154,12 +154,12 @@ export function Uploader({
         <p className="mt-3 text-xs text-muted-foreground">
           {isVideoMode
             ? `MP4, MOV, or WebM · up to ${MAX_VIDEO_MB} MB · first ${videoSettings?.durationSec ?? 30}s analyzed`
-            : `JPG, PNG, or iPhone HEIC${maxBatch ? ` · up to ${maxBatch} photos` : ""}`}
+            : `JPG or PNG${maxBatch ? ` · up to ${maxBatch} photos` : ""}`}
         </p>
         <input
           ref={inputRef}
           type="file"
-          accept={isVideoMode ? "video/*,.mp4,.mov,.webm,.m4v" : "image/*,.heic,.heif"}
+          accept={isVideoMode ? "video/*,.mp4,.mov,.webm,.m4v" : ".jpg,.jpeg,.png"}
           multiple={!isVideoMode}
           className="hidden"
           onChange={(e) => {
