@@ -39,6 +39,13 @@ async function capBitmap(bitmap: ImageBitmap): Promise<ImageBitmap> {
   }
 }
 
+/** Hard cap on a single analysis decode. The prepare pass already time-boxes
+ * decoding; this gives the analysis pass the same guarantee, so a corrupt or
+ * pathological file that makes a decoder hang (rather than reject) can't wedge
+ * the whole batch. Generous enough not to trip a slow libheif decode of a real
+ * 48MP HEIC on a low-end device. */
+const DECODE_TIMEOUT_MS = 30000;
+
 /**
  * Decode a File into an ImageBitmap, honoring EXIF orientation so that the
  * landmarks we compute line up with what the user sees (phone photos are often
@@ -49,18 +56,36 @@ async function capBitmap(bitmap: ImageBitmap): Promise<ImageBitmap> {
  * so the 2.9MB libheif wasm build (which also holds a second ~190MB copy of the
  * image in its own heap per decode) never loads there. Only non-Apple browsers,
  * where native HEIC decoding fails, fall back to heic-to.
+ *
+ * Time-boxed and translates any decode failure into a plain-language message -
+ * a corrupt/truncated/unsupported file yields a clear result card, never a hang.
  */
 export async function loadBitmap(file: File): Promise<ImageBitmap> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(
+      () => reject(new Error("This image took too long to decode and was skipped - it may be corrupted.")),
+      DECODE_TIMEOUT_MS,
+    );
+  });
+  try {
+    return await Promise.race([decodeFile(file), timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function decodeFile(file: File): Promise<ImageBitmap> {
   try {
     return await capBitmap(await createImageBitmap(file, { imageOrientation: "from-image" }));
-  } catch (err) {
+  } catch {
     // Native decode failed. For HEIC this is the expected non-Apple path; for a
     // non-HEIC file it may be an unlabeled/mis-typed HEIC. Either way, try the
     // libheif build once before giving up.
     try {
       return await capBitmap(await decodeHeic(file));
     } catch {
-      throw err; // throw the original native error - it's more descriptive
+      throw new Error("This image file appears to be corrupted or in a format the browser can't read.");
     }
   }
 }
