@@ -63,7 +63,9 @@ export async function analyzePhoto(file: File, onModelProgress?: ModelProgress):
     };
     if (detected) {
       const angles = computeAngles(out.landmarks, out.worldLandmarks) ?? undefined;
-      if (angles) {
+      // Gate: if key joints are mostly invisible (occluded / partial body),
+      // don't score — same threshold the video pipeline already applies.
+      if (angles && angles.confidence >= OCCLUSION_CONFIDENCE) {
         out.angles = angles;
         // Measure the wrist from a second (hand) model when possible; never let
         // its absence or failure block the score - fall back to assumed neutral.
@@ -84,6 +86,9 @@ export async function analyzePhoto(file: File, onModelProgress?: ModelProgress):
         out.wristMeasured = wristFlex !== null;
         out.input = buildAutoInput(angles, wristFlex !== null ? { wristAngle: wristFlex } : {});
         out.assessment = computeRula(out.input);
+      } else if (angles) {
+        // Pose was detected by MediaPipe but confidence too low to score reliably.
+        out.detected = false;
       }
     }
     return out;
