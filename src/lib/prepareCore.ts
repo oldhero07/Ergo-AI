@@ -8,6 +8,7 @@
  * in both contexts.
  */
 import { isHeic, MAX_ANALYZE_EDGE } from "@/lib/image";
+import { heicTo } from "heic-to";
 
 /** Longest edge of the grid-preview thumbnail. Big enough to double as the
  * PDF's last-resort original-photo fallback, tiny next to a raw camera file. */
@@ -33,7 +34,6 @@ async function decodeToBitmap(file: File): Promise<ImageBitmap> {
     return await createImageBitmap(file, { imageOrientation: "from-image" });
   } catch (err) {
     try {
-      const { heicTo } = await import("heic-to");
       return (await heicTo({ blob: file, type: "bitmap" })) as ImageBitmap;
     } catch {
       throw err;
