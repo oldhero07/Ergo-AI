@@ -68,7 +68,7 @@ export function MeasurementSummary({
         {pct !== null && (
           <div className="flex shrink-0 items-center gap-2 rounded-lg bg-primary/10 px-3 py-1.5 text-primary">
             <Activity className="h-4 w-4" />
-            <span className="text-xs font-semibold uppercase tracking-wider">AI Confidence {pct}%</span>
+            <span className="text-xs font-semibold uppercase tracking-wider">Detection confidence {pct}%</span>
           </div>
         )}
       </div>

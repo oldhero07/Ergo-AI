@@ -1,5 +1,5 @@
 import { FilesetResolver, HandLandmarker, type HandLandmarkerResult } from "@mediapipe/tasks-vision";
-import { getAssetBase } from "@/lib/assetBase";
+import { getAssetBase, isDeterministic } from "@/lib/assetBase";
 
 /**
  * Secondary hand-landmark model used to actually measure the wrist (the Pose
@@ -7,12 +7,15 @@ import { getAssetBase } from "@/lib/assetBase";
  * and cached like the pose model so it keeps working offline after first use.
  * If it can't load, callers fall back to an assumed-neutral wrist.
  */
+// Local copy PRIMARY (byte-identical across machines → reproducible results);
+// CDN fallback pinned to an explicit version (`/1/`), not `latest`. See the
+// matching rationale in poseLandmarker.ts.
 const modelSources = () => [
-  "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task",
   `${getAssetBase()}models/hand_landmarker.task`,
+  "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
 ];
-const MODEL_CACHE = "ergo-models-v1";
-const MODEL_CACHE_KEY = "ergo-hand-landmarker";
+const MODEL_CACHE = "ergo-models-v2";
+const MODEL_CACHE_KEY = "ergo-hand-landmarker-v2";
 
 let landmarkerPromise: Promise<HandLandmarker> | null = null;
 
@@ -55,12 +58,13 @@ async function create(delegate: "GPU" | "CPU"): Promise<HandLandmarker> {
 
 export function getHandLandmarker(): Promise<HandLandmarker> {
   if (!landmarkerPromise) {
-    landmarkerPromise = create("GPU")
-      .catch(() => create("CPU"))
-      .catch((err) => {
-        landmarkerPromise = null; // allow a later retry
-        throw err;
-      });
+    const attempt = isDeterministic()
+      ? create("CPU")
+      : create("GPU").catch(() => create("CPU"));
+    landmarkerPromise = attempt.catch((err) => {
+      landmarkerPromise = null; // allow a later retry
+      throw err;
+    });
   }
   return landmarkerPromise;
 }

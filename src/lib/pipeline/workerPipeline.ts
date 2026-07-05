@@ -9,7 +9,7 @@
 import { loadBitmap } from "@/lib/image";
 import { sampleVideoFrames } from "@/lib/videoFrames";
 import { buildAutoInput, computeRula } from "@/assessment/rula/rula";
-import { absoluteAssetBase } from "@/lib/assetBase";
+import { absoluteAssetBase, readDeterministicPref } from "@/lib/assetBase";
 import type { ModelProgress } from "@/lib/poseLandmarker";
 import type { PoseAnalysis, VideoProgress, AnalyzeVideoOptions } from "@/lib/analyze";
 import { assembleVideoAnalysis, type RawVideoFrame, type VideoAnalysis } from "@/lib/pipeline/shared";
@@ -77,7 +77,11 @@ export class WorkerPipeline {
         reject(new WorkerUnavailableError(event.message || "The analysis worker crashed."));
       };
 
-      const init: WorkerRequest = { type: "init", assetBase: absoluteAssetBase() };
+      const init: WorkerRequest = {
+        type: "init",
+        assetBase: absoluteAssetBase(),
+        deterministic: readDeterministicPref(),
+      };
       worker.postMessage(init);
     });
   }

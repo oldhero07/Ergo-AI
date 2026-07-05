@@ -8,6 +8,7 @@
  * (used to verify the fallback in testing).
  */
 import type { ModelProgress } from "@/lib/poseLandmarker";
+import { configureDeterministic, readDeterministicPref } from "@/lib/assetBase";
 import {
   analyzePhoto as inlineAnalyzePhoto,
   analyzeVideo as inlineAnalyzeVideo,
@@ -115,6 +116,9 @@ let pipeline: AnalysisPipeline | null = null;
 
 export function getPipeline(): AnalysisPipeline {
   if (!pipeline) {
+    // Set the deterministic-mode flag once for the main-thread (inline) path;
+    // the worker path forwards the same pref via its init message.
+    configureDeterministic(readDeterministicPref());
     pipeline = workerCapable() ? new AutoPipeline() : inlinePipeline;
   }
   return pipeline;

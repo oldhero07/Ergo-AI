@@ -200,7 +200,7 @@ function describeAngles(analysis: PoseAnalysis, a: AssessmentResult): string {
   if (a.method === "REBA" && analysis.input?.legAngle !== undefined) {
     txt += `, knee ${fmt(analysis.input.legAngle)}°`;
   }
-  if (analysis.angles) txt += `  ·  pose confidence ${Math.round(analysis.angles.confidence * 100)}%`;
+  if (analysis.angles) txt += `  ·  detection confidence ${Math.round(analysis.angles.confidence * 100)}%`;
   return txt;
 }
 

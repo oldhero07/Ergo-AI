@@ -11,8 +11,11 @@ import type { PostureInput } from "@/assessment/types";
 export const OCCLUSION_CONFIDENCE = 0.4;
 /** Rolling window (seconds) used to smooth per-frame angles before scoring. */
 export const SMOOTH_WINDOW_SEC = 2.5;
-/** Minimum wrist-landmark visibility before the hand model is attempted on a video frame. */
-export const WRIST_VIS_FLOOR = 0.45;
+/** Minimum wrist-landmark visibility before the hand model is attempted on a video
+ * frame. Lowered from 0.45 to 0.3 to align with the photo path (analyze.ts) - the
+ * old floor skipped the hand model on many valid side-profile frames, so wrist
+ * flexion stayed unmeasured and the second model rarely contributed. */
+export const WRIST_VIS_FLOOR = 0.3;
 
 /** One sampled video frame with a detected pose, scored method-agnostically (the
  * UI computes RULA or REBA from `input` on demand). */

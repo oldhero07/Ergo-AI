@@ -1,12 +1,19 @@
 import { describe, expect, it } from "vitest";
-import type { NormalizedLandmark } from "@mediapipe/tasks-vision";
-import { computeAngles } from "@/lib/angles";
+import type { Landmark, NormalizedLandmark } from "@mediapipe/tasks-vision";
+import { computeAngles, computeDetectionConfidence, computePoseValidity } from "@/lib/angles";
 
 /** 33-length landmark array with a sensible default, overridable per index. */
 function makeLandmarks(overrides: Record<number, Partial<NormalizedLandmark>>): NormalizedLandmark[] {
   const lms: NormalizedLandmark[] = Array.from({ length: 33 }, () => ({ x: 0.5, y: 0.5, z: 0, visibility: 0.4 }));
   for (const [i, v] of Object.entries(overrides)) lms[Number(i)] = { x: 0.5, y: 0.5, z: 0, visibility: 0.9, ...v };
   return lms;
+}
+
+/** 33-length metric world-landmark array (y-down, x-image-right, z-depth). */
+function makeWorld(overrides: Record<number, Partial<Landmark>>): Landmark[] {
+  const w: Landmark[] = Array.from({ length: 33 }, () => ({ x: 0, y: 0, z: 0, visibility: 0.9 }));
+  for (const [i, v] of Object.entries(overrides)) w[Number(i)] = { x: 0, y: 0, z: 0, visibility: 0.9, ...v };
+  return w;
 }
 
 describe("computeAngles side selection", () => {
@@ -45,5 +52,132 @@ describe("computeAngles side selection", () => {
     });
     const a = computeAngles(lms);
     expect(a!.side).toBe("right");
+  });
+});
+
+describe("computeDetectionConfidence", () => {
+  it("is high for a cleanly-visible subject", () => {
+    const lms = makeLandmarks({ 11: {}, 12: {}, 13: {}, 14: {}, 15: {}, 16: {}, 23: {}, 24: {}, 7: {}, 8: {} });
+    expect(computeDetectionConfidence(lms, "right")).toBeGreaterThan(0.8);
+  });
+
+  it("drops sharply when the scored joints are occluded (not a constant ~99%)", () => {
+    const occluded = Array.from({ length: 33 }, () => ({ x: 0.5, y: 0.5, z: 0, visibility: 0.1 }));
+    const conf = computeDetectionConfidence(occluded, "right");
+    expect(conf).toBeLessThan(0.3);
+    // The whole point: an occluded pose must read lower than a clean one.
+    const clean = makeLandmarks({ 11: {}, 12: {}, 14: {}, 16: {}, 23: {}, 24: {}, 8: {} });
+    expect(computeDetectionConfidence(clean, "right")).toBeGreaterThan(conf + 0.4);
+  });
+});
+
+describe("neck flexion vs extension sign (3D)", () => {
+  // Person facing camera: shoulders above hips, ears above shoulders.
+  const base = {
+    11: { x: 0.4, y: 0.3 }, 12: { x: 0.6, y: 0.3 }, // shoulders
+    13: { x: 0.4, y: 0.5 }, 14: { x: 0.6, y: 0.5 }, // elbows
+    15: { x: 0.4, y: 0.66 }, 16: { x: 0.6, y: 0.66 }, // wrists
+    23: { x: 0.45, y: 0.7 }, 24: { x: 0.55, y: 0.7 }, // hips
+    7: { x: 0.45, y: 0.2 }, 8: { x: 0.55, y: 0.2 }, // ears (both visible)
+  };
+  const worldBase = {
+    11: { x: 0.2, y: -0.5, z: 0 }, 12: { x: -0.2, y: -0.5, z: 0 },
+    13: { x: 0.25, y: -0.25, z: 0 }, 14: { x: -0.25, y: -0.25, z: 0 },
+    15: { x: 0.25, y: 0, z: 0 }, 16: { x: -0.25, y: 0, z: 0 },
+    23: { x: 0.1, y: 0, z: 0 }, 24: { x: -0.1, y: 0, z: 0 },
+  };
+
+  it("scores a head tipped BACK as extension (negative)", () => {
+    const lms = makeLandmarks(base);
+    const world = makeWorld({ ...worldBase, 7: { x: 0.05, y: -0.8, z: 0.15 }, 8: { x: -0.05, y: -0.8, z: 0.15 } });
+    const a = computeAngles(lms, world);
+    expect(a!.neck).toBeLessThan(0);
+  });
+
+  it("scores a head dropped FORWARD as flexion (positive)", () => {
+    const lms = makeLandmarks(base);
+    const world = makeWorld({ ...worldBase, 7: { x: 0.05, y: -0.8, z: -0.15 }, 8: { x: -0.05, y: -0.8, z: -0.15 } });
+    const a = computeAngles(lms, world);
+    expect(a!.neck).toBeGreaterThan(0);
+  });
+
+  it("keeps a near-upright head positive (deadzone: no cliff to extension score 4)", () => {
+    const lms = makeLandmarks(base);
+    // Head almost directly above the shoulders with a hair of backward tilt (<5°).
+    const world = makeWorld({ ...worldBase, 7: { x: 0.0, y: -0.85, z: 0.01 }, 8: { x: -0.0, y: -0.85, z: 0.01 } });
+    const a = computeAngles(lms, world);
+    expect(a!.neck).toBeGreaterThanOrEqual(0);
+    expect(Math.abs(a!.neck)).toBeLessThan(5);
+  });
+
+  it("treats an obtuse head-to-trunk angle as flexion, not 114° extension", () => {
+    const lms = makeLandmarks(base);
+    // Head thrown far back/low → large obtuse angle (bent-torso artifact), not real extension.
+    const world = makeWorld({ ...worldBase, 7: { x: 0.05, y: -0.55, z: 0.5 }, 8: { x: -0.05, y: -0.55, z: 0.5 } });
+    const a = computeAngles(lms, world);
+    expect(a!.neck).toBeGreaterThan(0); // stays flexion (positive), no score-4 cliff
+    expect(a!.neck).toBeLessThanOrEqual(90); // clamped to physiological cap
+  });
+});
+
+describe("computePoseValidity (reject partial-body hallucinations)", () => {
+  // Core anchors all in-frame and visible: nose, both shoulders, both hips.
+  const fullBody = {
+    0: { x: 0.5, y: 0.15 }, // nose
+    11: { x: 0.4, y: 0.3 }, 12: { x: 0.6, y: 0.3 }, // shoulders
+    23: { x: 0.45, y: 0.6 }, 24: { x: 0.55, y: 0.6 }, // hips
+  };
+
+  it("passes a full body with head + shoulders + hips in frame", () => {
+    expect(computePoseValidity(makeLandmarks(fullBody))).toBe(1);
+  });
+
+  it("rejects a partial body whose head + shoulders are cropped off the top", () => {
+    // Legs/hips in frame, but head + shoulders extrapolated ABOVE the image (y < 0).
+    const partial = makeLandmarks({
+      0: { x: 0.3, y: -0.4 }, // nose off-frame (above)
+      7: { x: 0.3, y: -0.45 }, 8: { x: 0.35, y: -0.45 }, // ears off-frame
+      11: { x: 0.3, y: -0.2 }, 12: { x: 0.4, y: -0.2 }, // shoulders off-frame
+      23: { x: 0.35, y: 0.5 }, 24: { x: 0.45, y: 0.5 }, // hips in frame
+    });
+    const v = computePoseValidity(partial);
+    expect(v).toBeLessThan(0.5); // only hips valid → 2/5
+    // And that drags detection confidence below the occlusion gate.
+    expect(computeDetectionConfidence(partial, "right")).toBeLessThan(0.4);
+  });
+
+  it("still rejects when core anchors are present but not visible", () => {
+    const invisible = makeLandmarks({
+      0: { x: 0.5, y: 0.15, visibility: 0.1 },
+      11: { x: 0.4, y: 0.3, visibility: 0.1 }, 12: { x: 0.6, y: 0.3, visibility: 0.1 },
+      23: { x: 0.45, y: 0.6, visibility: 0.1 }, 24: { x: 0.55, y: 0.6, visibility: 0.1 },
+    });
+    expect(computePoseValidity(invisible)).toBe(0);
+  });
+
+  // Degenerate world fit: every anchor is in-frame & visible (so the 2D check
+  // passes), but the 3D landmarks collapse the head onto the shoulders - the
+  // hallmark of MediaPipe cramming a skeleton onto a partial body.
+  const inFrameLms = {
+    0: { x: 0.5, y: 0.15 }, 7: { x: 0.45, y: 0.28 }, 8: { x: 0.55, y: 0.28 },
+    11: { x: 0.4, y: 0.3 }, 12: { x: 0.6, y: 0.3 }, 23: { x: 0.45, y: 0.6 }, 24: { x: 0.55, y: 0.6 },
+  };
+
+  it("rejects a degenerate fit where the head collapses onto the shoulders", () => {
+    const world = makeWorld({
+      11: { x: 0.2, y: -0.5, z: 0 }, 12: { x: -0.2, y: -0.5, z: 0 },
+      23: { x: 0.12, y: 0, z: 0 }, 24: { x: -0.12, y: 0, z: 0 }, // torso 0.5 m
+      7: { x: 0.05, y: -0.5, z: 0 }, 8: { x: -0.05, y: -0.5, z: 0 }, // ears at shoulder height → no neck
+    });
+    expect(computePoseValidity(makeLandmarks(inFrameLms), world)).toBeLessThanOrEqual(0.2);
+  });
+
+  it("keeps a normal pose (head clearly above shoulders) valid", () => {
+    const world = makeWorld({
+      11: { x: 0.2, y: -0.5, z: 0 }, 12: { x: -0.2, y: -0.5, z: 0 },
+      23: { x: 0.12, y: 0, z: 0 }, 24: { x: -0.12, y: 0, z: 0 },
+      7: { x: 0.05, y: -0.75, z: 0 }, 8: { x: -0.05, y: -0.75, z: 0 }, // ears well above shoulders
+    });
+    expect(computePoseValidity(makeLandmarks(inFrameLms), world)).toBe(1);
   });
 });

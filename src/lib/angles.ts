@@ -87,6 +87,52 @@ function angleBetween3D(u: P3, v: P3): number {
   return (Math.acos(cos) * 180) / Math.PI;
 }
 
+const dot3D = (u: P3, v: P3): number => u.x * v.x + u.y * v.y + u.z * v.z;
+const cross3D = (u: P3, v: P3): P3 => ({
+  x: u.y * v.z - u.z * v.y,
+  y: u.z * v.x - u.x * v.z,
+  z: u.x * v.y - u.y * v.x,
+});
+
+/**
+ * Sign a neck/trunk magnitude as flexion (+, forward) or extension (-, backward).
+ * `angleBetween3D` only ever returns 0-180, so without this the extension bins in
+ * neckScore/trunkScore (`angle < 0`) were unreachable and a head tipped BACK was
+ * mis-scored as neutral. Anatomical "forward" is derived from the body itself so
+ * it's camera-independent: forward = up × shoulderAxis, where shoulderAxis points
+ * from the (anatomical) left shoulder to the right shoulder and up runs hip→shoulder.
+ * A positive projection of the segment onto forward = flexion; negative = extension.
+ */
+function sagittalSign(segment: P3, up: P3, shoulderAxis: P3): number {
+  const forward = cross3D(up, shoulderAxis);
+  return dot3D(segment, forward) >= 0 ? 1 : -1;
+}
+
+/**
+ * Only call the neck "extension" (negative) once it's clearly beyond a neutral
+ * upright head. neckScore has a hard cliff - ANY negative angle scores 4 - so a
+ * degree or two of backward tilt from landmark noise must NOT flip an upright
+ * neck from 1 to 4 (that would recreate the cross-machine score instability).
+ */
+const NECK_EXT_DEADZONE_DEG = 5;
+/** Above this, a "backward" head-to-trunk angle is not real extension - it's the
+ * obtuse angle you get when the TORSO is bent far forward (or the nose fallback is
+ * used while looking down). Real neck extension is a small backward tilt. Treating
+ * a 100°+ angle as extension wrongly triggered neckScore's score-4 cliff. */
+const NECK_EXT_MAX_DEG = 45;
+/** Physiological flexion cap for display sanity: neck flexion beyond this is not
+ * meaningful and only produced absurd readouts like 114°. Score-equivalent - RULA
+ * bins everything past 20° the same - so this only tidies the reported number. */
+const NECK_FLEX_MAX_DEG = 90;
+
+/** Signed neck angle: + flexion (forward), - extension (backward). A small neutral
+ * deadzone keeps near-upright jitter in the flexion bins; extension is only honored
+ * within a realistic range so a bent-over torso isn't mislabeled as head extension. */
+function signedNeck(mag: number, sign: number): number {
+  if (sign < 0 && mag > NECK_EXT_DEADZONE_DEG && mag <= NECK_EXT_MAX_DEG) return -mag;
+  return Math.min(mag, NECK_FLEX_MAX_DEG);
+}
+
 const SIDE_IDX = {
   left: { sh: LM.leftShoulder, el: LM.leftElbow, wr: LM.leftWrist, hip: LM.leftHip, kn: LM.leftKnee, an: LM.leftAnkle },
   right: { sh: LM.rightShoulder, el: LM.rightElbow, wr: LM.rightWrist, hip: LM.rightHip, kn: LM.rightKnee, an: LM.rightAnkle },
@@ -162,7 +208,12 @@ export function measureWristFlexion(
       best = h;
     }
   }
-  if (!best || bestD > 0.15) return null; // no hand near the scored wrist
+  // Reject only when no detected hand sits near the scored wrist. 0.2 (of the
+  // normalized frame) is deliberately generous: after the ROI crop is remapped to
+  // full-frame coords the hand's wrist can land a little off the pose wrist, and
+  // too tight a gate was silently discarding real hand detections (the wrist then
+  // fell back to assumed-neutral, so the Hand model looked unused).
+  if (!best || bestD > 0.2) return null;
 
   const forearm = sub(wrist, elbow); // elbow -> wrist
   const hand = sub(pt(best, 9), pt(best, 0)); // wrist -> middle-finger MCP
@@ -192,6 +243,113 @@ function lateralFlexionDeg(a: { x: number; y: number }, b: { x: number; y: numbe
 const SIDEBEND_TRUNK_DEG = 15;
 const SIDEBEND_NECK_DEG = 18;
 const WORLD_VIS_FLOOR = 0.5;
+
+/** A joint counts as "reliably seen" above this visibility. */
+const CONF_VIS_FLOOR = 0.5;
+
+/**
+ * Pose validity in 0..1: is a real, whole upper body actually detected?
+ *
+ * Two independent failure modes of MediaPipe on out-of-envelope photos:
+ *
+ * 1. PARTIAL BODY - only legs/waist in frame, head+torso cropped off. Some
+ *    off-frame anchors get normalized coords outside [0,1] and/or low visibility.
+ *    Caught by the in-frame check on the core anchors (head, both shoulders, both
+ *    hips).
+ * 2. DEGENERATE FIT - MediaPipe crams the whole skeleton onto a partial body with
+ *    every landmark in-frame and "visible" (the loom photo: the standing man's
+ *    lower body). The in-frame check can't see it, but the 3D world landmarks
+ *    collapse - the head sits AT the shoulders (no neck extent). Caught by
+ *    requiring the head to sit clearly ABOVE the shoulders along the trunk axis.
+ *
+ * Deliberately avoids generic proportion/symmetry ratios (round 2): MediaPipe
+ * regularizes those, so they both miss hallucinations and punish valid
+ * foreshortened/seated poses. Head-above-shoulders is the one thing every real
+ * pose keeps and these collapsed fits lose.
+ */
+const VALIDITY_VIS_FLOOR = 0.5;
+/** How far outside the normalized [0,1] image a landmark may sit before it's "off-frame". */
+const FRAME_MARGIN = 0.05;
+/** Head must sit at least this fraction of the torso length above the shoulders. */
+const MIN_NECK_RATIO = 0.1;
+/** Below this metric torso length the world fit is collapsed/degenerate. */
+const MIN_TORSO_M = 0.1;
+
+export function computePoseValidity(lms: NormalizedLandmark[], world?: Landmark[]): number {
+  if (!lms || lms.length < 25) return 0;
+
+  const inFrame = (i: number): boolean => {
+    const p = lms[i];
+    if (!p) return false;
+    if ((p.visibility ?? 0) < VALIDITY_VIS_FLOOR) return false;
+    return (
+      p.x >= -FRAME_MARGIN && p.x <= 1 + FRAME_MARGIN && p.y >= -FRAME_MARGIN && p.y <= 1 + FRAME_MARGIN
+    );
+  };
+
+  // (1) In-frame check on the core anchors.
+  const headOk = inFrame(LM.nose) || inFrame(LM.leftEar) || inFrame(LM.rightEar);
+  const anchors = [headOk, inFrame(LM.leftShoulder), inFrame(LM.rightShoulder), inFrame(LM.leftHip), inFrame(LM.rightHip)];
+  let validity = anchors.filter(Boolean).length / anchors.length;
+
+  // (2) Degenerate-fit check (world landmarks): head must be above the shoulders.
+  if (world && world.length >= 25 && world[LM.leftShoulder] && world[LM.rightShoulder] && world[LM.leftHip] && world[LM.rightHip]) {
+    const mid = (a: P3, b: P3): P3 => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, z: (a.z + b.z) / 2 });
+    const shMid = mid(world[LM.leftShoulder], world[LM.rightShoulder]);
+    const hipMid = mid(world[LM.leftHip], world[LM.rightHip]);
+    const head =
+      vis(lms, LM.leftEar) > 0.3 && vis(lms, LM.rightEar) > 0.3 && world[LM.leftEar] && world[LM.rightEar]
+        ? mid(world[LM.leftEar], world[LM.rightEar])
+        : world[LM.nose] ?? shMid;
+
+    const trunkUp = sub3D(shMid, hipMid); // hip -> shoulder, points up the torso
+    const torsoLen = Math.hypot(trunkUp.x, trunkUp.y, trunkUp.z);
+    if (torsoLen < MIN_TORSO_M) {
+      validity = Math.min(validity, 0.2); // collapsed torso
+    } else {
+      // Component of (shoulderMid -> head) along the trunk-up axis, as a fraction of torso.
+      const neckExtent = dot3D(sub3D(head, shMid), trunkUp) / torsoLen;
+      if (neckExtent / torsoLen < MIN_NECK_RATIO) validity = Math.min(validity, 0.2); // head not above shoulders
+    }
+  }
+
+  return validity;
+}
+
+/**
+ * Real detection confidence for the scored posture, in 0..1.
+ *
+ * The old metric was just the mean visibility of four joints, which MediaPipe
+ * saturates near 0.99 for anyone in frame - so the UI's "AI Confidence" was
+ * effectively a constant ~99% regardless of pose quality (the reported
+ * hallucination). This instead combines, over exactly the landmarks the RULA/REBA
+ * score depends on:
+ *   - coverage: fraction of those joints actually visible (>= CONF_VIS_FLOOR)
+ *   - quality:  their mean visibility
+ * Multiplying the two makes a partly-occluded or ambiguous pose read genuinely
+ * lower (an occluded joint drops both factors), while a cleanly-detected subject
+ * still scores high. This is what gates scoring and what the UI/PDF report.
+ */
+export function computeDetectionConfidence(lms: NormalizedLandmark[], side: Side, world?: Landmark[]): number {
+  const s = SIDE_IDX[side];
+  const headIdx = vis(lms, LM.leftEar) >= vis(lms, LM.rightEar) ? LM.leftEar : LM.rightEar;
+  // Scored arm + both-shoulder/both-hip trunk anchors + head (neck). Deduped.
+  const required = [
+    ...new Set([
+      s.sh, s.el, s.wr, s.hip,
+      LM.leftShoulder, LM.rightShoulder, LM.leftHip, LM.rightHip,
+      headIdx,
+    ]),
+  ];
+  const viss = required.map((idx) => vis(lms, idx));
+  const seen = viss.filter((v) => v >= CONF_VIS_FLOOR).length;
+  const coverage = seen / required.length;
+  const quality = viss.reduce((a, b) => a + b, 0) / required.length;
+  // Multiply in pose validity so a partial-body detection (cropped/extrapolated)
+  // OR a degenerate world fit (head collapsed onto the shoulders) reads low and is
+  // dropped by the occlusion gate instead of producing a confident bogus score.
+  return coverage * quality * computePoseValidity(lms, world);
+}
 
 /**
  * Compute the assessment angles from a detected pose. Both arms/legs are scored
@@ -246,11 +404,16 @@ export function computeAngles(
         }
       : vis(lms, earVis) > 0.3 ? world[earVis] : world[LM.nose];
 
-    // Neck: angle between head-vector (shoulderMid -> head) and trunk-vector (hipMid -> shoulderMid)
-    neck = angleBetween3D(sub3D(head3D, shMid3D), sub3D(shMid3D, hipMid3D));
+    // Neck: angle between head-vector (shoulderMid -> head) and trunk-vector (hipMid -> shoulderMid),
+    // signed so a head tipped BACK reads as extension (negative) rather than neutral.
+    const neckSeg = sub3D(head3D, shMid3D);
+    const trunkUp = sub3D(shMid3D, hipMid3D);
+    const shoulderAxis = sub3D(world[LM.rightShoulder], world[LM.leftShoulder]);
+    neck = signedNeck(angleBetween3D(neckSeg, trunkUp), sagittalSign(neckSeg, trunkUp, shoulderAxis));
 
-    // Trunk: angle between trunk-vector (hipMid -> shoulderMid) and vertical gravity vector pointing UP
-    trunk = angleBetween3D(sub3D(shMid3D, hipMid3D), { x: 0, y: -1, z: 0 });
+    // Trunk: angle between trunk-vector (hipMid -> shoulderMid) and vertical gravity vector pointing UP.
+    // Left unsigned: RULA's trunk model is flexion-only (no extension category), so magnitude is correct.
+    trunk = angleBetween3D(trunkUp, { x: 0, y: -1, z: 0 });
   } else {
     // 2D Fallback
     const shoulderMid = mid(pt(lms, LM.leftShoulder), pt(lms, LM.rightShoulder));
@@ -284,8 +447,7 @@ export function computeAngles(
     if (headVisOk) neckSideBend = lateralFlexionDeg(world[earVis], wShMid) > SIDEBEND_NECK_DEG;
   }
 
-  const i = SIDE_IDX[side];
-  const confidence = (vis(lms, i.sh) + vis(lms, i.el) + vis(lms, i.wr) + vis(lms, i.hip)) / 4;
+  const confidence = computeDetectionConfidence(lms, side, world);
 
   return {
     upperArm: chosen.upperArm,
