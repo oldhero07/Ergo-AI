@@ -16,7 +16,7 @@ import { detectHands, getHandLandmarker } from "@/lib/handLandmarker";
 import { detectHandsCropped } from "@/lib/handRoi";
 import { computeAngles, measureWristFlexion } from "@/lib/angles";
 import { annotateSkeletonBlob, renderOriginalJpegBlob } from "@/lib/annotate";
-import { configureAssetBase } from "@/lib/assetBase";
+import { configureAssetBase, configureDeterministic } from "@/lib/assetBase";
 import { OCCLUSION_CONFIDENCE, WRIST_VIS_FLOOR } from "@/lib/pipeline/shared";
 import type { WorkerRequest, WorkerResponse, PhotoResultPayload, FrameResultPayload } from "@/workers/protocol";
 
@@ -83,13 +83,18 @@ async function analyzePhoto(id: string, bitmap: ImageBitmap): Promise<void> {
     const worldLandmarks = result.worldLandmarks[0] ?? [];
     const angles = detected ? (computeAngles(landmarks, worldLandmarks) ?? null) : null;
 
+    // Occlusion / partial-body gate - mirror the inline path (analyze.ts). Without
+    // this the worker backend scored low-confidence and partial-body detections
+    // (e.g. only legs in frame) that the inline path already rejects.
+    const scorable = !!angles && angles.confidence >= OCCLUSION_CONFIDENCE;
+
     // Measure the wrist from the hand model when possible; never let its
     // absence or failure block the score - the UI falls back to assumed neutral.
     // ROI-first: crop around the scored wrist (finds small/distant hands the
     // full-frame pass misses); detectHandsCropped falls back to a full-frame
     // scan internally when the crop finds nothing.
     let wristFlex: number | null = null;
-    if (angles) {
+    if (scorable && angles) {
       try {
         const wristIdx = angles.side === "left" ? 15 : 16;
         const wrist = landmarks[wristIdx];
@@ -105,12 +110,14 @@ async function analyzePhoto(id: string, bitmap: ImageBitmap): Promise<void> {
 
     const payload: PhotoResultPayload = {
       id,
-      detected,
+      // A pose was found but rejected (partial body / low confidence) reports
+      // detected:false so the UI shows the "not scorable" message, not a score.
+      detected: scorable,
       landmarks,
       worldLandmarks,
       width,
       height,
-      angles,
+      angles: scorable ? angles : null,
       wristFlex,
       skeletonBlob,
       originalBlob,
@@ -179,6 +186,7 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
     try {
       if (msg.type === "init") {
         configureAssetBase(msg.assetBase);
+        configureDeterministic(msg.deterministic);
         post({ type: "ready" });
       } else if (msg.type === "warmup") {
         // Preload both models (download → cache → GPU init) so the first real

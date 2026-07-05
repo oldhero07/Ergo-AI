@@ -13,6 +13,9 @@ export type WorkerRequest =
        * own import.meta BASE_URL resolves against the hashed asset path, not
        * the page, so the UI thread computes this). */
       assetBase: string;
+      /** Force CPU delegate for reproducible cross-machine results. The worker
+       * has no localStorage, so the UI thread reads the pref and forwards it. */
+      deterministic: boolean;
     }
   | { type: "analyzePhoto"; id: string; bitmap: ImageBitmap }
   | { type: "analyzeFrame"; id: string; timeSec: number; bitmap: ImageBitmap }

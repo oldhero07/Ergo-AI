@@ -3,7 +3,7 @@ import {
   PoseLandmarker,
   type PoseLandmarkerResult,
 } from "@mediapipe/tasks-vision";
-import { getAssetBase } from "@/lib/assetBase";
+import { getAssetBase, isDeterministic } from "@/lib/assetBase";
 
 type Delegate = "GPU" | "CPU";
 
@@ -11,18 +11,21 @@ type Delegate = "GPU" | "CPU";
 export type ModelProgress = (loaded: number, total: number) => void;
 
 /**
- * Model sources, tried in order. Google's official CDN is dramatically faster on
- * many networks (full 30 MB Heavy model in seconds vs minutes from GitHub Pages),
- * so it's primary; the self-hosted copy in /models is the fallback if the CDN is
- * blocked or unreachable.
+ * Model sources, tried in order. The self-hosted copy in /models is now PRIMARY:
+ * it's byte-identical on every machine (checked into the repo), which is what
+ * makes results reproducible across devices/browsers. The CDN is the fallback for
+ * a cold cache, and it's pinned to an explicit version (`/1/`) rather than
+ * `latest` - `latest` could resolve to different weights on two machines (or two
+ * dates) and get cached forever, producing the Mac-vs-Windows score divergence.
  */
 const modelSources = () => [
-  "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_heavy/float16/latest/pose_landmarker_heavy.task",
   `${getAssetBase()}models/pose_landmarker_heavy.task`,
+  "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_heavy/float16/1/pose_landmarker_heavy.task",
 ];
-const MODEL_CACHE = "ergo-models-v1";
+/** Cache generation - bump to invalidate a poisoned `latest` model cached before pinning. */
+const MODEL_CACHE = "ergo-models-v2";
 /** Source-independent cache key, so a model cached from one source is reused even if the source list changes. */
-const MODEL_CACHE_KEY = "ergo-pose-landmarker-heavy";
+const MODEL_CACHE_KEY = "ergo-pose-landmarker-heavy-v2";
 
 let landmarkerPromise: Promise<PoseLandmarker> | null = null;
 let modelBytesPromise: Promise<Uint8Array> | null = null;
@@ -127,22 +130,28 @@ async function create(delegate: Delegate, onProgress?: ModelProgress): Promise<P
     baseOptions: { modelAssetBuffer, delegate },
     runningMode: "IMAGE",
     numPoses: 1,
-    minPoseDetectionConfidence: 0.5,
-    minPosePresenceConfidence: 0.5,
+    // Raised 0.5 -> 0.7 so MediaPipe rejects marginal/partial fits at the source
+    // (e.g. a whole skeleton crammed onto a bystander's legs) rather than returning
+    // a confident bogus pose. Conservative enough that a clearly-detected subject
+    // still passes.
+    minPoseDetectionConfidence: 0.7,
+    minPosePresenceConfidence: 0.7,
     minTrackingConfidence: 0.5,
     outputSegmentationMasks: false,
   });
 }
 
-/** Lazily create a single shared PoseLandmarker (Heavy model). GPU with CPU fallback. */
+/** Lazily create a single shared PoseLandmarker (Heavy model). GPU with CPU
+ * fallback normally; CPU-only in deterministic mode (reproducible across machines). */
 export function getPoseLandmarker(onProgress?: ModelProgress): Promise<PoseLandmarker> {
   if (!landmarkerPromise) {
-    landmarkerPromise = create("GPU", onProgress)
-      .catch(() => create("CPU", onProgress))
-      .catch((err) => {
-        landmarkerPromise = null; // allow a later retry
-        throw err;
-      });
+    const attempt = isDeterministic()
+      ? create("CPU", onProgress)
+      : create("GPU", onProgress).catch(() => create("CPU", onProgress));
+    landmarkerPromise = attempt.catch((err) => {
+      landmarkerPromise = null; // allow a later retry
+      throw err;
+    });
   }
   return landmarkerPromise;
 }

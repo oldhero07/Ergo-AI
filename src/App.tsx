@@ -226,6 +226,20 @@ export default function App() {
     });
   }, []);
 
+  // Manual escape hatch: a photo the user judges mis-detected can be excluded from
+  // the report/exports/batch mean while staying visible in the results list. The
+  // auto-gate rejects clear hallucinations, but out-of-envelope shots (top-down,
+  // partial body) can still slip through - this lets the user drop them.
+  const [excludedIds, setExcludedIds] = useState<Set<string>>(() => new Set());
+  const toggleExclude = useCallback((id: string) => {
+    setExcludedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
   const clearItems = useCallback(() => {
     setNotice(null);
     liveIdsRef.current.clear();
@@ -612,11 +626,11 @@ export default function App() {
   // Raw data exports for spreadsheets / downstream analysis.
   const exportCsv = useCallback(() => {
     const rows = items
-      .filter((it) => results[it.id])
+      .filter((it) => results[it.id] && !excludedIds.has(it.id))
       .map((it) => ({ fileName: it.file.name, analysis: results[it.id] }));
     if (!rows.length) return;
     downloadText(`ergo-ai-${methodId}-data.csv`, "text/csv", photoCsv(rows, methodId));
-  }, [items, results, methodId]);
+  }, [items, results, methodId, excludedIds]);
 
   const exportJsonFile = useCallback(() => {
     const payload = {
@@ -625,7 +639,7 @@ export default function App() {
       method: methodId,
       meta: { assessor: reportMeta.assessor, organization: reportMeta.organization, subject: reportMeta.subject },
       items: items
-        .filter((it) => results[it.id])
+        .filter((it) => results[it.id] && !excludedIds.has(it.id))
         .map((it) => {
           const r = results[it.id];
           return {
@@ -641,14 +655,14 @@ export default function App() {
     };
     if (!payload.items.length) return;
     downloadText(`ergo-ai-${methodId}-data.json`, "application/json", exportJson(payload));
-  }, [items, results, methodId, reportMeta]);
+  }, [items, results, methodId, reportMeta, excludedIds]);
 
   const exportPdf = useCallback(async () => {
     setExporting(true);
     setExportError(null);
     try {
       const reportItems = items
-        .filter((it) => results[it.id])
+        .filter((it) => results[it.id] && !excludedIds.has(it.id))
         .map((it) => ({ fileName: it.file.name, originalUrl: it.url, analysis: results[it.id] }));
       await exportPdfReport(reportItems, reportMeta);
     } catch (e) {
@@ -656,7 +670,14 @@ export default function App() {
     } finally {
       setExporting(false);
     }
-  }, [items, results, reportMeta]);
+  }, [items, results, reportMeta, excludedIds]);
+
+  // Photos counted in the report/batch (user-excluded ones dropped), and the worst
+  // scored photo among them (for the "worst posture" badge).
+  const includedItems = items.filter((it) => !excludedIds.has(it.id));
+  const worstIncludedId = includedItems
+    .filter((it) => results[it.id]?.assessment)
+    .sort((a, b) => (results[b.id]!.assessment!.grandScore ?? 0) - (results[a.id]!.assessment!.grandScore ?? 0))[0]?.id;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -882,7 +903,7 @@ export default function App() {
               <p className="mb-4 text-sm text-destructive">Could not generate the PDF: {exportError}</p>
             )}
             <ReportDetails meta={reportMeta} onChange={setReportMeta} />
-            {items.length > 1 && <BatchSummary items={items} results={results} />}
+            {includedItems.length > 1 && <BatchSummary items={includedItems} results={results} />}
             <div className="space-y-8 mt-6">
               {[...items]
                 .sort((a, b) => {
@@ -890,13 +911,27 @@ export default function App() {
                   const sb = results[b.id]?.assessment?.grandScore ?? -1;
                   return sb - sa;
                 })
-                .map((it, sortIdx) => {
+                .map((it) => {
                 const r = results[it.id];
+                const excluded = excludedIds.has(it.id);
+                const isWorst = it.id === worstIncludedId && includedItems.length > 1;
                 return (
-                  <div key={it.id} className={`overflow-hidden rounded-xl border ${sortIdx === 0 && items.length > 1 && results[it.id]?.assessment ? 'ring-2 ring-destructive/60' : ''}`}>
-                      {sortIdx === 0 && items.length > 1 && results[it.id]?.assessment && (
+                  <div key={it.id} className={`overflow-hidden rounded-xl border ${excluded ? 'opacity-60' : ''} ${isWorst && results[it.id]?.assessment ? 'ring-2 ring-destructive/60' : ''}`}>
+                      {isWorst && results[it.id]?.assessment && (
                         <div className="flex items-center gap-1.5 bg-destructive/10 px-4 py-1.5 text-xs font-semibold text-destructive">
                           <AlertTriangle className="h-4 w-4" /> Worst posture in batch · investigate first
+                        </div>
+                      )}
+                      {r?.assessment && (
+                        <div className="flex items-center justify-end gap-2 border-b bg-muted/30 px-4 py-1.5 text-xs">
+                          {excluded && <span className="mr-auto font-semibold text-amber-600">Excluded from report</span>}
+                          <button
+                            type="button"
+                            onClick={() => toggleExclude(it.id)}
+                            className="rounded-md border px-2 py-1 font-medium text-muted-foreground hover:bg-muted"
+                          >
+                            {excluded ? "Include in report" : "Exclude from report"}
+                          </button>
                         </div>
                       )}
                       <div className="grid sm:grid-cols-2">
@@ -960,7 +995,7 @@ export default function App() {
                       </>
                     ) : (
                       <div className="flex items-center gap-2 border-t px-5 py-4 text-sm text-amber-600">
-                        <AlertTriangle className="h-4 w-4" /> No pose detected - try a clearer, full-body side view.
+                        <AlertTriangle className="h-4 w-4" /> No scorable full-body pose - the head and torso must be in frame. Use a clearer, full-body side view.
                       </div>
                     )}
                   </div>

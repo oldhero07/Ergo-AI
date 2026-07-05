@@ -20,3 +20,32 @@ export function getAssetBase(): string {
 export function absoluteAssetBase(): string {
   return new URL(import.meta.env.BASE_URL, document.baseURI).href;
 }
+
+/**
+ * Deterministic mode: force the CPU delegate for both landmarkers. GPU inference
+ * is not bit-identical across GPUs/drivers/browsers (Metal on Mac Safari vs
+ * ANGLE/D3D on Windows Chrome), which shifts landmark coordinates and can flip a
+ * RULA band at a boundary. CPU inference reproduces far better across machines,
+ * at a speed cost - so it's opt-in via localStorage "ergo-deterministic" = "1".
+ *
+ * The worker has no `localStorage`, so the UI thread reads the pref and passes it
+ * in the init message; the inline path sets it directly. Defaults to false (GPU).
+ */
+let deterministic = false;
+
+export function configureDeterministic(value: boolean): void {
+  deterministic = value;
+}
+
+export function isDeterministic(): boolean {
+  return deterministic;
+}
+
+/** Read the deterministic-mode preference from localStorage (UI thread only). */
+export function readDeterministicPref(): boolean {
+  try {
+    return localStorage.getItem("ergo-deterministic") === "1";
+  } catch {
+    return false; // private mode / no storage - default to GPU
+  }
+}

@@ -246,7 +246,7 @@ export function VideoResults({
 
       {!scored.length ? (
         <div className="flex items-center gap-2 rounded-xl border px-5 py-6 text-sm text-amber-600">
-          <AlertTriangle className="h-4 w-4" /> No pose was detected in this clip. Try a clearer, full-body side view.
+          <AlertTriangle className="h-4 w-4" /> No scorable full-body pose in this clip - the head and torso must be in frame. Try a clearer, full-body side view.
         </div>
       ) : (
         <>
