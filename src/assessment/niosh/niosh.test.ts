@@ -173,4 +173,13 @@ describe("estimateNioshGeometry", () => {
   it("returns null when landmarks are missing", () => {
     expect(estimateNioshGeometry([] as never)).toBeNull();
   });
+
+  it("returns null when an ankle is present but occluded (low visibility)", () => {
+    const world = new Array(33).fill(null).map(() => ({ x: 0, y: 0, z: 0, visibility: 1 }));
+    world[15] = { x: 0.05, y: 0.2, z: -0.35, visibility: 1 }; // left wrist
+    world[16] = { x: -0.05, y: 0.2, z: -0.35, visibility: 1 }; // right wrist
+    world[27] = { x: 0.1, y: 0.8, z: 0, visibility: 0.1 }; // left ankle - occluded
+    world[28] = { x: -0.1, y: 0.8, z: 0, visibility: 1 }; // right ankle
+    expect(estimateNioshGeometry(world as never)).toBeNull();
+  });
 });

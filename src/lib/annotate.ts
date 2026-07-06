@@ -14,6 +14,12 @@ export interface AnnotatedImage {
 const CONNECTOR_COLOR = "#10b981"; // emerald
 const LANDMARK_COLOR = "#f43f5e"; // rose
 
+/** Downscaled render dimensions shared by all four render functions below. */
+function renderDims(source: ImageBitmap): { width: number; height: number } {
+  const scale = fitScale(source.width, source.height);
+  return { width: Math.round(source.width * scale), height: Math.round(source.height * scale) };
+}
+
 /** The 2D context surface both HTMLCanvasElement and OffscreenCanvas provide. */
 type Canvas2D = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 
@@ -59,9 +65,7 @@ export function annotateSkeleton(
   source: ImageBitmap,
   result: PoseLandmarkerResult,
 ): AnnotatedImage {
-  const scale = fitScale(source.width, source.height);
-  const width = Math.round(source.width * scale);
-  const height = Math.round(source.height * scale);
+  const { width, height } = renderDims(source);
 
   const canvas = document.createElement("canvas");
   canvas.width = width;
@@ -77,9 +81,7 @@ export async function annotateSkeletonBlob(
   source: ImageBitmap,
   result: PoseLandmarkerResult,
 ): Promise<{ blob: Blob; width: number; height: number }> {
-  const scale = fitScale(source.width, source.height);
-  const width = Math.round(source.width * scale);
-  const height = Math.round(source.height * scale);
+  const { width, height } = renderDims(source);
 
   const canvas = new OffscreenCanvas(width, height);
   const ctx = canvas.getContext("2d")!;
@@ -95,9 +97,7 @@ export async function annotateSkeletonBlob(
  * Original-photo slot, which otherwise can't embed a raw iPhone HEIC file.
  */
 export function renderOriginalJpeg(source: ImageBitmap, quality = 0.85): string {
-  const scale = fitScale(source.width, source.height);
-  const width = Math.round(source.width * scale);
-  const height = Math.round(source.height * scale);
+  const { width, height } = renderDims(source);
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
@@ -108,9 +108,7 @@ export function renderOriginalJpeg(source: ImageBitmap, quality = 0.85): string 
 
 /** Worker variant of `renderOriginalJpeg`: JPEG Blob via OffscreenCanvas. */
 export async function renderOriginalJpegBlob(source: ImageBitmap, quality = 0.85): Promise<Blob> {
-  const scale = fitScale(source.width, source.height);
-  const width = Math.round(source.width * scale);
-  const height = Math.round(source.height * scale);
+  const { width, height } = renderDims(source);
   const canvas = new OffscreenCanvas(width, height);
   const ctx = canvas.getContext("2d")!;
   ctx.drawImage(source, 0, 0, width, height);

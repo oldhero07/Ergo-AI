@@ -1,5 +1,6 @@
 // REBA lookup tables, encoded from Hignett & McAtamney (2000).
 // Indices are 1-based scores mapped to 0-based array positions.
+import { clampIdx } from "@/assessment/scoreUtils";
 
 /** Table A: [neck 1-3][trunk 1-5][legs 1-4] → posture score A (1-9). */
 export const TABLE_A: number[][][] = [
@@ -67,12 +68,6 @@ export const TABLE_C: number[][] = [
   [12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12], // A 12
 ];
 
-function clampIdx(v: number, max: number): number {
-  // Guard non-finite scores (NaN/Infinity) so a bad angle can never index the
-  // lookup tables out of bounds and crash scoring.
-  if (!Number.isFinite(v)) return 1;
-  return Math.min(max, Math.max(1, Math.round(v)));
-}
 
 export function lookupA(neck: number, trunk: number, legs: number): number {
   return TABLE_A[clampIdx(neck, 3) - 1][clampIdx(trunk, 5) - 1][clampIdx(legs, 4) - 1];

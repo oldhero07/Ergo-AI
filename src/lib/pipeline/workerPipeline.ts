@@ -12,7 +12,12 @@ import { buildAutoInput, computeRula } from "@/assessment/rula/rula";
 import { absoluteAssetBase, readDeterministicPref } from "@/lib/assetBase";
 import type { ModelProgress } from "@/lib/poseLandmarker";
 import type { PoseAnalysis, VideoProgress, AnalyzeVideoOptions } from "@/lib/analyze";
-import { assembleVideoAnalysis, type RawVideoFrame, type VideoAnalysis } from "@/lib/pipeline/shared";
+import {
+  OCCLUSION_CONFIDENCE,
+  assembleVideoAnalysis,
+  type RawVideoFrame,
+  type VideoAnalysis,
+} from "@/lib/pipeline/shared";
 import type {
   WorkerRequest,
   WorkerResponse,
@@ -195,6 +200,13 @@ export class WorkerPipeline {
         // Transfer the frame to the worker and wait for its result before the
         // next seek - preserves the one-frame-in-memory invariant.
         const frame = await this.requestFrame(worker, timeSec, bitmap);
+        // The abort signal is only checked before each seek (in
+        // sampleVideoFrames' own loop), not after this await - if the caller
+        // cancelled while the worker was mid-request, creating an object URL
+        // here would leak it: the whole `raw` array (and this URL with it)
+        // gets discarded on the next loop iteration's abort check, with
+        // nothing left to revoke it.
+        if (signal?.aborted) return;
         if (!frame.angles) {
           if (frame.skipReason === "lowConfidence") skippedLowConfidence++;
           else skippedNoPose++;
@@ -216,8 +228,10 @@ export class WorkerPipeline {
 
 /** Assemble a PoseAnalysis from the worker payload: object URLs for the images,
  * then the exact same scoring calls the inline path makes (buildAutoInput →
- * computeRula) - scoring always happens on the UI thread. */
-function assemblePhoto(payload: PhotoResultPayload): PoseAnalysis {
+ * computeRula) - scoring always happens on the UI thread. Exported (not just
+ * used internally) so its confidence-gating behavior can be unit tested
+ * directly against the same payload shape the worker actually posts. */
+export function assemblePhoto(payload: PhotoResultPayload): PoseAnalysis {
   const skeletonUrl = payload.skeletonBlob ? URL.createObjectURL(payload.skeletonBlob) : "";
   const originalImageUrl = payload.originalBlob ? URL.createObjectURL(payload.originalBlob) : undefined;
 
@@ -229,12 +243,26 @@ function assemblePhoto(payload: PhotoResultPayload): PoseAnalysis {
     width: payload.width,
     height: payload.height,
     detected: payload.detected,
+    delegate: payload.delegate,
   };
   if (payload.detected && payload.angles) {
-    out.angles = payload.angles;
-    out.wristMeasured = payload.wristFlex !== null;
-    out.input = buildAutoInput(payload.angles, payload.wristFlex !== null ? { wristAngle: payload.wristFlex } : {});
-    out.assessment = computeRula(out.input);
+    // Gate: if key joints are mostly invisible (occluded / partial body), don't
+    // score - same threshold and behavior as the inline path (analyze.ts). The
+    // worker (analysis.worker.ts) already gates this before it ever reaches
+    // here; this is a second, redundant check at the point where inline and
+    // worker paths are supposed to converge, kept deliberately even though it
+    // should never actually fire given the upstream gate - defense in depth
+    // against exactly the kind of silent two-paths-diverge bug this repo has
+    // shipped before.
+    if (payload.angles.confidence >= OCCLUSION_CONFIDENCE) {
+      out.angles = payload.angles;
+      out.wristMeasured = payload.wristFlex !== null;
+      out.input = buildAutoInput(payload.angles, payload.wristFlex !== null ? { wristAngle: payload.wristFlex } : {});
+      out.assessment = computeRula(out.input);
+    } else {
+      // Pose was detected by MediaPipe but confidence too low to score reliably.
+      out.detected = false;
+    }
   }
   return out;
 }

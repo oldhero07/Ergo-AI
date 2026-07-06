@@ -1,7 +1,8 @@
 import type { AssessmentMethod, AssessmentResult, PostureInput, RiskBand } from "@/assessment/types";
 import { lookupA, lookupB, lookupC } from "@/assessment/reba/rebaTables";
+import { clamp, upperArmScore } from "@/assessment/scoreUtils";
 
-const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+export { upperArmScore };
 
 // --- Group A: trunk, neck, legs ---------------------------------------------
 
@@ -38,19 +39,6 @@ export function legsScore(bilateral: boolean, legAngle: number | undefined, seat
 }
 
 // --- Group B: upper arm, lower arm, wrist -----------------------------------
-
-export function upperArmScore(angle: number, raised: boolean, abducted: boolean, supported: boolean): number {
-  let s: number;
-  if (angle < -20) s = 2; // extension > 20°
-  else if (angle <= 20) s = 1;
-  else if (angle <= 45) s = 2;
-  else if (angle <= 90) s = 3;
-  else s = 4;
-  if (raised) s += 1;
-  if (abducted) s += 1;
-  if (supported) s -= 1; // arm supported / leaning / gravity-assisted
-  return clamp(s, 1, 6);
-}
 
 export function lowerArmScore(flexion: number): number {
   // 60-100° elbow flexion → 1; otherwise → 2.
@@ -102,7 +90,12 @@ export function computeReba(input: PostureInput): AssessmentResult {
   const b = band(grandScore);
 
   const notes: string[] = [];
-  if (input.legAngle === undefined) notes.push("Legs not visible - scored as bilateral/supported (assumed).");
+  if (input.legAngle === undefined) {
+    notes.push(
+      `Knee flexion not visible - scored as ${input.legsBilateral ? "bilateral" : "unilateral"} weight-bearing, ` +
+        `${input.legsSupported ? "seated/supported" : "standing"} (from the adjustment toggles, not measured).`,
+    );
+  }
   if (activity > 0) {
     const parts = [
       input.activityStatic && "static hold >1 min",

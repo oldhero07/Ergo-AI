@@ -43,7 +43,7 @@ function poolSize(): number {
 class PreparePool {
   private workers: Worker[] = [];
   private next = 0;
-  private pending = new Map<string, { resolve: (b: PreparedBlobs) => void; reject: (e: Error) => void }>();
+  private pending = new Map<string, { resolve: (b: PreparedBlobs) => void; reject: (e: Error) => void; worker: Worker }>();
   private broken = false;
   private idleTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -73,6 +73,25 @@ class PreparePool {
       for (const e of entries) e.reject(new WorkerUnavailable("The image-preparation worker crashed."));
     };
     return worker;
+  }
+
+  /** Drop one specific worker (its decode is presumed permanently wedged - a
+   * genuinely hung libheif decode never throws or posts back) and fail every
+   * OTHER request currently queued behind it in that worker's own internal
+   * serialization chain - they would otherwise wait forever too, since the
+   * worker can never advance past the stuck decode. The pool stays usable:
+   * run() lazily spawns a replacement on its next call, same as any other
+   * lazy-spawn. Without this, keeping a wedged-but-not-crashed worker "alive"
+   * just means every future request silently queues up behind a decode that
+   * will never complete, for the rest of the tab session. */
+  private dropWorker(worker: Worker, reason: string): void {
+    worker.terminate();
+    this.workers = this.workers.filter((w) => w !== worker);
+    for (const [id, entry] of this.pending) {
+      if (entry.worker !== worker) continue;
+      this.pending.delete(id);
+      entry.reject(new Error(reason));
+    }
   }
 
   private teardown(): void {
@@ -115,13 +134,18 @@ class PreparePool {
       const timer = setTimeout(() => {
         if (!this.pending.has(id)) return;
         this.pending.delete(id);
-        // Give up on this one file; keep the worker (the tab isn't broken).
+        // A worker that's actually wedged (not crashed) never fires onerror or
+        // onmessage - dropping just this one worker, rather than "keeping it
+        // around", is what stops every subsequent request from silently
+        // queuing up behind the same dead decode forever.
+        this.dropWorker(worker, "Image preparation timed out.");
         reject(new Error("Image preparation timed out."));
         this.scheduleIdleShutdown();
       }, PREPARE_TIMEOUT_MS);
       this.pending.set(id, {
         resolve: (b) => { clearTimeout(timer); resolve(b); },
         reject: (e) => { clearTimeout(timer); reject(e); },
+        worker,
       });
       const msg: PrepareRequest = { id, file };
       worker.postMessage(msg);

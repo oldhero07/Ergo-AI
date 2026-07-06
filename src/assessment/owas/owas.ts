@@ -80,7 +80,7 @@ export function computeOwas(input: PostureInput): AssessmentResult {
 
   const notes: string[] = [];
   if (input.armsAboveShoulder === undefined) {
-    notes.push("Arm elevation classified from the scored side only (both-sides data unavailable).");
+    notes.push("Arm elevation not measured (both-sides data unavailable) - assumed both below shoulder height.");
   }
   if (legs.assumed) {
     notes.push(

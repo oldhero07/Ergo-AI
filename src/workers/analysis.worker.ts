@@ -11,7 +11,7 @@
  * before sending the next bitmap), preserving the one-frame-in-memory
  * invariant of the original pipeline.
  */
-import { detectPose, getPoseLandmarker } from "@/lib/poseLandmarker";
+import { detectPose, getPoseLandmarker, getActiveDelegate } from "@/lib/poseLandmarker";
 import { detectHands, getHandLandmarker } from "@/lib/handLandmarker";
 import { detectHandsCropped } from "@/lib/handRoi";
 import { computeAngles, measureWristFlexion } from "@/lib/angles";
@@ -98,11 +98,16 @@ async function analyzePhoto(id: string, bitmap: ImageBitmap): Promise<void> {
       try {
         const wristIdx = angles.side === "left" ? 15 : 16;
         const wrist = landmarks[wristIdx];
+        const wristVis = wrist?.visibility ?? 0;
         const hands =
-          wrist && (wrist.visibility ?? 0) > 0.3
+          wrist && wristVis > 0.3
             ? await detectHandsCropped(bitmap, wrist.x, wrist.y)
             : (await detectHands(bitmap)).landmarks;
-        wristFlex = measureWristFlexion(landmarks, hands, angles.side);
+        // Only trust the measurement when the wrist itself is reliably
+        // visible - matches the video-frame path below and the inline photo
+        // path in analyze.ts. The 0.3 check above is a separate decision
+        // (which hand-detection strategy to try), not whether to trust it.
+        wristFlex = wristVis > WRIST_VIS_FLOOR ? measureWristFlexion(landmarks, hands, angles.side) : null;
       } catch {
         /* hand model unavailable - wrist stays assumed neutral */
       }
@@ -121,6 +126,7 @@ async function analyzePhoto(id: string, bitmap: ImageBitmap): Promise<void> {
       wristFlex,
       skeletonBlob,
       originalBlob,
+      delegate: getActiveDelegate(),
     };
     post({ type: "photoResult", payload });
   } finally {

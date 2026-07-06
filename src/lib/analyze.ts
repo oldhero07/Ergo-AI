@@ -1,5 +1,5 @@
 import type { Landmark, NormalizedLandmark } from "@mediapipe/tasks-vision";
-import { detectPose, type ModelProgress } from "@/lib/poseLandmarker";
+import { detectPose, getActiveDelegate, type ModelProgress } from "@/lib/poseLandmarker";
 import { loadBitmap } from "@/lib/image";
 import { annotateSkeleton, renderOriginalJpeg } from "@/lib/annotate";
 import { computeAngles, measureWristFlexion, type AngleSet } from "@/lib/angles";
@@ -42,6 +42,9 @@ export interface PoseAnalysis {
   /** The auto-derived RULA input (editable in the adjustments panel). */
   input?: PostureInput;
   assessment?: AssessmentResult;
+  /** Which pose-model delegate produced this result (diagnostic only - GPU/CPU
+   * can yield subtly different landmark coordinates for the same image). */
+  delegate?: "GPU" | "CPU" | null;
 }
 
 /** Full per-photo pipeline: decode → detect pose → render skeleton → RULA.
@@ -51,15 +54,37 @@ export async function analyzePhoto(file: File, onModelProgress?: ModelProgress):
   try {
     const result = await detectPose(bitmap, onModelProgress);
     const detected = result.landmarks.length > 0;
-    const { dataUrl, width, height } = annotateSkeleton(bitmap, result);
+
+    // Same best-effort try/catch as the worker's equivalent calls - a
+    // transient canvas failure (e.g. getContext("2d") returning null) is
+    // presentational and must never lose the whole score, on either backend.
+    let dataUrl = "";
+    let width = bitmap.width;
+    let height = bitmap.height;
+    try {
+      const annotated = annotateSkeleton(bitmap, result);
+      dataUrl = annotated.dataUrl;
+      width = annotated.width;
+      height = annotated.height;
+    } catch {
+      /* annotation is presentational - never fail the analysis over it */
+    }
+    let originalImageUrl: string | undefined;
+    try {
+      originalImageUrl = renderOriginalJpeg(bitmap);
+    } catch {
+      /* same: PDF falls back to the upload URL */
+    }
+
     const out: PoseAnalysis = {
-      skeletonUrl: dataUrl,
-      originalImageUrl: renderOriginalJpeg(bitmap),
+      skeletonUrl: dataUrl || originalImageUrl || "",
+      originalImageUrl,
       landmarks: result.landmarks[0] ?? [],
       worldLandmarks: result.worldLandmarks[0] ?? [],
       width,
       height,
       detected,
+      delegate: getActiveDelegate(),
     };
     if (detected) {
       const angles = computeAngles(out.landmarks, out.worldLandmarks) ?? undefined;
@@ -75,11 +100,17 @@ export async function analyzePhoto(file: File, onModelProgress?: ModelProgress):
         try {
           const wristIdx = angles.side === "left" ? 15 : 16;
           const wrist = out.landmarks[wristIdx];
+          const wristVis = wrist?.visibility ?? 0;
           const hands =
-            wrist && (wrist.visibility ?? 0) > 0.3
+            wrist && wristVis > 0.3
               ? await detectHandsCropped(bitmap, wrist.x, wrist.y)
               : (await detectHands(bitmap)).landmarks;
-          wristFlex = measureWristFlexion(out.landmarks, hands, angles.side);
+          // Only trust the measurement when the wrist itself is reliably
+          // visible - same floor and same gate shape as the video path below,
+          // which already does this correctly. The 0.3 check above is a
+          // separate decision (which hand-detection strategy to try), not
+          // whether to trust the result.
+          wristFlex = wristVis > WRIST_VIS_FLOOR ? measureWristFlexion(out.landmarks, hands, angles.side) : null;
         } catch {
           /* hand model unavailable - wrist stays assumed neutral */
         }

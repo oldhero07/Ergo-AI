@@ -1,5 +1,6 @@
 import type { Landmark } from "@mediapipe/tasks-vision";
 import type { RiskBand } from "@/assessment/types";
+import { isVisible } from "@/lib/angles";
 
 /**
  * Revised NIOSH Lifting Equation (Waters, Putz-Anderson & Garg 1994,
@@ -164,6 +165,10 @@ export function estimateNioshGeometry(world: Landmark[]): NioshGeometryEstimate 
   const la = world[LM.leftAnkle];
   const ra = world[LM.rightAnkle];
   if (!lw || !rw || !la || !ra) return null;
+  // A present-but-occluded landmark still gets a coordinate from MediaPipe
+  // (its best guess), just with low visibility - trust none of the four
+  // unless each clears the same floor angles.ts uses for world landmarks.
+  if (!isVisible(lw) || !isVisible(rw) || !isVisible(la) || !isVisible(ra)) return null;
 
   // y is down in the world frame: the floor is the larger y (deeper) ankle.
   const floorY = Math.max(la.y, ra.y);

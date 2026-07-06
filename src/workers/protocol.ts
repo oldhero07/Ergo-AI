@@ -34,6 +34,8 @@ export interface PhotoResultPayload {
   wristFlex: number | null;
   skeletonBlob: Blob | null;
   originalBlob: Blob | null;
+  /** Which pose-model delegate produced this result (diagnostic only). */
+  delegate: "GPU" | "CPU" | null;
 }
 
 export interface FrameResultPayload {

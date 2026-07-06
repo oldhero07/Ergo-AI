@@ -159,6 +159,15 @@ describe("photoCsv", () => {
     expect(rowCols[idx("grand_score")]).toBe("");
   });
 
+  it("neutralizes a file name that would execute as a formula in Excel/Sheets", () => {
+    const items: PhotoCsvItem[] = [{ fileName: "=1+1.jpg", analysis: makePoseAnalysis() }];
+    const csv = photoCsv(items, "rula");
+    const dataLine = csv.split("\n")[1];
+    // The neutralized value must NOT start with = (or +, -, @) once written out.
+    expect(dataLine.startsWith("=")).toBe(false);
+    expect(dataLine.startsWith("'=1+1.jpg")).toBe(true);
+  });
+
   it("formats angles to 2 decimals and booleans as true/false", () => {
     const items: PhotoCsvItem[] = [{ fileName: "a.jpg", analysis: makePoseAnalysis() }];
     const csv = photoCsv(items, "rula");
@@ -221,6 +230,12 @@ describe("videoCsv", () => {
     expect(rowCols[idx("time_sec")]).toBe("0.50");
     expect(rowCols[idx("side")]).toBe("left");
     expect(rowCols[idx("upper_arm_deg")]).toBe("40.00");
+  });
+
+  it("strips commas/newlines from the file name in the comment header so the row isn't corrupted", () => {
+    const csv = videoCsv(makeVideoAnalysis(), "rula", "clip, with a comma.mp4");
+    const lines = csv.split("\n");
+    expect(lines[0]).toBe("# file: clip  with a comma.mp4");
   });
 });
 

@@ -741,9 +741,14 @@ async function addPhotoPage(doc: jsPDF, item: PdfReportItem, isFirstPage: boolea
 }
 
 /** Stamp every page with a footer: tool + method + generation time (left) and "Page X of Y" (right). */
-function addFooters(doc: jsPDF, method: string): void {
+/** `delegate` (GPU/CPU pose-model backend, when known) is appended as a diagnostic -
+ * GPU and CPU backends can produce subtly different landmark coordinates for the
+ * same photo, so this makes a later cross-device comparison attributable instead
+ * of a mystery, without changing anything about the report itself. */
+function addFooters(doc: jsPDF, method: string, delegate?: "GPU" | "CPU" | null): void {
   const pages = doc.getNumberOfPages();
   const stamp = new Date().toLocaleString();
+  const delegateSuffix = delegate ? ` · ${delegate}` : "";
   for (let p = 1; p <= pages; p++) {
     doc.setPage(p);
     const pw = doc.internal.pageSize.getWidth();
@@ -751,7 +756,7 @@ function addFooters(doc: jsPDF, method: string): void {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7.5);
     doc.setTextColor(...CONTENT_MUTED);
-    doc.text(`Ergo AI · ${method} report · Generated ${stamp}`, PAGE_MARGIN, ph - 18);
+    doc.text(`Ergo AI · ${method} report · Generated ${stamp}${delegateSuffix}`, PAGE_MARGIN, ph - 18);
     doc.text(`Page ${p} of ${pages}`, pw - PAGE_MARGIN, ph - 18, { align: "right" });
   }
 }
@@ -899,9 +904,11 @@ export async function exportPdfReport(items: PdfReportItem[], meta: ReportMeta =
 
   // Report-level method/scale, taken from the first scored item. The whole batch
   // shares one method (the UI scores every photo with the active method).
-  const firstScored = items.find((it) => it.analysis.assessment)?.analysis.assessment;
+  const firstScoredItem = items.find((it) => it.analysis.assessment);
+  const firstScored = firstScoredItem?.analysis.assessment;
   const method = firstScored?.method ?? "RULA";
   const maxScore = firstScored?.maxScore ?? 7;
+  const delegate = firstScoredItem?.analysis.delegate;
 
   // Page 1 is always the cover sheet (provenance + risk-band legend).
   addCoverPage(doc, items, meta, method, maxScore);
@@ -919,7 +926,7 @@ export async function exportPdfReport(items: PdfReportItem[], meta: ReportMeta =
   // Add visual methodology page
   addMethodologyPage(doc, false);
 
-  addFooters(doc, method);
+  addFooters(doc, method, delegate);
   doc.save(timestampedFilename(method));
 }
 

@@ -13,8 +13,14 @@ export interface PhotoCsvItem {
   analysis: PoseAnalysis;
 }
 
-/** Escape one CSV field: quote-wrap when it contains a quote, comma, or newline. */
+/** Escape one CSV field: quote-wrap when it contains a quote, comma, or
+ * newline, and neutralize formula injection (a cell starting with =, +, -, @,
+ * tab, or CR is executed as a live formula by Excel/Sheets on open - this
+ * repo's own file names are user-controlled and land directly in a CSV
+ * column, so this isn't a hypothetical). Neutralize before the quote-wrap
+ * decision so a value needing both protections gets both. */
 function csvField(value: string): string {
+  if (/^[=+\-@\t\r]/.test(value)) value = `'${value}`;
   if (/["\n,]/.test(value)) {
     return `"${value.replace(/"/g, '""')}"`;
   }
@@ -189,8 +195,12 @@ export function photoCsv(items: PhotoCsvItem[], methodId: string): string {
 export function videoCsv(analysis: VideoAnalysis, methodId: string, fileName: string): string {
   const method = getMethod(methodId);
 
+  // Comment lines aren't real CSV cells (no quote-wrap escaping applies to
+  // them), so a comma or newline in the file name would otherwise corrupt
+  // this row when a spreadsheet app splits it - strip both.
+  const safeFileName = fileName.replace(/[,\r\n]/g, " ");
   const comments = [
-    `# file: ${fileName}`,
+    `# file: ${safeFileName}`,
     `# method: ${methodId}`,
     `# fps: ${analysis.fps}`,
     `# sampled_duration_sec: ${analysis.sampledDurationSec}`,

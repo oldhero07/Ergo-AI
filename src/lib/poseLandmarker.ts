@@ -6,6 +6,17 @@ import {
 import { getAssetBase, isDeterministic } from "@/lib/assetBase";
 
 type Delegate = "GPU" | "CPU";
+let activeDelegate: Delegate | null = null;
+
+/** Which delegate the shared PoseLandmarker actually ended up using (GPU, or
+ * CPU if the GPU delegate failed to initialize on this device, or if
+ * deterministic mode forced it). null before the first detection. Diagnostic
+ * only - GPU and CPU produce subtly different floating-point landmark
+ * coordinates for the same image, so this is exposed to make cross-device
+ * angle discrepancies attributable rather than mysterious. */
+export function getActiveDelegate(): Delegate | null {
+  return activeDelegate;
+}
 
 /** Reports model-download progress. `total` is 0 when the server omits a length. */
 export type ModelProgress = (loaded: number, total: number) => void;
@@ -146,10 +157,24 @@ async function create(delegate: Delegate, onProgress?: ModelProgress): Promise<P
 export function getPoseLandmarker(onProgress?: ModelProgress): Promise<PoseLandmarker> {
   if (!landmarkerPromise) {
     const attempt = isDeterministic()
-      ? create("CPU", onProgress)
-      : create("GPU", onProgress).catch(() => create("CPU", onProgress));
+      ? create("CPU", onProgress).then((landmarker) => {
+          activeDelegate = "CPU";
+          return landmarker;
+        })
+      : create("GPU", onProgress)
+          .then((landmarker) => {
+            activeDelegate = "GPU";
+            return landmarker;
+          })
+          .catch(() =>
+            create("CPU", onProgress).then((landmarker) => {
+              activeDelegate = "CPU";
+              return landmarker;
+            }),
+          );
     landmarkerPromise = attempt.catch((err) => {
       landmarkerPromise = null; // allow a later retry
+      activeDelegate = null;
       throw err;
     });
   }

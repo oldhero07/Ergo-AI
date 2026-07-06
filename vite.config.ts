@@ -14,6 +14,10 @@ export default defineConfig({
   // import) instead of bundling the 3MB decoder into every visitor's payload.
   // Matches the `type: "module"` the workers are already spawned with.
   worker: { format: "es" },
+  server: {
+    port: Number(process.env.PORT) || 5173,
+    strictPort: !!process.env.PORT,
+  },
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),

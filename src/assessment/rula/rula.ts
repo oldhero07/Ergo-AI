@@ -1,21 +1,9 @@
 import type { AngleSet } from "@/lib/angles";
 import type { AssessmentMethod, AssessmentResult, PostureInput, RiskBand } from "@/assessment/types";
 import { lookupA, lookupB, lookupC } from "@/assessment/rula/rulaTables";
+import { clamp, upperArmScore } from "@/assessment/scoreUtils";
 
-const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
-
-export function upperArmScore(angle: number, raised: boolean, abducted: boolean, supported: boolean): number {
-  let s: number;
-  if (angle < -20) s = 2; // extension > 20°
-  else if (angle <= 20) s = 1;
-  else if (angle <= 45) s = 2;
-  else if (angle <= 90) s = 3;
-  else s = 4;
-  if (raised) s += 1;
-  if (abducted) s += 1;
-  if (supported) s -= 1;
-  return clamp(s, 1, 6);
-}
+export { upperArmScore };
 
 export function lowerArmScore(flexion: number, crossMidline: boolean): number {
   let s = flexion >= 60 && flexion <= 100 ? 1 : 2;

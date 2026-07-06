@@ -9,6 +9,7 @@
  * Index order: [back-1][arms-1][legs-1][load-1] → action category 1–4.
  *   back 1–4 · arms 1–3 · legs 1–7 · load 1–3
  */
+import { clampIdx } from "@/assessment/scoreUtils";
 const AC: number[][][][] = [
   // Back 1 - straight
   [
@@ -35,8 +36,6 @@ const AC: number[][][][] = [
     [[4, 4, 4], [2, 3, 4], [3, 3, 4], [4, 4, 4], [4, 4, 4], [4, 4, 4], [2, 3, 4]],
   ],
 ];
-
-const clampIdx = (v: number, max: number) => Math.min(max, Math.max(1, Math.round(Number.isFinite(v) ? v : 1)));
 
 /** Action category (1–4) for an OWAS posture code. Inputs are 1-based codes. */
 export function lookupActionCategory(back: number, arms: number, legs: number, load: number): number {
