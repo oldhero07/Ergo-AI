@@ -120,6 +120,67 @@ describe("neck flexion vs extension sign (3D)", () => {
   });
 });
 
+describe("trunk angle (3D)", () => {
+  // Regression coverage for a tautological trunk-angle bug: an earlier version
+  // derived the "gravity up" reference vector from the same shoulder/hip
+  // landmarks being measured against it, so trunk = angle(trunkVector,
+  // -trunkVector) always evaluated to ~180 deg regardless of actual posture.
+  // The fix compares against a fixed vertical vector instead. Asserting a
+  // single correct-looking value isn't enough to catch this bug class - a
+  // formula that always returns the same constant can still pass one test
+  // case by coincidence. These cases assert distinct expected values for
+  // distinct synthetic postures, so a collapsed-to-a-constant formula fails.
+  const flatLandmarks = makeLandmarks({});
+
+  /** World landmarks for a torso tilted by `shoulderOffset` from the hips (at
+   * the origin). y is down, so {x:0,y:-0.5,z:0} is a shoulder 0.5m directly
+   * above the hips (upright); adding a z (or x) component tilts the trunk. */
+  function worldWithTrunk(shoulderOffset: { x: number; y: number; z: number }): Landmark[] {
+    // Only x (shoulder width) is split symmetrically between the two shoulder
+    // landmarks - y/z are the shoulder-midpoint's actual offset from the hips,
+    // so they must NOT be halved or the resulting mid point (and therefore the
+    // trunk lean) is wrong.
+    return makeWorld({
+      11: { x: shoulderOffset.x / 2, y: shoulderOffset.y, z: shoulderOffset.z },
+      12: { x: -shoulderOffset.x / 2, y: shoulderOffset.y, z: shoulderOffset.z },
+      23: { x: 0.1, y: 0, z: 0 },
+      24: { x: -0.1, y: 0, z: 0 },
+    });
+  }
+
+  it("reads ~0° for a perfectly upright trunk", () => {
+    const a = computeAngles(flatLandmarks, worldWithTrunk({ x: 0, y: -0.5, z: 0 }));
+    expect(a!.trunk).toBeLessThan(2);
+  });
+
+  it("reads ~45° for a 45° forward lean", () => {
+    const a = computeAngles(flatLandmarks, worldWithTrunk({ x: 0, y: -0.3536, z: -0.3536 }));
+    expect(a!.trunk).toBeGreaterThan(43);
+    expect(a!.trunk).toBeLessThan(47);
+  });
+
+  it("reads ~90° for a fully horizontal trunk", () => {
+    const a = computeAngles(flatLandmarks, worldWithTrunk({ x: 0, y: 0, z: -0.5 }));
+    expect(a!.trunk).toBeGreaterThan(88);
+    expect(a!.trunk).toBeLessThan(92);
+  });
+
+  it("does not collapse to a constant regardless of posture (tautological gravity-vector regression guard)", () => {
+    const upright = computeAngles(flatLandmarks, worldWithTrunk({ x: 0, y: -0.5, z: 0 }));
+    const leaning = computeAngles(flatLandmarks, worldWithTrunk({ x: 0, y: -0.3536, z: -0.3536 }));
+    const horizontal = computeAngles(flatLandmarks, worldWithTrunk({ x: 0, y: 0, z: -0.5 }));
+    // Three clearly different postures must produce three clearly different
+    // angles - a formula that always outputs the same value (e.g. the ~180°
+    // tautology) fails this even if that constant happened to look plausible
+    // for any one posture in isolation.
+    expect(Math.abs(upright!.trunk - leaning!.trunk)).toBeGreaterThan(30);
+    expect(Math.abs(leaning!.trunk - horizontal!.trunk)).toBeGreaterThan(30);
+    expect(upright!.trunk).toBeLessThan(170);
+    expect(leaning!.trunk).toBeLessThan(170);
+    expect(horizontal!.trunk).toBeLessThan(170);
+  });
+});
+
 describe("computePoseValidity (reject partial-body hallucinations)", () => {
   // Core anchors all in-frame and visible: nose, both shoulders, both hips.
   const fullBody = {

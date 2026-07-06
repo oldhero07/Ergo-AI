@@ -164,7 +164,10 @@ function sideAngles(lms: NormalizedLandmark[], s: Side, world?: Landmark[]): Sid
       legAngle = 180 - angleBetween3D(sub3D(hip3D, kn3D), sub3D(an3D, kn3D));
     }
   } else {
-    // 2D Fallback
+    // 2D Fallback - shouldn't happen in normal operation (MediaPipe returns
+    // worldLandmarks alongside landmarks for any detected pose); instrumented
+    // defensively so a future regression here is visible instead of silent.
+    if (typeof console !== "undefined") console.warn("[angles] sideAngles fell back to 2D (no/short worldLandmarks)");
     const shoulder = pt(lms, i.sh);
     const elbow = pt(lms, i.el);
     const wrist = pt(lms, i.wr);
@@ -242,7 +245,16 @@ function lateralFlexionDeg(a: { x: number; y: number }, b: { x: number; y: numbe
 // 3D estimate is trustworthy - "measure what's reliable, never guess."
 const SIDEBEND_TRUNK_DEG = 15;
 const SIDEBEND_NECK_DEG = 18;
-const WORLD_VIS_FLOOR = 0.5;
+export const WORLD_VIS_FLOOR = 0.5;
+
+/** True when a landmark's visibility clears `threshold` - the single shared
+ * trust check every consumer of a landmark coordinate should use before
+ * reading `.x`/`.y`/`.z`, instead of each hand-rolling its own (in)consistent
+ * decision. Deliberately single-landmark, not an array helper - callers need
+ * different composition (all-visible vs mean-visible vs any-visible). */
+export function isVisible(lm: { visibility?: number } | undefined, threshold = WORLD_VIS_FLOOR): boolean {
+  return (lm?.visibility ?? 0) > threshold;
+}
 
 /** A joint counts as "reliably seen" above this visibility. */
 const CONF_VIS_FLOOR = 0.5;
@@ -411,11 +423,14 @@ export function computeAngles(
     const shoulderAxis = sub3D(world[LM.rightShoulder], world[LM.leftShoulder]);
     neck = signedNeck(angleBetween3D(neckSeg, trunkUp), sagittalSign(neckSeg, trunkUp, shoulderAxis));
 
-    // Trunk: angle between trunk-vector (hipMid -> shoulderMid) and vertical gravity vector pointing UP.
-    // Left unsigned: RULA's trunk model is flexion-only (no extension category), so magnitude is correct.
+    // Trunk: angle between trunk-vector (hipMid -> shoulderMid) and vertical gravity
+    // vector pointing UP. Left unsigned: RULA's trunk model is flexion-only (no
+    // extension category), so magnitude is correct.
     trunk = angleBetween3D(trunkUp, { x: 0, y: -1, z: 0 });
   } else {
-    // 2D Fallback
+    // 2D Fallback - see the matching note in sideAngles(); instrumented the
+    // same way since this is the neck/trunk counterpart of that branch.
+    if (typeof console !== "undefined") console.warn("[angles] computeAngles fell back to 2D (no/short worldLandmarks)");
     const shoulderMid = mid(pt(lms, LM.leftShoulder), pt(lms, LM.rightShoulder));
     const hipMid = mid(pt(lms, LM.leftHip), pt(lms, LM.rightHip));
     const head = (vis(lms, LM.leftEar) > 0.3 && vis(lms, LM.rightEar) > 0.3)
