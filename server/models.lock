@@ -1,0 +1,5 @@
+# Pinned model artifacts (SHA-256 of the downloaded zip, verified at Docker build).
+# Recorded from a real download on 2026-07-09 via scripts/download_models.py.
+# name                    sha256                                                            source
+yolox_m_humanart          a000224fd8ba283202bc62d4a5fcdfe353adb9f468777dbac1ea2ada2093adde  https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/onnx_sdk/yolox_m_8xb8-300e_humanart-c2c7a14a.zip
+rtmw_dw_x_l_256x192       1e3e77558dfc199129bfff1c583e51b4ee190914de6ae30688243c20163c148c  https://download.openmmlab.com/mmpose/v1/projects/rtmw/onnx_sdk/rtmw-dw-x-l_simcc-cocktail14_270e-256x192_20231122.zip

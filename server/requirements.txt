@@ -1,0 +1,14 @@
+# All pinned == for reproducible builds. NO torch/torchvision - rtmlib runs pure
+# ONNX Runtime; keeping torch out saves ~2 GB image size and minutes of cold boot.
+# rtmlib is installed with --no-deps in the Dockerfile (its declared deps pull the
+# full GUI opencv); its actual runtime needs are listed explicitly below with
+# opencv-python-headless standing in for opencv-python.
+fastapi==0.127.0
+uvicorn==0.40.0
+python-multipart==0.0.32
+pillow==12.1.0
+numpy==2.2.6
+onnxruntime==1.27.0
+opencv-python-headless==4.12.0.88
+tqdm==4.67.1
+rtmlib==0.0.15
