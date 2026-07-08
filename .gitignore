@@ -13,3 +13,5 @@ yarn-error.log*
 # Local HEIC test photos (not part of the app)
 /*.HEIC
 /*.heic
+/Test photos jpg/
+/test photos hiec/
