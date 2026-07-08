@@ -14,7 +14,7 @@ Stateless pose-estimation API backing [rulaergo.com](https://rulaergo.com). Acce
 
 **Why CPU:** CPU inference is bit-identical across runs and deployments. The same photo always produces the same keypoints — and therefore the same RULA/REBA score — on every device, every time. GPU inference cannot guarantee this.
 
-**Privacy:** images are processed entirely in memory and immediately discarded. Nothing is written to disk, logged, stored, or used for training.
+**Privacy:** images are never stored, logged, or used for training — they are discarded as soon as the response is built.
 
 ## Endpoints
 

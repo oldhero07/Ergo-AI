@@ -102,6 +102,27 @@ def test_undecodable_422(client):
     assert res.status_code == 422
 
 
+def test_decompression_bomb_422(client):
+    # A tiny PNG declaring 100 MP (> the 64 MP cap) must be rejected before
+    # convert("RGB") can allocate ~300 MB for it.
+    img = Image.new("1", (10_000, 10_000))
+    buf = io.BytesIO()
+    img.save(buf, "PNG")
+    assert len(buf.getvalue()) < 1024 * 1024  # cheap for the attacker...
+    res = client.post("/analyze", files={"image": ("bomb.png", buf.getvalue(), "image/png")})
+    assert res.status_code == 422  # ...rejected before it gets expensive for us
+
+
+def test_missing_content_length_411(client):
+    # Streaming bodies without Content-Length don't get to bypass the ingress cap.
+    res = client.post(
+        "/analyze",
+        content=iter([b"x" * 1024]),
+        headers={"Content-Type": "multipart/form-data; boundary=x", "Transfer-Encoding": "chunked"},
+    )
+    assert res.status_code == 411
+
+
 def test_batch_frame_cap_413(client):
     frame = _jpeg_bytes()
     files = [("frames", (f"f{i}.jpg", frame, "image/jpeg")) for i in range(MAX_BATCH_FRAMES + 1)]

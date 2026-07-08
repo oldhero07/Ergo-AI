@@ -1,5 +1,6 @@
-"""Ergo AI pose-inference API. Stateless: decode -> infer -> respond, all in
-memory. Nothing is ever written to disk; uploads are never stored or logged.
+"""Ergo AI pose-inference API. Stateless: decode -> infer -> respond. Uploads
+are never stored or logged - discarded as soon as the response is built (the
+ASGI framework may transiently spool large multipart bodies while parsing).
 
 The canonical decode lives HERE and only here (determinism contract):
 Pillow decode -> ImageOps.exif_transpose (cv2.imread would silently ignore
@@ -13,8 +14,9 @@ import io
 from contextlib import asynccontextmanager
 
 import numpy as np
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from PIL import Image, ImageOps, UnidentifiedImageError
 
 from inference import MODEL_VERSION, SCHEMA, PoseEngine
@@ -23,6 +25,21 @@ MAX_UPLOAD_BYTES = 12 * 1024 * 1024
 MAX_BATCH_FRAMES = 16
 MAX_EDGE = 1536
 ALLOWED_FORMATS = {"JPEG", "PNG"}
+
+# Reject a decompression bomb before convert("RGB") can allocate for it: this
+# is a hard error above the cap (not Pillow's default warn-then-allow window).
+# 64 MP admits any current phone photo (48-50 MP flagships) with headroom.
+MAX_PIXELS = 64_000_000
+Image.MAX_IMAGE_PIXELS = MAX_PIXELS * 2  # keep Pillow's own guard above ours
+
+# Ingress body caps enforced from the Content-Length header BEFORE the body is
+# read - without this, the per-file size checks would only run after the whole
+# request body was already materialized in memory. Batch frames are ~100 KB
+# canvas JPEGs; 24 MB total is generous headroom.
+BODY_LIMITS = {
+    "/analyze": MAX_UPLOAD_BYTES + 1024 * 1024,
+    "/analyze-batch": 24 * 1024 * 1024,
+}
 
 ALLOWED_ORIGINS = [
     "https://rulaergo.com",
@@ -43,6 +60,25 @@ async def _lifespan(_: FastAPI):
 
 
 app = FastAPI(title="Ergo AI pose inference", docs_url=None, redoc_url=None, lifespan=_lifespan)
+
+
+@app.middleware("http")
+async def _enforce_body_limit(request: Request, call_next):
+    limit = BODY_LIMITS.get(request.url.path)
+    if limit is not None and request.method == "POST":
+        length = request.headers.get("content-length")
+        if length is None:
+            # Browsers always send Content-Length for FormData; anything without
+            # one is not our client and doesn't get to stream unbounded bytes.
+            return JSONResponse(status_code=411, content={"detail": "Content-Length required."})
+        try:
+            if int(length) > limit:
+                return JSONResponse(status_code=413, content={"detail": "Request body too large."})
+        except ValueError:
+            return JSONResponse(status_code=411, content={"detail": "Content-Length required."})
+    return await call_next(request)
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
@@ -58,9 +94,13 @@ def _decode(data: bytes) -> tuple[np.ndarray, int, int, float]:
     try:
         img = Image.open(io.BytesIO(data))
         fmt = img.format
+        # Hard pixel cap BEFORE convert("RGB") allocates ~3 bytes/pixel - a tiny
+        # PNG can declare enormous dimensions (decompression bomb).
+        if img.width * img.height > MAX_PIXELS:
+            raise HTTPException(status_code=422, detail="Image dimensions are too large.")
         img = ImageOps.exif_transpose(img)
         img = img.convert("RGB")
-    except (UnidentifiedImageError, OSError, ValueError):
+    except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError):
         raise HTTPException(status_code=422, detail="Could not decode the image.")
     if fmt not in ALLOWED_FORMATS:
         raise HTTPException(status_code=415, detail="Only JPEG and PNG are supported.")
