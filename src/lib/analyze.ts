@@ -45,6 +45,13 @@ export interface PoseAnalysis {
   /** Which pose-model delegate produced this result (diagnostic only - GPU/CPU
    * can yield subtly different landmark coordinates for the same image). */
   delegate?: "GPU" | "CPU" | null;
+  /** Server-inference path only: per-angle "confidently measured" flags for the
+   * UI/PDF to highlight review-worthy inputs. Never consumed by scoring. */
+  measuredFlags?: import("@/lib/angles2d").AngleMeasuredFlags;
+  /** Server-inference path only: photo looks angled (foreshortening warning). */
+  offProfile?: boolean;
+  /** Server-inference path only: exact model build that produced the keypoints. */
+  modelVersion?: string;
 }
 
 /** Full per-photo pipeline: decode → detect pose → render skeleton → RULA.

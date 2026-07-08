@@ -20,7 +20,7 @@ import {
 import { WorkerPipeline, WorkerUnavailableError } from "@/lib/pipeline/workerPipeline";
 
 export interface AnalysisPipeline {
-  readonly kind: "worker" | "inline";
+  readonly kind: "worker" | "inline" | "remote";
   analyzePhoto(file: File, onModelProgress?: ModelProgress): Promise<PoseAnalysis>;
   analyzeVideo(
     file: File,
@@ -63,6 +63,37 @@ function workerCapable(): boolean {
 
 /** Wraps the worker backend and silently, permanently downgrades to inline the
  * first time worker infrastructure fails - users always get a result. */
+/** Server-inference backend (Phase-2 opt-in via localStorage "ergo-remote"="1"):
+ * pose keypoints come from the pinned CPU model on the inference server, so the
+ * same photo scores identically on every device. Scoring stays client-side. */
+const remotePipeline: AnalysisPipeline = {
+  kind: "remote",
+  async analyzePhoto(file: File) {
+    const { analyzePhotoRemote } = await import("@/lib/remoteAnalyze");
+    return analyzePhotoRemote(file);
+  },
+  async analyzeVideo(file, onProgress, signal, options) {
+    const { analyzeVideoRemote } = await import("@/lib/remoteAnalyze");
+    return analyzeVideoRemote(file, onProgress, signal, options);
+  },
+  async warmUp() {
+    try {
+      const { warmUpRemote } = await import("@/lib/remoteAnalyze");
+      await warmUpRemote();
+    } catch {
+      /* warmup is best-effort */
+    }
+  },
+};
+
+function remoteEnabled(): boolean {
+  try {
+    return localStorage.getItem("ergo-remote") === "1";
+  } catch {
+    return false;
+  }
+}
+
 class AutoPipeline implements AnalysisPipeline {
   private worker: WorkerPipeline | null = new WorkerPipeline();
 
@@ -116,6 +147,10 @@ let pipeline: AnalysisPipeline | null = null;
 
 export function getPipeline(): AnalysisPipeline {
   if (!pipeline) {
+    if (remoteEnabled()) {
+      pipeline = remotePipeline;
+      return pipeline;
+    }
     // Set the deterministic-mode flag once for the main-thread (inline) path;
     // the worker path forwards the same pref via its init message.
     configureDeterministic(readDeterministicPref());
