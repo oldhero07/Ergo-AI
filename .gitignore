@@ -18,3 +18,4 @@ yarn-error.log*
 /server/models/
 __pycache__/
 .pytest_cache/
+/corpus-keypoints.local.json

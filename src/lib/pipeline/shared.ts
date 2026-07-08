@@ -42,6 +42,9 @@ export interface VideoAnalysis {
   temporal: { repeated: boolean; sustained: boolean };
   /** Wrist flexion was actually measured by the hand model on at least one frame. */
   wristMeasured: boolean;
+  /** Server-inference path: most sampled frames looked angled/frontal, so
+   * sagittal angles may be under-read (foreshortening) - warn, never suppress. */
+  offProfile?: boolean;
 }
 
 /** A raw per-frame detection before smoothing/scoring - produced by either backend. */
@@ -51,6 +54,10 @@ export interface RawVideoFrame {
   confidence: number;
   thumbUrl: string;
   wristFlex: number | null;
+  /** Server-inference path: the wrist VALUE above is always present (flag-never-
+   * suppress), and this carries whether it was confidently measured. The legacy
+   * path omits it - null wristFlex then means "not measured", as before. */
+  wristMeasured?: boolean;
 }
 
 export interface VideoSampleMeta {
@@ -185,6 +192,6 @@ export function assembleVideoAnalysis(
     sampledDurationSec: meta.sampledDurationSec,
     fps: meta.fps,
     temporal,
-    wristMeasured: raw.some((r) => r.wristFlex !== null),
+    wristMeasured: raw.some((r) => r.wristMeasured ?? r.wristFlex !== null),
   };
 }

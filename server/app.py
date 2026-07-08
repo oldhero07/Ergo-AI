@@ -24,7 +24,10 @@ from inference import MODEL_VERSION, SCHEMA, PoseEngine
 MAX_UPLOAD_BYTES = 12 * 1024 * 1024
 MAX_BATCH_FRAMES = 16
 MAX_EDGE = 1536
-ALLOWED_FORMATS = {"JPEG", "PNG"}
+# MPO = JPEG with multi-picture metadata (many Nikon/Sony DSLRs and some phones
+# emit it); Pillow reports it as its own format but decodes the primary frame
+# as a normal JPEG. Rejecting it would turn away real camera files.
+ALLOWED_FORMATS = {"JPEG", "PNG", "MPO"}
 
 # Reject a decompression bomb before convert("RGB") can allocate for it: this
 # is a hard error above the cap (not Pillow's default warn-then-allow window).

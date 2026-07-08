@@ -44,14 +44,19 @@ function uprightFigure(): ApiKeypoint[] {
   return kps;
 }
 
+/** Mirror a figure horizontally (x -> 1000 - x): right-facing becomes left-facing. */
+function mirrored(kps: ApiKeypoint[]): ApiKeypoint[] {
+  return kps.map(([x, y, s]) => [1000 - x, y, s] as ApiKeypoint);
+}
+
 describe("computeAngles2D on synthetic geometry", () => {
-  it("neutral upright figure reads ~0 everywhere", () => {
+  it("neutral upright figure reads ~0 everywhere (ears above shoulders -> neck 0)", () => {
     const { angles, flags } = computeAngles2D(uprightFigure(), 1000, 1000);
     expect(angles.upperArm).toBeCloseTo(0, 5);
     expect(angles.lowerArm).toBeCloseTo(0, 5);
     expect(angles.trunk).toBeCloseTo(0, 5);
     expect(angles.legAngle).toBeCloseTo(0, 5);
-    expect(Math.abs(angles.neck)).toBeLessThan(25); // ears sit slightly behind shoulders
+    expect(angles.neck).toBeCloseTo(0, 5);
     expect(flags.upperArm && flags.lowerArm && flags.trunk && flags.legs).toBe(true);
   });
 
@@ -91,6 +96,33 @@ describe("computeAngles2D on synthetic geometry", () => {
     expect(angles.neck).toBeGreaterThanOrEqual(0);
   });
 
+  it("left-facing mirror produces the identical extension reading (sign symmetry)", () => {
+    const kps = uprightFigure();
+    kps[KP.leftEar] = [470, 205, 1];
+    kps[KP.rightEar] = [470, 205, 1];
+    kps[KP.nose] = [505, 200, 1];
+    const rightFacing = computeAngles2D(kps, 1000, 1000).angles;
+    const leftFacing = computeAngles2D(mirrored(kps), 1000, 1000).angles;
+    expect(rightFacing.neck).toBeLessThan(0);
+    expect(leftFacing.neck).toBeCloseTo(rightFacing.neck, 5);
+  });
+
+  it("frontal ambiguous facing never reads as extension (no score-4 cliff trip)", () => {
+    // Frontal view: nose directly over the ear midline, head tilted laterally
+    // ~15° - a side-bend, not extension. The ambiguity guard must force the
+    // flexion sign regardless of which way the tilt happens to lean.
+    const kps = uprightFigure();
+    kps[KP.leftShoulder] = [400, 300, 1];
+    kps[KP.rightShoulder] = [600, 300, 1];
+    kps[KP.leftHip] = [440, 600, 1];
+    kps[KP.rightHip] = [560, 600, 1];
+    kps[KP.leftEar] = [455, 210, 1]; // head tilted toward image-left
+    kps[KP.rightEar] = [520, 190, 1];
+    kps[KP.nose] = [488, 205, 1]; // nose ≈ ear midline -> facing ambiguous
+    const { angles } = computeAngles2D(kps, 1000, 1000);
+    expect(angles.neck).toBeGreaterThanOrEqual(0);
+  });
+
   it("low-score joints flag measured:false but still produce values", () => {
     const kps = uprightFigure();
     kps[KP.leftKnee][2] = 0.1;
@@ -99,6 +131,33 @@ describe("computeAngles2D on synthetic geometry", () => {
     expect(flags.legs).toBe(false); // flagged for review...
     expect(angles.legAngle).toBeDefined(); // ...but never suppressed
     expect(angles.legAngle).toBeCloseTo(0, 5);
+  });
+
+  it("every flag covers every joint its value reads (no unguarded joints)", () => {
+    const base = () => {
+      const kps = uprightFigure();
+      // Make the scored side unambiguous (right arm slightly worse).
+      kps[KP.rightElbow] = [560, 440, 1];
+      kps[KP.rightWrist] = [560, 580, 1];
+      return kps;
+    };
+    // Scored-side HIP is read by the upper-arm trunk line -> must clear its flag.
+    let kps = base();
+    kps[KP.rightHip][2] = 0.1;
+    expect(computeAngles2D(kps, 1000, 1000, "right").flags.upperArm).toBe(false);
+    // HIPS are read by the neck's trunkUp -> must clear the neck flag.
+    kps = base();
+    kps[KP.leftHip][2] = 0.1;
+    kps[KP.rightHip][2] = 0.1;
+    expect(computeAngles2D(kps, 1000, 1000).flags.neck).toBe(false);
+    // NOSE is read by the neck facing sign -> must clear the neck flag.
+    kps = base();
+    kps[KP.nose][2] = 0.1;
+    expect(computeAngles2D(kps, 1000, 1000).flags.neck).toBe(false);
+    // ELBOW is read by the wrist's forearm vector -> must clear the wrist flag.
+    kps = base();
+    kps[KP.rightElbow][2] = 0.1;
+    expect(wristFlexion2D(kps, "right", 1000, 1000).measured).toBe(false);
   });
 
   it("forcedSide overrides the worse-arm heuristic", () => {
@@ -154,7 +213,18 @@ describe("isOffProfile", () => {
 });
 
 describe("computeAngles2D on real captured fixtures", () => {
-  const names = ["office-typing", "warehouse-lifting", "assembly-standing", "weaver-sample"];
+  // weaver-loom-1..3 are keypoints captured from real loin-loom field photos
+  // (the project's actual subject: floor-seated, backward-leaning, arms
+  // elevated) - the hardest case for hip occlusion and trunk reference.
+  // (weaver-sample is excluded: that bundled jpg is a copy of office-typing.)
+  const names = [
+    "office-typing",
+    "warehouse-lifting",
+    "assembly-standing",
+    "weaver-loom-1",
+    "weaver-loom-2",
+    "weaver-loom-3",
+  ];
 
   it.each(names)("%s produces finite, in-range angles", (name) => {
     const fx = fixture(name);

@@ -168,10 +168,13 @@ export function wristFlexion2D(
   const angle = angleBetween(forearm, hand);
 
   // Same 0.2-of-normalized-frame proximity gate as the old two-model pipeline.
+  // The elbow is in the flag because the forearm vector reads it (audit: a
+  // joint used by the value must be covered by its measured flag).
   const proximity = Math.hypot((root.x - wrist.x) / imgW, (root.y - wrist.y) / imgH);
   const measured =
     proximity <= 0.2 &&
-    Math.min(score(kps, i.handRoot), score(kps, i.middleMcp), score(kps, i.wr)) >= KP_SCORE_FLOOR;
+    Math.min(score(kps, i.handRoot), score(kps, i.middleMcp), score(kps, i.wr), score(kps, i.el)) >=
+      KP_SCORE_FLOOR;
   return { angle, measured };
 }
 
@@ -180,6 +183,13 @@ export function wristFlexion2D(
  * nearly superimpose, so their horizontal separation is small relative to the
  * torso length. Well off-profile shots under-read sagittal angles - the UI
  * warns (never suppresses) above this ratio.
+ *
+ * Threshold calibrated empirically on the 77-photo loin-loom field corpus:
+ * shoulder-separation/torso ratios there run min 0.25 / median 0.61 / p90 0.84
+ * (fully frontal ~0.7-0.8). 0.40 would warn on 95% of real photos (alarm
+ * fatigue); 0.55 keeps genuine side-view captures (all bundled samples) clean
+ * while still firing on clearly angled/frontal shots where the under-read is
+ * severe (~beyond 40-45 degrees of yaw).
  */
 export const OFF_PROFILE_RATIO = 0.55;
 
@@ -261,10 +271,15 @@ export function computeAngles2D(
   // 2D sagittal sign for neck extension: "forward" is the horizontal the person
   // faces, derived from nose-vs-ears; the trunk-perpendicular pointing that way
   // is the 2D analog of angles.ts's up x shoulderAxis. When facing is ambiguous
-  // (near-frontal view), default to flexion - the deadzone keeps neutral safe.
-  const facing = Math.sign(pt(kps, KP.nose).x - mid(pt(kps, KP.leftEar), pt(kps, KP.rightEar)).x) || 1;
+  // (near-frontal view: nose barely offset from the ear midline), the sign
+  // itself is forced to flexion - a frontal head tilt is lateral bend, not
+  // extension, and must not trip neckScore's any-negative-scores-4 cliff.
+  const noseDx = pt(kps, KP.nose).x - mid(pt(kps, KP.leftEar), pt(kps, KP.rightEar)).x;
+  const torsoLen = Math.hypot(trunkUp.x, trunkUp.y);
+  const facingAmbiguous = Math.abs(noseDx) < torsoLen * 0.05;
+  const facing = Math.sign(noseDx) || 1;
   const forward: P = facing > 0 ? { x: trunkUp.y, y: -trunkUp.x } : { x: -trunkUp.y, y: trunkUp.x };
-  const sagSign = neckSeg.x * forward.x + neckSeg.y * forward.y >= 0 ? 1 : -1;
+  const sagSign = facingAmbiguous || neckSeg.x * forward.x + neckSeg.y * forward.y >= 0 ? 1 : -1;
   const neck = signedNeck(angleBetween(neckSeg, trunkUp), sagSign);
 
   // Trunk inclination from image vertical (server already applied EXIF upright).
@@ -272,18 +287,23 @@ export function computeAngles2D(
 
   const wrist = wristFlexion2D(kps, side, imgW, imgH);
 
+  // Each flag covers EXACTLY the joints its value's derivation reads - a joint
+  // used but unflagged is this repo's historical unguarded-visibility bug in
+  // its new form (audit findings: upper arm uses the hip for the trunk line;
+  // neck uses the hips via trunkUp and the nose via the facing sign).
+  const trunkAnchorsOk =
+    Math.min(
+      score(kps, KP.leftShoulder),
+      score(kps, KP.rightShoulder),
+      score(kps, KP.leftHip),
+      score(kps, KP.rightHip),
+    ) >= KP_SCORE_FLOOR;
   const flags: AngleMeasuredFlags = {
-    upperArm: Math.min(score(kps, i.sh), score(kps, i.el)) >= KP_SCORE_FLOOR,
+    upperArm: Math.min(score(kps, i.sh), score(kps, i.el), score(kps, i.hip)) >= KP_SCORE_FLOOR,
     lowerArm: Math.min(score(kps, i.sh), score(kps, i.el), score(kps, i.wr)) >= KP_SCORE_FLOOR,
     wrist: wrist.measured,
-    neck: Math.min(score(kps, earVis), score(kps, KP.leftShoulder), score(kps, KP.rightShoulder)) >= KP_SCORE_FLOOR,
-    trunk:
-      Math.min(
-        score(kps, KP.leftShoulder),
-        score(kps, KP.rightShoulder),
-        score(kps, KP.leftHip),
-        score(kps, KP.rightHip),
-      ) >= KP_SCORE_FLOOR,
+    neck: Math.min(score(kps, earVis), score(kps, KP.nose)) >= KP_SCORE_FLOOR && trunkAnchorsOk,
+    trunk: trunkAnchorsOk,
     legs: Math.min(score(kps, i.hip), score(kps, i.kn), score(kps, i.an)) >= KP_SCORE_FLOOR,
   };
 

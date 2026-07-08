@@ -109,6 +109,7 @@ export async function analyzeVideoRemote(
 ): Promise<VideoAnalysis> {
   const raw: RawVideoFrame[] = [];
   let skippedNoPose = 0;
+  let offProfileFrames = 0;
 
   interface Pending {
     timeSec: number;
@@ -130,13 +131,17 @@ export async function analyzeVideoRemote(
         skippedNoPose++;
         continue;
       }
-      const { angles, wristAngle, flags } = computeAngles2D(r.keypoints, r.image.w, r.image.h);
+      const { angles, wristAngle, flags, offProfile } = computeAngles2D(r.keypoints, r.image.w, r.image.h);
+      if (offProfile) offProfileFrames++;
       raw.push({
         timeSec: batch[j].timeSec,
         angles,
         confidence: angles.confidence,
         thumbUrl: batch[j].thumbUrl,
-        wristFlex: flags.wrist ? wristAngle : null,
+        // Flag-never-suppress, identical to the photo path: the measured wrist
+        // VALUE always flows into scoring; wristMeasured carries the flag.
+        wristFlex: wristAngle,
+        wristMeasured: flags.wrist,
       });
     }
   };
@@ -159,7 +164,9 @@ export async function analyzeVideoRemote(
 
   // No low-confidence gate in the server path (flag-never-suppress); the field
   // remains for UI compatibility and honest reporting of what was skipped.
-  return assembleVideoAnalysis(raw, meta, { skippedNoPose, skippedLowConfidence: 0 });
+  const analysis = assembleVideoAnalysis(raw, meta, { skippedNoPose, skippedLowConfidence: 0 });
+  analysis.offProfile = raw.length > 0 && offProfileFrames > raw.length / 2;
+  return analysis;
 }
 
 /** Best-effort warm-up: wake the Space so the first Analyze isn't the wake. */
