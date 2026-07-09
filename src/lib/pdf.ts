@@ -1,5 +1,5 @@
 import { jsPDF } from "jspdf";
-import type { PoseAnalysis } from "@/lib/analyze";
+import type { PoseAnalysis } from "@/lib/analysis";
 import type { AssessmentResult, GroupBreakdown, PostureInput, RiskBand } from "@/assessment/types";
 import {
   buildNioshRecommendations,
@@ -741,14 +741,13 @@ async function addPhotoPage(doc: jsPDF, item: PdfReportItem, isFirstPage: boolea
 }
 
 /** Stamp every page with a footer: tool + method + generation time (left) and "Page X of Y" (right). */
-/** `delegate` (GPU/CPU pose-model backend, when known) is appended as a diagnostic -
- * GPU and CPU backends can produce subtly different landmark coordinates for the
- * same photo, so this makes a later cross-device comparison attributable instead
- * of a mystery, without changing anything about the report itself. */
-function addFooters(doc: jsPDF, method: string, delegate?: "GPU" | "CPU" | null): void {
+/** `modelVersion` (the exact pose-model build that produced the keypoints) is
+ * appended as provenance - it makes any later score comparison attributable to
+ * a specific model rather than a mystery. */
+function addFooters(doc: jsPDF, method: string, modelVersion?: string): void {
   const pages = doc.getNumberOfPages();
   const stamp = new Date().toLocaleString();
-  const delegateSuffix = delegate ? ` · ${delegate}` : "";
+  const delegateSuffix = modelVersion ? ` · ${modelVersion}` : "";
   for (let p = 1; p <= pages; p++) {
     doc.setPage(p);
     const pw = doc.internal.pageSize.getWidth();
@@ -908,7 +907,7 @@ export async function exportPdfReport(items: PdfReportItem[], meta: ReportMeta =
   const firstScored = firstScoredItem?.analysis.assessment;
   const method = firstScored?.method ?? "RULA";
   const maxScore = firstScored?.maxScore ?? 7;
-  const delegate = firstScoredItem?.analysis.delegate;
+  const modelVersion = firstScoredItem?.analysis.modelVersion;
 
   // Page 1 is always the cover sheet (provenance + risk-band legend).
   addCoverPage(doc, items, meta, method, maxScore);
@@ -926,7 +925,7 @@ export async function exportPdfReport(items: PdfReportItem[], meta: ReportMeta =
   // Add visual methodology page
   addMethodologyPage(doc, false);
 
-  addFooters(doc, method, delegate);
+  addFooters(doc, method, modelVersion);
   doc.save(timestampedFilename(method));
 }
 

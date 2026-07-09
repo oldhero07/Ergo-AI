@@ -9,10 +9,9 @@ import type { AnalysisMode, UploadItem } from "@/types";
 
 /**
  * Thumbnail tile. Three states:
- *  - converting: the prep worker is still decoding this photo (spinner).
- *  - done but no preview: a HEIC that couldn't be previewed on this browser
- *    (non-Apple, native decode unavailable). Not an error and not a spinner - a
- *    calm labelled placeholder so it's clear the photo is queued, not broken.
+ *  - converting: the preview thumbnail is still being prepared (spinner).
+ *  - done but no preview: a calm labelled placeholder so it's clear the photo
+ *    is queued, not broken.
  *  - preview ready: the actual thumbnail image.
  */
 function Thumb({ url, name, converting }: { url: string; name: string; converting?: boolean }) {
@@ -50,12 +49,11 @@ interface UploaderProps {
   onUseSample?: (key: "office" | "warehouse" | "assembly") => void;
   videoSettings?: VideoSettingsValues;
   onVideoSettingsChange?: (s: VideoSettingsValues) => void;
-  budgetReduced?: boolean;
   /** Batch-limit / skipped-files caution, shown right under the dropzone. */
   notice?: string | null;
   /** Photo-batch cap, surfaced in the dropzone hint. */
   maxBatch?: number;
-  /** True while queued HEICs are still converting - Analyze waits for them. */
+  /** True while queued photos are still preparing - Analyze waits for them. */
   preparing?: boolean;
 }
 
@@ -71,7 +69,6 @@ export function Uploader({
   onUseSample,
   videoSettings,
   onVideoSettingsChange,
-  budgetReduced,
   notice,
   maxBatch,
   preparing,
@@ -170,7 +167,7 @@ export function Uploader({
       </div>
 
       {isVideoMode && videoSettings && onVideoSettingsChange && (
-        <VideoSettings settings={videoSettings} onChange={onVideoSettingsChange} budgetReduced={budgetReduced} />
+        <VideoSettings settings={videoSettings} onChange={onVideoSettingsChange} />
       )}
 
       {/* Right under the dropzone so it can't scroll out of view below a big grid. */}

@@ -6,8 +6,9 @@
  * server performs the single canonical decode/downscale.
  */
 
-/** Set at deploy time (Phase 3a); overridable for local dev via .env.local. */
-const DEFAULT_POSE_API = "https://oldhero07-ergo-pose.hf.space";
+/** The deployed inference service (Cloud Run, us-central1, scale-to-zero).
+ * Overridable for local dev via .env.local (VITE_POSE_API_URL). */
+const DEFAULT_POSE_API = "https://ergo-pose-599737870578.us-central1.run.app";
 
 export function poseApiBase(): string {
   return (import.meta.env.VITE_POSE_API_URL as string | undefined) ?? DEFAULT_POSE_API;
@@ -82,11 +83,11 @@ export async function apiAnalyzeBatch(frames: Blob[], signal?: AbortSignal): Pro
 }
 
 /** One quick health probe; resolves false instead of throwing (poll-friendly). */
-export async function apiHealthz(timeoutMs = 8000): Promise<HealthzResult | null> {
+export async function apiHealth(timeoutMs = 8000): Promise<HealthzResult | null> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetch(`${poseApiBase()}/healthz`, { signal: controller.signal });
+    const res = await fetch(`${poseApiBase()}/health`, { signal: controller.signal });
     if (!res.ok) return null;
     return (await res.json()) as HealthzResult;
   } catch {

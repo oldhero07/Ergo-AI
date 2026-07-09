@@ -9,7 +9,7 @@ import {
   upperArmScore,
   wristScore,
 } from "@/assessment/rula/rula";
-import type { AngleSet } from "@/lib/angles";
+import type { AngleSet } from "@/lib/angles2d";
 
 describe("RULA category scores", () => {
   it("scores upper arm by elevation with adjustments", () => {

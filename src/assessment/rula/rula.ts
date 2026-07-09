@@ -1,4 +1,4 @@
-import type { AngleSet } from "@/lib/angles";
+import type { AngleSet } from "@/lib/angles2d";
 import type { AssessmentMethod, AssessmentResult, PostureInput, RiskBand } from "@/assessment/types";
 import { lookupA, lookupB, lookupC } from "@/assessment/rula/rulaTables";
 import { clamp, upperArmScore } from "@/assessment/scoreUtils";

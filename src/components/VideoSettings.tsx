@@ -39,11 +39,9 @@ const RES_OPTIONS = [
 interface VideoSettingsProps {
   settings: VideoSettingsValues;
   onChange: (settings: VideoSettingsValues) => void;
-  /** True when the device budget constrains some settings. */
-  budgetReduced?: boolean;
 }
 
-export function VideoSettings({ settings, onChange, budgetReduced }: VideoSettingsProps) {
+export function VideoSettings({ settings, onChange }: VideoSettingsProps) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -139,12 +137,6 @@ export function VideoSettings({ settings, onChange, budgetReduced }: VideoSettin
             </select>
           </div>
 
-          {budgetReduced && (
-            <p className="rounded-lg bg-amber-50 px-3 py-2 text-[11px] text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
-              This device has limited memory — the engine may lower sample rate and resolution automatically
-              to prevent crashes. Scoring thresholds are unchanged.
-            </p>
-          )}
         </div>
       )}
     </div>

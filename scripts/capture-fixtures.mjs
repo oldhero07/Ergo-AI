@@ -14,7 +14,7 @@ const samplesDir = join(root, "public", "samples");
 const outDir = join(root, "src", "test", "fixtures", "keypoints");
 const base = process.argv[2] ?? "http://localhost:7860";
 
-const health = await fetch(`${base}/healthz`).then((r) => r.json());
+const health = await fetch(`${base}/health`).then((r) => r.json());
 console.log(`server ok: ${health.model_version}`);
 
 await mkdir(outDir, { recursive: true });

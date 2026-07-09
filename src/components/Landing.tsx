@@ -1,7 +1,5 @@
-import { useState } from "react";
-import { Camera, Video, ScanLine, Gauge, ShieldCheck, ArrowRight, Cpu, FileText } from "lucide-react";
+import { Camera, Video, ScanLine, Gauge, ShieldCheck, ArrowRight, Scale, FileText } from "lucide-react";
 import { Logo } from "@/components/Logo";
-import { HeroSceneLazy } from "@/components/HeroSceneLazy";
 import type { AnalysisMode } from "@/types";
 
 /**
@@ -10,7 +8,6 @@ import type { AnalysisMode } from "@/types";
  * the chosen flow (photo or video) via `onStart`.
  */
 export function Landing({ onStart }: { onStart: (mode: AnalysisMode) => void }) {
-  const [show3d, setShow3d] = useState(false);
   return (
     <div className="animate-in fade-in duration-500">
       {/* Hero */}
@@ -18,7 +15,7 @@ export function Landing({ onStart }: { onStart: (mode: AnalysisMode) => void }) 
         <div className="grid items-center gap-10 lg:grid-cols-2">
           <div className="text-center lg:text-left">
             <span className="glass glow-ring inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium text-muted-foreground">
-              <ShieldCheck className="h-3.5 w-3.5 text-primary" /> Runs in your browser · nothing is uploaded
+              <ShieldCheck className="h-3.5 w-3.5 text-primary" /> Processed in memory · never stored
             </span>
             <h1 className="mt-6 text-balance bg-gradient-to-r from-primary via-foreground to-foreground bg-clip-text text-4xl font-semibold tracking-tight text-transparent sm:text-5xl">
               Ergonomic risk scoring, made friendly
@@ -31,9 +28,9 @@ export function Landing({ onStart }: { onStart: (mode: AnalysisMode) => void }) 
 
             {/* HUD stat chips */}
             <div className="mt-5 flex flex-wrap items-center justify-center gap-2 lg:justify-start">
-              <HudChip>33 landmarks · 3D</HudChip>
+              <HudChip>133 keypoints</HudChip>
               <HudChip>RULA · REBA</HudChip>
-              <HudChip>100% on-device</HudChip>
+              <HudChip>Same photo, same score, every device</HudChip>
             </div>
 
             <div className="mt-8 grid gap-3 sm:grid-cols-2">
@@ -51,15 +48,10 @@ export function Landing({ onStart }: { onStart: (mode: AnalysisMode) => void }) 
                 onClick={() => onStart("video")}
               />
             </div>
-            <p className="mt-3 text-xs text-muted-foreground">JPG, PNG, iPhone HEIC · MP4, MOV, WebM</p>
+            <p className="mt-3 text-xs text-muted-foreground">JPG or PNG · MP4, MOV, WebM</p>
           </div>
-          <div id="hero-visual-slot" className="relative hidden min-h-[420px] lg:block">
-            <div className={show3d ? "invisible absolute inset-0" : ""}>
-              <HeroVisual />
-            </div>
-            <div className={show3d ? "absolute inset-0" : "sr-only"} aria-hidden={!show3d}>
-              <HeroSceneLazy onReady={() => setShow3d(true)} />
-            </div>
+          <div className="relative hidden min-h-[420px] lg:block">
+            <HeroVisual />
           </div>
         </div>
       </section>
@@ -79,10 +71,10 @@ export function Landing({ onStart }: { onStart: (mode: AnalysisMode) => void }) 
             <div className="absolute top-[28px] left-[calc(16.66%+0px)] right-[calc(16.66%+0px)] hidden h-px bg-gradient-to-r from-primary/20 via-primary/40 to-primary/20 sm:block" />
             <div className="grid gap-4 sm:grid-cols-3">
               <Step icon={<Camera className="h-5 w-5" />} n="1" title="Upload">
-                A clear side view of the working posture - photo or short clip. Everything stays on your device.
+                A clear side view of the working posture - photo or short clip. Analyzed in memory, never stored.
               </Step>
               <Step icon={<ScanLine className="h-5 w-5" />} n="2" title="AI reads the pose">
-                On-device AI (Google MediaPipe Pose) locates 33 body landmarks and derives the joint angles.
+                Research-grade AI (RTMPose wholebody) locates 133 body and hand keypoints and derives the joint angles.
               </Step>
               <Step icon={<Gauge className="h-5 w-5" />} n="3" title="Score + report">
                 A RULA or REBA grand score with a per-joint breakdown and an exportable PDF.
@@ -113,11 +105,13 @@ export function Landing({ onStart }: { onStart: (mode: AnalysisMode) => void }) 
       {/* Why / privacy */}
       <section className="border-t py-14 grid-bg">
         <div className="mx-auto grid max-w-4xl gap-6 px-2 sm:grid-cols-3">
-          <Feature icon={<ShieldCheck className="h-5 w-5" />} title="Private by design">
-            Photos and videos are decoded and scored in your browser. Nothing is sent to a server.
+          <Feature icon={<ShieldCheck className="h-5 w-5" />} title="Never stored">
+            Photos are analyzed in memory on our inference server and immediately discarded - never
+            saved, logged, or used for training.
           </Feature>
-          <Feature icon={<Cpu className="h-5 w-5" />} title="Works offline">
-            After the first load the pose model is cached, so it keeps working without a connection.
+          <Feature icon={<Scale className="h-5 w-5" />} title="Consistent everywhere">
+            One pinned model on fixed hardware: the same photo produces the same score on every
+            device, every time.
           </Feature>
           <Feature icon={<FileText className="h-5 w-5" />} title="Professional reports">
             Cover page, risk-band legend, measured angles and assumptions - ready to share.
@@ -235,7 +229,7 @@ function HeroVisual() {
             POSE ENGINE: ACTIVE
           </text>
           <text x={10} y={52} className="font-mono fill-muted-foreground" style={{ fontSize: 7 }}>
-            33 LANDMARKS / CONF: 98.4%
+            133 KEYPOINTS / CONF: 98.4%
           </text>
         </g>
 

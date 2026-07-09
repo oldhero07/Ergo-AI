@@ -36,8 +36,8 @@ def _jpeg_bytes(w=64, h=48, exif_orientation=None) -> bytes:
     return buf.getvalue()
 
 
-def test_healthz(client):
-    res = client.get("/healthz")
+def test_health(client):
+    res = client.get("/health")
     assert res.status_code == 200
     body = res.json()
     assert body["status"] == "ok"
@@ -45,12 +45,12 @@ def test_healthz(client):
 
 
 def test_cors_allows_prod_origin(client):
-    res = client.get("/healthz", headers={"Origin": "https://rulaergo.com"})
+    res = client.get("/health", headers={"Origin": "https://rulaergo.com"})
     assert res.headers.get("access-control-allow-origin") == "https://rulaergo.com"
 
 
 def test_cors_rejects_unknown_origin(client):
-    res = client.get("/healthz", headers={"Origin": "https://evil.example"})
+    res = client.get("/health", headers={"Origin": "https://evil.example"})
     assert "access-control-allow-origin" not in res.headers
 
 

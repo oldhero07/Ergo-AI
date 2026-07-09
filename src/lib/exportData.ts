@@ -1,6 +1,6 @@
 import { getMethod } from "@/assessment/registry";
 import type { PostureInput } from "@/assessment/types";
-import type { PoseAnalysis, VideoAnalysis } from "@/lib/analyze";
+import type { PoseAnalysis, VideoAnalysis } from "@/lib/analysis";
 
 /**
  * CSV / JSON export helpers for photo and video analysis batches. Pure

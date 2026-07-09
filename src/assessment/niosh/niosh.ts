@@ -1,6 +1,13 @@
-import type { Landmark } from "@mediapipe/tasks-vision";
+import type { LandmarkPoint as Landmark } from "@/lib/analysis";
 import type { RiskBand } from "@/assessment/types";
-import { isVisible } from "@/lib/angles";
+
+/** Landmark-visibility trust check (moved here from the removed angles.ts -
+ * this geometry estimator is its only remaining consumer; it runs on legacy
+ * 3D world landmarks, which the server-inference path does not provide). */
+const WORLD_VIS_FLOOR = 0.5;
+function isVisible(lm: { visibility?: number } | undefined, threshold = WORLD_VIS_FLOOR): boolean {
+  return (lm?.visibility ?? 0) > threshold;
+}
 
 /**
  * Revised NIOSH Lifting Equation (Waters, Putz-Anderson & Garg 1994,

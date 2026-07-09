@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState, useEffect } from "react";
 import { AlertTriangle, FileDown, Loader2 } from "lucide-react";
-import type { VideoAnalysis } from "@/lib/analyze";
+import type { VideoAnalysis } from "@/lib/analysis";
 import type { AssessmentResult, PostureInput, RiskBand } from "@/assessment/types";
 import { getMethod, methods } from "@/assessment/registry";
 import { Scorecard } from "@/components/Scorecard";

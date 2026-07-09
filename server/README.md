@@ -18,7 +18,7 @@ Stateless pose-estimation API backing [rulaergo.com](https://rulaergo.com). Acce
 
 ## Endpoints
 
-- `GET /healthz` → `{status, model_version}` — used by the client to wake the Space and show warm-up progress.
+- `GET /health` → `{status, model_version}` — used by the client to wake the Space and show warm-up progress.
 - `POST /analyze` — multipart field `image` (JPEG/PNG, ≤12 MB) → keypoints for the largest detected person.
 - `POST /analyze-batch` — multipart field `frames` (≤16 same-size JPEGs) → per-frame keypoints; person detection runs on the first frame only and the box is reused.
 

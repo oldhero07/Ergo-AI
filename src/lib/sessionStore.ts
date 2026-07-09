@@ -8,7 +8,7 @@
  * the (non-persistable) video blob URL.
  */
 import { get, set, del } from "idb-keyval";
-import type { AngleSet } from "@/lib/angles";
+import type { AngleSet } from "@/lib/angles2d";
 import type { PostureInput } from "@/assessment/types";
 
 const KEY = "ergo-session-v1";

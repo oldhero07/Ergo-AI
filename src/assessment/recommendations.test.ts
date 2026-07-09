@@ -4,7 +4,7 @@ import { buildAutoInput, computeRula } from "@/assessment/rula/rula";
 import { computeReba } from "@/assessment/reba/reba";
 import { computeOwas } from "@/assessment/owas/owas";
 import { computeNiosh } from "@/assessment/niosh/niosh";
-import type { AngleSet } from "@/lib/angles";
+import type { AngleSet } from "@/lib/angles2d";
 
 const angles = (over: Partial<AngleSet> = {}): AngleSet => ({
   upperArm: 30,

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { PoseAnalysis } from "@/lib/analyze";
+import type { PoseAnalysis } from "@/lib/analysis";
 import type { PdfReportItem } from "@/lib/pdf";
 
 // jsPDF touches canvas/image internals that don't exist in vitest's default

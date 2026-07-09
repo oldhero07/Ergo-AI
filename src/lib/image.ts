@@ -1,8 +1,3 @@
-/** iPhone/HEIF photos that the browser's native decoder usually can't read. */
-export function isHeic(_file: File): boolean {
-  return false;
-}
-
 /** Longest edge fed to analysis. Detection resizes to a much smaller model
  * input and annotation renders at MAX_RENDER_SIZE, so decoding a 24-48MP photo
  * at full resolution only cost memory and worker-transfer time. */
@@ -71,4 +66,34 @@ export const MAX_RENDER_SIZE = 1280;
 
 export function fitScale(width: number, height: number, max = MAX_RENDER_SIZE): number {
   return Math.min(1, max / Math.max(width, height));
+}
+
+/**
+ * Small grid-preview thumbnail as a blob object URL (rendering dozens of
+ * full-resolution object URLs is what used to freeze big drops). Returns null
+ * on any failure - the caller falls back to the raw file URL.
+ */
+export async function makeThumbUrl(file: File, maxEdge = 320, quality = 0.75): Promise<string | null> {
+  try {
+    const bitmap = await loadBitmap(file);
+    try {
+      const scale = fitScale(bitmap.width, bitmap.height, maxEdge);
+      const w = Math.max(1, Math.round(bitmap.width * scale));
+      const h = Math.max(1, Math.round(bitmap.height * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return null;
+      ctx.drawImage(bitmap, 0, 0, w, h);
+      const blob = await new Promise<Blob | null>((resolve) =>
+        canvas.toBlob(resolve, "image/jpeg", quality),
+      );
+      return blob ? URL.createObjectURL(blob) : null;
+    } finally {
+      bitmap.close();
+    }
+  } catch {
+    return null;
+  }
 }

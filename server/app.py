@@ -126,8 +126,8 @@ def _result(payload: dict, w: int, h: int) -> dict:
     }
 
 
-@app.get("/healthz")
-def healthz() -> dict:
+@app.get("/health")
+def health() -> dict:
     return {"status": "ok" if engine is not None else "loading", "model_version": MODEL_VERSION}
 
 

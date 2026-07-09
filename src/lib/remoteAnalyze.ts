@@ -5,14 +5,14 @@
  * `VideoAnalysis` shapes as the legacy on-device path so every downstream
  * consumer (results UI, exports, session restore) works untouched.
  */
-import type { PoseAnalysis, VideoProgress, AnalyzeVideoOptions } from "@/lib/analyze";
-import { apiAnalyzeBatch, apiAnalyzePhoto, apiHealthz, type AnalyzeResult, type ApiKeypoint } from "@/lib/poseClient";
+import type { PoseAnalysis, VideoProgress, AnalyzeVideoOptions } from "@/lib/analysis";
+import { apiAnalyzeBatch, apiAnalyzePhoto, apiHealth, type AnalyzeResult, type ApiKeypoint } from "@/lib/poseClient";
 import { computeAngles2D } from "@/lib/angles2d";
 import { annotateSkeleton2D, renderOriginalJpeg2D } from "@/lib/annotate2d";
 import { loadBitmap } from "@/lib/image";
 import { buildAutoInput, computeRula } from "@/assessment/rula/rula";
 import { sampleVideoFrames } from "@/lib/videoFrames";
-import { assembleVideoAnalysis, type RawVideoFrame, type VideoAnalysis } from "@/lib/pipeline/shared";
+import { assembleVideoAnalysis, type RawVideoFrame, type VideoAnalysis } from "@/lib/video/assemble";
 
 /** Scale server keypoints (original pixel space) into a possibly-downscaled
  * local bitmap's space so the overlay lines up. */
@@ -171,5 +171,5 @@ export async function analyzeVideoRemote(
 
 /** Best-effort warm-up: wake the Space so the first Analyze isn't the wake. */
 export async function warmUpRemote(): Promise<void> {
-  await apiHealthz();
+  await apiHealth();
 }

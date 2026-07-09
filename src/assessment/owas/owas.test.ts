@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { lookupActionCategory } from "@/assessment/owas/owasTables";
 import { armsCode, backCode, computeOwas, legsCode, loadCode } from "@/assessment/owas/owas";
 import { buildAutoInput } from "@/assessment/rula/rula";
-import type { AngleSet } from "@/lib/angles";
+import type { AngleSet } from "@/lib/angles2d";
 
 /** Spot-checks against the published OWAS classification (verified against two
  * independent published implementations that agree cell-for-cell). Code order:

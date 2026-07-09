@@ -10,9 +10,8 @@ import { MeasurementSummary } from "@/components/MeasurementSummary";
 import { COMPUTE_LOOP_MS } from "@/hooks/useComputeTimeline";
 import { useServerHealth } from "@/hooks/useServerHealth";
 import { Button } from "@/components/ui/button";
-import type { PoseAnalysis, VideoAnalysis } from "@/lib/analyze";
+import type { PoseAnalysis, VideoAnalysis } from "@/lib/analysis";
 import { getPipeline } from "@/lib/pipeline";
-import { getBudget } from "@/lib/pipeline/budget";
 import {
   clearSession,
   loadSession,
@@ -20,8 +19,7 @@ import {
   shrinkToDataUrl,
   type SessionSnapshot,
 } from "@/lib/sessionStore";
-import { isHeic } from "@/lib/image";
-import { prepareImage } from "@/lib/prepare";
+import { makeThumbUrl } from "@/lib/image";
 import { validateVideoFile } from "@/lib/videoFile";
 import { VideoResults } from "@/components/VideoResults";
 import { DEFAULT_VIDEO_SETTINGS, type VideoSettingsValues } from "@/components/VideoSettings";
@@ -32,7 +30,6 @@ import { exportPdfReport } from "@/lib/pdf";
 import { getMethod, methods } from "@/assessment/registry";
 import { estimateNioshGeometry } from "@/assessment/niosh/niosh";
 import { NioshCalculator, type NioshPrefill } from "@/components/NioshCalculator";
-import { PoseViewerLazy } from "@/components/PoseViewerLazy";
 import { RecommendationsPanel } from "@/components/RecommendationsPanel";
 import { downloadText, exportJson, photoCsv } from "@/lib/exportData";
 import type { PostureInput } from "@/assessment/types";
@@ -41,14 +38,9 @@ import type { UploadItem } from "@/types";
 type Phase = "landing" | "idle" | "computing" | "results" | "video" | "niosh";
 type ResultMap = Record<string, PoseAnalysis>;
 
-// Device-aware quality budget: caps batch size and video sampling density on
-// low-memory devices so a big job can't crash the tab. Detection thresholds
-// and the model are never reduced - only how much we sample.
-const BUDGET = getBudget();
-const MAX_BATCH = BUDGET.maxBatch;
-// HEIC is capped lower than plain images: on non-Apple browsers each decode is a
-// ~380MB libheif spike, so a huge iPhone-photo drop can't exhaust memory.
-const MAX_HEIC_BATCH = BUDGET.maxHeicBatch;
+// One fixed batch cap for every device: inference runs server-side, so device
+// memory no longer constrains how much a session can score.
+const MAX_BATCH = 30;
 
 /** Revoke any blob: object URLs a result set holds (worker-path images). */
 function revokeResultUrls(results: ResultMap): void {
@@ -130,38 +122,24 @@ export default function App() {
     };
   }, []);
 
-  // Prepare each queued photo off the main thread: a real small thumbnail for
-  // the grid (rendering 30 full-resolution object URLs is what froze/crashed
-  // big drops) and, for HEIC, a JPEG re-encode that replaces the file so
-  // analysis skips the slow wasm decode entirely. Failure is non-fatal.
+  // Build a small grid thumbnail per queued photo (rendering 30 full-resolution
+  // object URLs is what froze/crashed big drops). Failure is non-fatal: the raw
+  // file URL still renders for any browser-readable image.
   const prepareItem = useCallback(async (id: string, file: File) => {
-    const prepared = await prepareImage(file);
+    const thumbUrl = await makeThumbUrl(file);
     if (!liveIdsRef.current.has(id)) {
-      if (prepared.thumbUrl) URL.revokeObjectURL(prepared.thumbUrl);
+      if (thumbUrl) URL.revokeObjectURL(thumbUrl);
       return;
     }
-    // No thumb: for a plain image the raw file URL still renders, so use it. For
-    // HEIC a raw URL can't render on non-Apple browsers (broken-image flash), so
-    // leave it empty and let the tile show a calm "queued" placeholder instead.
-    const url = prepared.thumbUrl ?? (isHeic(file) ? "" : URL.createObjectURL(file));
-    setItems((prev) =>
-      prev.map((it) =>
-        it.id === id
-          ? { ...it, url, file: prepared.analysisFile ?? it.file, converting: false }
-          : it,
-      ),
-    );
+    const url = thumbUrl ?? URL.createObjectURL(file);
+    setItems((prev) => prev.map((it) => (it.id === id ? { ...it, url, converting: false } : it)));
   }, []);
 
   const addFiles = useCallback(
     (files: File[]) => {
-      // Accept anything the browser labels as an image, plus HEIC/HEIF by extension
-      // (some browsers report an empty MIME type for iPhone .heic files).
+      // Accept JPEG/PNG - the formats the inference server decodes.
       const imgs = files.filter(
-        (f) =>
-          f.type.startsWith("image/") &&
-          !/\.(heic|heif)$/i.test(f.name) &&
-          !/image\/(heic|heif)/i.test(f.type)
+        (f) => f.type.startsWith("image/") && !/image\/(heic|heif)/i.test(f.type) && !/\.(heic|heif)$/i.test(f.name),
       );
       const skipped = files.length - imgs.length;
       if (!imgs.length) {
@@ -174,36 +152,15 @@ export default function App() {
         return;
       }
 
-      // Fill against two caps at once: the overall batch limit and the tighter
-      // HEIC limit (each non-native HEIC decode is a big memory spike). Walk the
-      // dropped files in order, taking each until either cap for its type is hit.
-      let overallRoom = Math.max(0, MAX_BATCH - items.length);
-      let heicRoom = Math.max(0, MAX_HEIC_BATCH - items.filter((it) => isHeic(it.file)).length);
-      const toAdd: File[] = [];
-      let skippedOverall = 0;
-      let skippedHeic = 0;
-      for (const f of imgs) {
-        const heic = isHeic(f);
-        if (overallRoom <= 0) {
-          skippedOverall++;
-        } else if (heic && heicRoom <= 0) {
-          skippedHeic++;
-        } else {
-          toAdd.push(f);
-          overallRoom--;
-          if (heic) heicRoom--;
-        }
-      }
+      const overallRoom = Math.max(0, MAX_BATCH - items.length);
+      const toAdd = imgs.slice(0, overallRoom);
+      const skippedOverall = imgs.length - toAdd.length;
 
       if (skippedOverall > 0) {
         setNotice(
           toAdd.length === 0
             ? `Caution: Only ${MAX_BATCH} photos allowed at once - please remove some to add more.`
-            : `Caution: Only ${MAX_BATCH} photos allowed at once - added ${toAdd.length}, skipped ${skippedOverall + skippedHeic}.`,
-        );
-      } else if (skippedHeic > 0) {
-        setNotice(
-          `Caution: up to ${MAX_HEIC_BATCH} iPhone (HEIC) photos at once on this device - added ${toAdd.length}, skipped ${skippedHeic}. Convert to JPG to add more.`,
+            : `Caution: Only ${MAX_BATCH} photos allowed at once - added ${toAdd.length}, skipped ${skippedOverall}.`,
         );
       } else if (skipped > 0) {
         setNotice(`Added ${toAdd.length} photo${toAdd.length > 1 ? "s" : ""} - skipped ${skipped} non-image file${skipped > 1 ? "s" : ""}.`);
@@ -460,7 +417,7 @@ export default function App() {
               setVideoProgress(total > 0 ? Math.min(100, Math.round((done / total) * 100)) : null);
             },
             controller.signal,
-            { fps: Math.min(videoSettings.fps, BUDGET.fps), maxFrames: Math.min(videoSettings.durationSec * videoSettings.fps, BUDGET.maxFrames), maxEdge: Math.min(videoSettings.maxEdge, BUDGET.maxEdge), maxDurationSec: videoSettings.durationSec },
+            { fps: videoSettings.fps, maxFrames: videoSettings.durationSec * videoSettings.fps, maxEdge: videoSettings.maxEdge, maxDurationSec: videoSettings.durationSec },
           );
         } catch (e) {
           if ((e as Error).name === "AbortError" || controller.signal.aborted) aborted = true;
@@ -781,7 +738,6 @@ export default function App() {
               onUseSample={useSample}
               videoSettings={videoSettings}
               onVideoSettingsChange={setVideoSettings}
-              budgetReduced={BUDGET.reduced}
               notice={notice}
               maxBatch={MAX_BATCH}
               preparing={preparing}
@@ -810,12 +766,6 @@ export default function App() {
                 ? "Tip: a short, steady side-view clip of the working posture reads best."
                 : "Tip: a clear, full-body side view of the working posture reads best."}
             </p>
-            {BUDGET.reduced && (
-              <p className="mx-auto mt-2 max-w-lg text-center text-xs text-muted-foreground">
-                Reduced sampling quality is active to fit this device's memory - scoring
-                thresholds and the pose model are unchanged.
-              </p>
-            )}
             {modelProgress !== null && (
               <p className="hud-readout mx-auto mt-2 max-w-lg text-center text-xs text-muted-foreground">
                 preparing pose engine in the background · {modelProgress}%
@@ -1016,11 +966,6 @@ export default function App() {
                           />
                         )}
                         {r.input && <RecommendationsPanel result={r.assessment} input={r.input} />}
-                        <PoseViewerLazy
-                          worldLandmarks={r.worldLandmarks}
-                          result={r.assessment}
-                          angles={r.angles}
-                        />
                       </>
                     ) : (
                       <div className="flex items-center gap-2 border-t px-5 py-4 text-sm text-amber-600">
@@ -1038,7 +983,10 @@ export default function App() {
 
       <footer className="border-t">
         <div className="container flex flex-col items-center gap-1 py-6 text-center text-xs text-muted-foreground">
-          <p>Everything runs in your browser - your photos and videos are never uploaded.</p>
+          <p>
+            Photos are analyzed in memory on our inference server and immediately discarded - never
+            stored, never used for training. Scores, reports and adjustments stay in your browser.
+          </p>
           {phase !== "landing" && (
           <p>
             RULA and REBA scores are a lower-bound estimate from a single camera view, not a substitute

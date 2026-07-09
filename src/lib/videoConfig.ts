@@ -13,12 +13,15 @@ export const MAX_VIDEO_BYTES = 500 * 1024 * 1024; // 500 MB
 export const MAX_DURATION_SEC = 60;
 /** Default analyzed duration when the user hasn't changed the setting. */
 export const DEFAULT_DURATION_SEC = 30;
-/** Frames sampled per second of clip (≈ enough to catch posture changes). */
-export const SAMPLE_FPS = 4;
+/** Frames sampled per second of clip. One fixed policy for every device now
+ * that inference runs server-side: 2 fps catches posture changes (scores are
+ * smoothed over a 2.5 s window) while keeping a 60 s clip within the upload
+ * and inference budget of the free-tier server. */
+export const SAMPLE_FPS = 2;
 /** Hard cap on sampled frames regardless of fps/duration. */
-export const MAX_FRAMES = 300;
-/** Longest edge each frame is downscaled to before pose detection. */
-export const MAX_EDGE = 720;
+export const MAX_FRAMES = 120;
+/** Longest edge each frame is downscaled to before upload (q0.8 JPEG). */
+export const MAX_EDGE = 640;
 
 /** Max wait for a single seek to land before treating the frame as unreadable. */
 export const SEEK_TIMEOUT_MS = 8000;

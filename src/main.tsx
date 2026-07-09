@@ -6,9 +6,10 @@ import App from "./App";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import "./index.css";
 
-// Register the Service Worker for offline capability & model caching.
-// Production only: in dev its stale-while-revalidate serves stale Vite modules
-// (breaking HMR and masking code changes), and dev needs no offline cache.
+// The app no longer uses a service worker, but existing visitors still have
+// the old model-caching one active. Registering the replacement sw.js (a
+// self-destructor: wipes all caches, unregisters, reloads) is the only way to
+// evict it. Remove this block once the old SW population has cycled out.
 if (import.meta.env.PROD && typeof window !== "undefined" && "serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     // Construct absolute origin-relative URL compatible with Vercel and subdirectory hosts (GitHub Pages)

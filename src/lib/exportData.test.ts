@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { exportJson, photoCsv, videoCsv } from "@/lib/exportData";
 import type { PhotoCsvItem } from "@/lib/exportData";
-import type { PoseAnalysis, VideoAnalysis } from "@/lib/analyze";
+import type { PoseAnalysis, VideoAnalysis } from "@/lib/analysis";
 import type { AssessmentResult, PostureInput } from "@/assessment/types";
 
 function makeInput(overrides: Partial<PostureInput> = {}): PostureInput {

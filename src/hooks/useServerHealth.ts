@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { apiHealthz } from "@/lib/poseClient";
+import { apiHealth } from "@/lib/poseClient";
 
 export type ServerHealth = "checking" | "warming" | "ready" | "unreachable";
 
@@ -34,7 +34,7 @@ export function useServerHealth(): { health: ServerHealth; retry: () => void } {
     let timer: ReturnType<typeof setTimeout> | undefined;
 
     const probe = async () => {
-      const ok = await apiHealthz();
+      const ok = await apiHealth();
       if (!alive) return;
       if (ok) {
         setHealth("ready");

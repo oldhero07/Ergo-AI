@@ -15,8 +15,35 @@
  * scoring engines are untouched; the per-angle flags travel in a PARALLEL
  * `AngleMeasuredFlags` object consumed only by UI/PDF layers.
  */
-import type { AngleSet, Side, SideAngles } from "@/lib/angles";
 import type { ApiKeypoint } from "@/lib/poseClient";
+
+export type Side = "left" | "right";
+
+/** Per-side arm (and leg) angles, so the scorer can pick the worst side. */
+export interface SideAngles {
+  upperArm: number; // elevation of upper arm from the trunk line
+  lowerArm: number; // forearm flexion (180 - elbow angle)
+  legAngle?: number; // knee flexion
+  visibility: number; // mean keypoint score of this side's shoulder/elbow/wrist
+}
+
+export interface AngleSet {
+  upperArm: number; // worst side's upper-arm elevation
+  lowerArm: number; // worst side's forearm flexion
+  neck: number; // head flexion relative to trunk (negative = extension)
+  trunk: number; // trunk inclination from vertical
+  /** Knee flexion (180 - knee included angle), for REBA legs. */
+  legAngle?: number;
+  /** The side that was scored (the worse of the two, among visible sides). */
+  side: Side;
+  /** Both sides' angles, for display/transparency. */
+  sides?: { left: SideAngles; right: SideAngles };
+  /** Lateral flexion (side-bend). Not derivable from a single 2D view - stays
+   * undefined and is presented as an editable assumption. */
+  neckSideBend?: boolean;
+  trunkSideBend?: boolean;
+  confidence: number; // display-only coverage x quality of the scored joints
+}
 
 /**
  * Semantic name -> COCO-WholeBody index. THE single source of truth - never

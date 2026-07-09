@@ -1,26 +1,17 @@
 /**
- * Pipeline selection: worker-backed on capable browsers, with automatic,
- * permanent downgrade to the proven main-thread path if the worker can't
- * spawn, init, or crashes (WorkerUnavailableError). Ordinary analysis errors
- * (bad image, model download failure) propagate unchanged on either backend.
- *
- * Set localStorage "ergo-force-inline" = "1" to force the main-thread path
- * (used to verify the fallback in testing).
+ * The analysis pipeline: pose keypoints come from the pinned CPU model on the
+ * inference server (see server/), so the same photo scores identically on
+ * every device; angle derivation and RULA/REBA/OWAS scoring stay client-side.
+ * Modules are loaded lazily so the landing page never pays for them.
  */
-import type { ModelProgress } from "@/lib/poseLandmarker";
-import { configureDeterministic, readDeterministicPref } from "@/lib/assetBase";
-import {
-  analyzePhoto as inlineAnalyzePhoto,
-  analyzeVideo as inlineAnalyzeVideo,
-  type AnalyzeVideoOptions,
-  type PoseAnalysis,
-  type VideoAnalysis,
-  type VideoProgress,
-} from "@/lib/analyze";
-import { WorkerPipeline, WorkerUnavailableError } from "@/lib/pipeline/workerPipeline";
+import type { PoseAnalysis, VideoAnalysis, VideoProgress, AnalyzeVideoOptions } from "@/lib/analysis";
+
+/** Legacy signature kept for call-site compatibility; the server path has no
+ * model download to report, so it never fires. */
+export type ModelProgress = (loaded: number, total: number) => void;
 
 export interface AnalysisPipeline {
-  readonly kind: "worker" | "inline" | "remote";
+  readonly kind: "remote";
   analyzePhoto(file: File, onModelProgress?: ModelProgress): Promise<PoseAnalysis>;
   analyzeVideo(
     file: File,
@@ -28,47 +19,10 @@ export interface AnalysisPipeline {
     signal?: AbortSignal,
     options?: AnalyzeVideoOptions,
   ): Promise<VideoAnalysis>;
-  /** Best-effort model preload (download + init) before any image arrives. */
+  /** Best-effort server wake so the first Analyze isn't also the cold start. */
   warmUp(onModelProgress?: ModelProgress): Promise<void>;
 }
 
-const inlinePipeline: AnalysisPipeline = {
-  kind: "inline",
-  analyzePhoto: inlineAnalyzePhoto,
-  analyzeVideo: inlineAnalyzeVideo,
-  async warmUp(onModelProgress?: ModelProgress) {
-    try {
-      const { getPoseLandmarker } = await import("@/lib/poseLandmarker");
-      await getPoseLandmarker(onModelProgress);
-      const { getHandLandmarker } = await import("@/lib/handLandmarker");
-      await getHandLandmarker();
-    } catch {
-      /* warmup is best-effort */
-    }
-  },
-};
-
-function workerCapable(): boolean {
-  try {
-    if (localStorage.getItem("ergo-force-inline") === "1") return false;
-  } catch {
-    /* private mode etc. - ignore */
-  }
-  return (
-    typeof Worker !== "undefined" &&
-    typeof OffscreenCanvas !== "undefined" &&
-    typeof createImageBitmap !== "undefined"
-  );
-}
-
-/** Wraps the worker backend and silently, permanently downgrades to inline the
- * first time worker infrastructure fails - users always get a result. */
-/** Server-inference backend - THE pipeline: pose keypoints come from the
- * pinned CPU model on the inference server, so the same photo scores
- * identically on every device. Scoring stays client-side. (The legacy
- * on-device worker/inline backends below are unreachable and slated for
- * deletion; localStorage "ergo-legacy"="1" reaches them for A/B comparison
- * until then.) */
 const remotePipeline: AnalysisPipeline = {
   kind: "remote",
   async analyzePhoto(file: File) {
@@ -89,74 +43,6 @@ const remotePipeline: AnalysisPipeline = {
   },
 };
 
-function legacyForced(): boolean {
-  try {
-    return localStorage.getItem("ergo-legacy") === "1";
-  } catch {
-    return false;
-  }
-}
-
-class AutoPipeline implements AnalysisPipeline {
-  private worker: WorkerPipeline | null = new WorkerPipeline();
-
-  get kind(): "worker" | "inline" {
-    return this.worker ? "worker" : "inline";
-  }
-
-  private downgrade(): void {
-    this.worker = null;
-  }
-
-  async analyzePhoto(file: File, onModelProgress?: ModelProgress): Promise<PoseAnalysis> {
-    if (this.worker) {
-      try {
-        return await this.worker.analyzePhoto(file, onModelProgress);
-      } catch (err) {
-        if (!(err instanceof WorkerUnavailableError)) throw err;
-        this.downgrade();
-      }
-    }
-    return inlinePipeline.analyzePhoto(file, onModelProgress);
-  }
-
-  async analyzeVideo(
-    file: File,
-    onProgress?: VideoProgress,
-    signal?: AbortSignal,
-    options?: AnalyzeVideoOptions,
-  ): Promise<VideoAnalysis> {
-    if (this.worker) {
-      try {
-        return await this.worker.analyzeVideo(file, onProgress, signal, options);
-      } catch (err) {
-        if (!(err instanceof WorkerUnavailableError)) throw err;
-        this.downgrade();
-      }
-    }
-    return inlinePipeline.analyzeVideo(file, onProgress, signal, options);
-  }
-
-  async warmUp(onModelProgress?: ModelProgress): Promise<void> {
-    if (this.worker) {
-      await this.worker.warmUp(onModelProgress);
-      return;
-    }
-    await inlinePipeline.warmUp(onModelProgress);
-  }
-}
-
-let pipeline: AnalysisPipeline | null = null;
-
 export function getPipeline(): AnalysisPipeline {
-  if (!pipeline) {
-    if (!legacyForced()) {
-      pipeline = remotePipeline;
-      return pipeline;
-    }
-    // Legacy on-device path (unreachable by default; kept for A/B until deleted).
-    configureDeterministic(readDeterministicPref());
-    pipeline = workerCapable() ? new AutoPipeline() : inlinePipeline;
-  }
-  return pipeline;
+  return remotePipeline;
 }

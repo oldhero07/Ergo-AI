@@ -1,73 +1,24 @@
-const CACHE_NAME = "ergo-ai-cache-v9";
-
-// Paths containing these substrings will use a Cache-First strategy.
-const CACHE_FIRST_PATHS = [
-  "/wasm/",
-  "/models/",
-  "storage.googleapis.com",
-];
-
-self.addEventListener("install", (event) => {
+// Self-destructing service worker. The app no longer uses one (inference moved
+// server-side, so there are no 71 MB model/wasm assets to cache), but existing
+// visitors still have the old caching SW ("ergo-ai-cache-v9") registered and
+// its caches ("ergo-models-v2" etc.) stored. This replacement installs over
+// it, deletes EVERY cache on the origin, unregisters itself, and reloads open
+// tabs so they fetch fresh from the network. Keep it deployed for a release or
+// two, then the registration call can be removed entirely.
+self.addEventListener("install", () => {
   self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => {
-      return Promise.all(
-        keys.map((key) => {
-          if (key !== CACHE_NAME) {
-            return caches.delete(key);
-          }
-        })
-      );
-    }).then(() => self.clients.claim())
+    (async () => {
+      for (const key of await caches.keys()) {
+        await caches.delete(key);
+      }
+      await self.registration.unregister();
+      for (const client of await self.clients.matchAll({ type: "window" })) {
+        client.navigate(client.url);
+      }
+    })(),
   );
-});
-
-self.addEventListener("fetch", (event) => {
-  const request = event.request;
-  const url = request.url;
-
-  // Only intercept standard HTTP/HTTPS GET requests to prevent caching issues with extensions, POSTs, etc.
-  if (!url.startsWith("http") || request.method !== "GET") return;
-
-  const isCacheFirst = CACHE_FIRST_PATHS.some((path) => url.includes(path));
-
-  if (isCacheFirst) {
-    event.respondWith(
-      caches.open(CACHE_NAME).then((cache) => {
-        return cache.match(request).then((hit) => {
-          if (hit) return hit;
-          return fetch(request).then((networkResponse) => {
-            if (networkResponse.status === 200) {
-              cache.put(request, networkResponse.clone());
-            }
-            return networkResponse;
-          }).catch((err) => {
-            // If offline and not cached, propagate the network error gracefully
-            throw err;
-          });
-        });
-      })
-    );
-  } else {
-    // Stale-While-Revalidate for other assets (HTML, JS, CSS, fonts, etc.)
-    event.respondWith(
-      caches.open(CACHE_NAME).then((cache) => {
-        return cache.match(request).then((hit) => {
-          const fetchPromise = fetch(request).then((networkResponse) => {
-            if (networkResponse.status === 200) {
-              cache.put(request, networkResponse.clone());
-            }
-            return networkResponse;
-          }).catch(() => {
-            // Network request failed (offline) - return cached asset if available
-            return hit;
-          });
-          return hit || fetchPromise;
-        });
-      })
-    );
-  }
 });

@@ -10,7 +10,7 @@ import {
   wristScore,
 } from "@/assessment/reba/reba";
 import { buildAutoInput } from "@/assessment/rula/rula";
-import type { AngleSet } from "@/lib/angles";
+import type { AngleSet } from "@/lib/angles2d";
 
 describe("REBA category scores", () => {
   it("scores neck (2 bands + twist/side-bend)", () => {
