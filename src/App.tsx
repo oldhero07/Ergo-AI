@@ -1,16 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { FileDown, Loader2, RotateCcw, AlertTriangle, History, X } from "lucide-react";
+import { Loader2, RotateCcw, History, X } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { Uploader } from "@/components/Uploader";
 import { Landing } from "@/components/Landing";
-import { Scorecard } from "@/components/Scorecard";
 import { ComputeAnimation } from "@/components/ComputeAnimation";
-import { AdjustmentsPanel } from "@/components/AdjustmentsPanel";
-import { MeasurementSummary } from "@/components/MeasurementSummary";
 import { COMPUTE_LOOP_MS } from "@/hooks/useComputeTimeline";
 import { useServerHealth } from "@/hooks/useServerHealth";
 import { Button } from "@/components/ui/button";
-import type { PoseAnalysis, VideoAnalysis } from "@/lib/analysis";
+import type { VideoAnalysis } from "@/lib/analysis";
 import { getPipeline } from "@/lib/pipeline";
 import {
   clearSession,
@@ -27,15 +24,15 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { PhaseTransition } from "@/components/PhaseTransition";
 import type { AnalysisMode } from "@/types";
 import { exportPdfReport } from "@/lib/pdf";
-import { getMethod, methods } from "@/assessment/registry";
+import { getMethod } from "@/assessment/registry";
 import { NioshCalculator } from "@/components/NioshCalculator";
-import { RecommendationsPanel } from "@/components/RecommendationsPanel";
 import { downloadText, exportJson, photoCsv } from "@/lib/exportData";
 import type { PostureInput } from "@/assessment/types";
 import type { UploadItem } from "@/types";
+import { ReportDetails } from "@/components/ReportDetails";
+import { PhotoResultsScreen, type ResultMap } from "@/screens/PhotoResultsScreen";
 
 type Phase = "landing" | "idle" | "computing" | "results" | "video" | "niosh";
-type ResultMap = Record<string, PoseAnalysis>;
 
 // One fixed batch cap for every device: inference runs server-side, so device
 // memory no longer constrains how much a session can score.
@@ -816,151 +813,26 @@ export default function App() {
         )}
 
         {phase === "results" && (
-          <div className="mx-auto w-full max-w-4xl animate-in fade-in duration-500">
-            <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-4">
-                <h2 className="text-xl font-semibold">Results</h2>
-                <div role="tablist" aria-label="Assessment method" className="inline-flex rounded-lg border p-0.5">
-                  {methods.map((m) => (
-                    <button
-                      key={m.id}
-                      type="button"
-                      role="tab"
-                      aria-selected={methodId === m.id}
-                      onClick={() => switchMethod(m.id)}
-                      className={
-                        "rounded-md px-3 py-1 text-sm font-medium transition-colors " +
-                        (methodId === m.id
-                          ? "bg-primary text-primary-foreground"
-                          : "text-muted-foreground hover:text-foreground")
-                      }
-                    >
-                      {m.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" onClick={openNiosh}>
-                  NIOSH lifting
-                </Button>
-                <Button variant="outline" onClick={exportPdf} disabled={exporting}>
-                  {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
-                  PDF
-                </Button>
-                <Button variant="outline" onClick={exportCsv}>
-                  CSV
-                </Button>
-                <Button variant="outline" onClick={exportJsonFile}>
-                  JSON
-                </Button>
-                <Button variant="outline" onClick={reset}>
-                  <RotateCcw className="h-4 w-4" /> Start over
-                </Button>
-              </div>
-            </div>
-            {exportError && (
-              <p className="mb-4 text-sm text-destructive">Could not generate the PDF: {exportError}</p>
-            )}
-            <ReportDetails meta={reportMeta} onChange={setReportMeta} />
-            {includedItems.length > 1 && <BatchSummary items={includedItems} results={results} />}
-            <div className="space-y-8 mt-6">
-              {[...items]
-                .sort((a, b) => {
-                  const sa = results[a.id]?.assessment?.grandScore ?? -1;
-                  const sb = results[b.id]?.assessment?.grandScore ?? -1;
-                  return sb - sa;
-                })
-                .map((it) => {
-                const r = results[it.id];
-                const excluded = excludedIds.has(it.id);
-                const isWorst = it.id === worstIncludedId && includedItems.length > 1;
-                return (
-                  <div key={it.id} className={`overflow-hidden rounded-xl border ${excluded ? 'opacity-60' : ''} ${isWorst && results[it.id]?.assessment ? 'ring-2 ring-destructive/60' : ''}`}>
-                      {isWorst && results[it.id]?.assessment && (
-                        <div className="flex items-center gap-1.5 bg-destructive/10 px-4 py-1.5 text-xs font-semibold text-destructive">
-                          <AlertTriangle className="h-4 w-4" /> Worst posture in batch · investigate first
-                        </div>
-                      )}
-                      {r?.assessment && (
-                        <div className="flex items-center justify-end gap-2 border-b bg-muted/30 px-4 py-1.5 text-xs">
-                          {excluded && <span className="mr-auto font-semibold text-amber-600">Excluded from report</span>}
-                          <button
-                            type="button"
-                            onClick={() => toggleExclude(it.id)}
-                            className="rounded-md border px-2 py-1 font-medium text-muted-foreground hover:bg-muted"
-                          >
-                            {excluded ? "Include in report" : "Exclude from report"}
-                          </button>
-                        </div>
-                      )}
-                      <div className="grid sm:grid-cols-2">
-                      <figure className="border-b sm:border-b-0 sm:border-r">
-                        <img
-                          src={r?.originalImageUrl ?? it.url}
-                          alt="original"
-                          className="aspect-[4/3] w-full bg-muted object-contain"
-                        />
-                        <figcaption className="truncate px-4 py-2 text-xs text-muted-foreground">
-                          Original · {it.file.name}
-                        </figcaption>
-                      </figure>
-                      <figure>
-                        <img
-                          src={r?.skeletonUrl ?? it.url}
-                          alt="skeleton"
-                          className="aspect-[4/3] w-full bg-muted object-contain"
-                        />
-                        <figcaption className="px-4 py-2 text-xs text-muted-foreground">
-                          AI pose skeleton
-                        </figcaption>
-                      </figure>
-                      </div>
-                    {r?.error ? (
-                      <div className="flex items-center gap-2 border-t px-5 py-4 text-sm text-destructive">
-                        <AlertTriangle className="h-4 w-4" /> Could not analyze: {r.error}
-                      </div>
-                    ) : r?.assessment ? (
-                      <>
-                        <div className="border-t">
-                          <Scorecard result={r.assessment} />
-                        </div>
-                        {r.input && (
-                          <div className="border-t">
-                            <MeasurementSummary
-                              method={r.assessment.method}
-                              input={r.input}
-                              confidence={r.angles?.confidence}
-                              wristMeasured={r.wristMeasured}
-                              sideBendMeasured={
-                                r.angles?.neckSideBend !== undefined || r.angles?.trunkSideBend !== undefined
-                              }
-                              staticRepetition="assumed"
-                              measuredFlags={r.measuredFlags}
-                              offProfile={r.offProfile}
-                            />
-                          </div>
-                        )}
-                        {r.input && (
-                          <AdjustmentsPanel
-                            input={r.input}
-                            methodId={methodId}
-                            onChange={(next) => updateInput(it.id, next)}
-                            measuredFlags={r.measuredFlags}
-                          />
-                        )}
-                        {r.input && <RecommendationsPanel result={r.assessment} input={r.input} />}
-                      </>
-                    ) : (
-                      <div className="flex items-center gap-2 border-t px-5 py-4 text-sm text-amber-600">
-                        <AlertTriangle className="h-4 w-4" /> No scorable full-body pose - the head and torso must be in frame. Use a clearer, full-body side view.
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          <PhotoResultsScreen
+            items={items}
+            results={results}
+            methodId={methodId}
+            excludedIds={excludedIds}
+            includedItems={includedItems}
+            worstIncludedId={worstIncludedId}
+            reportMeta={reportMeta}
+            onReportMetaChange={setReportMeta}
+            exporting={exporting}
+            exportError={exportError}
+            onSwitchMethod={switchMethod}
+            onOpenNiosh={openNiosh}
+            onExportPdf={() => void exportPdf()}
+            onExportCsv={exportCsv}
+            onExportJson={exportJsonFile}
+            onReset={reset}
+            onToggleExclude={toggleExclude}
+            onUpdateInput={updateInput}
+          />
         )}
         </PhaseTransition>
       </main>
@@ -979,112 +851,6 @@ export default function App() {
           )}
         </div>
       </footer>
-    </div>
-  );
-}
-
-/** Optional provenance for the PDF cover page (assessor, organization, subject/task, logo). */
-function ReportDetails({
-  meta,
-  onChange,
-}: {
-  meta: { assessor: string; organization: string; subject: string; logoDataUrl?: string };
-  onChange: (next: { assessor: string; organization: string; subject: string; logoDataUrl?: string }) => void;
-}) {
-  const set = (key: "assessor" | "organization" | "subject", value: string) => onChange({ ...meta, [key]: value });
-  const fields: { key: "assessor" | "organization" | "subject"; label: string; placeholder: string }[] = [
-    { key: "assessor", label: "Assessor", placeholder: "Your name" },
-    { key: "organization", label: "Organization", placeholder: "Dept. / company" },
-    { key: "subject", label: "Subject / task", placeholder: "e.g. Loin-loom weaving - beating" },
-  ];
-
-  const onLogo = async (file: File | undefined) => {
-    if (!file) return;
-    // Downscale to a small data URL - the PDF draws it at ~64pt, and a raw
-    // camera-size logo would bloat both memory and the report.
-    const url = URL.createObjectURL(file);
-    try {
-      const small = await shrinkToDataUrl(url, 256);
-      if (small) onChange({ ...meta, logoDataUrl: small });
-    } finally {
-      URL.revokeObjectURL(url);
-    }
-  };
-
-  return (
-    <details className="mb-6 rounded-lg border bg-muted/20">
-      <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-muted-foreground">
-        Report details (shown on the PDF cover page)
-      </summary>
-      <div className="grid gap-3 px-4 pb-4 sm:grid-cols-3">
-        {fields.map((f) => (
-          <label key={f.key} className="text-xs text-muted-foreground">
-            {f.label}
-            <input
-              type="text"
-              value={meta[f.key]}
-              placeholder={f.placeholder}
-              onChange={(e) => set(f.key, e.target.value)}
-              className="mt-1 w-full rounded-md border bg-background px-2 py-1.5 text-sm text-foreground"
-            />
-          </label>
-        ))}
-        <div className="flex items-end gap-3 sm:col-span-3">
-          <label className="text-xs text-muted-foreground">
-            Logo (optional, drawn on the cover)
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => void onLogo(e.target.files?.[0])}
-              className="mt-1 block w-full text-xs text-muted-foreground file:mr-3 file:rounded-md file:border file:border-border file:bg-background file:px-2.5 file:py-1.5 file:text-xs file:text-foreground"
-            />
-          </label>
-          {meta.logoDataUrl && (
-            <>
-              <img src={meta.logoDataUrl} alt="report logo" className="h-10 w-10 rounded-md border object-contain" />
-              <Button size="sm" variant="ghost" onClick={() => onChange({ ...meta, logoDataUrl: undefined })}>
-                Remove
-              </Button>
-            </>
-          )}
-        </div>
-      </div>
-    </details>
-  );
-}
-
-/** Mean / max / worst-photo strip shown above the per-photo results when analyzing a batch. */
-function BatchSummary({ items, results }: { items: UploadItem[]; results: ResultMap }) {
-  const scored = items
-    .map((it) => ({ it, r: results[it.id] }))
-    .filter((x): x is { it: UploadItem; r: PoseAnalysis & { assessment: NonNullable<PoseAnalysis["assessment"]> } } =>
-      Boolean(x.r?.assessment),
-    );
-  if (!scored.length) return null;
-
-  const scores = scored.map(({ r }) => r.assessment.grandScore);
-  const mean = scores.reduce((a, b) => a + b, 0) / scores.length;
-  const max = Math.max(...scores);
-  const worst = scored.find(({ r }) => r.assessment.grandScore === max);
-
-  return (
-    <div className="mb-6 grid grid-cols-3 gap-3 rounded-lg border bg-muted/30 p-4 text-center">
-      <div>
-        <div className="text-2xl font-semibold tabular-nums">
-          {scored.length}/{items.length}
-        </div>
-        <div className="text-xs text-muted-foreground">photos scored</div>
-      </div>
-      <div>
-        <div className="text-2xl font-semibold tabular-nums">{mean.toFixed(1)}</div>
-        <div className="text-xs text-muted-foreground">mean grand score</div>
-      </div>
-      <div>
-        <div className="text-2xl font-semibold tabular-nums">{max}</div>
-        <div className="truncate text-xs text-muted-foreground" title={worst?.it.file.name}>
-          worst{worst ? ` · ${worst.it.file.name}` : ""}
-        </div>
-      </div>
     </div>
   );
 }
