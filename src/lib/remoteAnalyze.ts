@@ -110,6 +110,7 @@ export async function analyzeVideoRemote(
   const raw: RawVideoFrame[] = [];
   let skippedNoPose = 0;
   let offProfileFrames = 0;
+  const flagFalseCounts: Record<string, number> = {};
 
   interface Pending {
     timeSec: number;
@@ -150,6 +151,7 @@ export async function analyzeVideoRemote(
       }
       const { angles, wristAngle, flags, offProfile } = computeAngles2D(r.keypoints, r.image.w, r.image.h);
       if (offProfile) offProfileFrames++;
+      for (const [k, v] of Object.entries(flags)) if (!v) flagFalseCounts[k] = (flagFalseCounts[k] ?? 0) + 1;
       raw.push({
         timeSec: batch[j].timeSec,
         angles,
@@ -183,6 +185,19 @@ export async function analyzeVideoRemote(
   // remains for UI compatibility and honest reporting of what was skipped.
   const analysis = assembleVideoAnalysis(raw, meta, { skippedNoPose, skippedLowConfidence: 0 });
   analysis.offProfile = raw.length > 0 && offProfileFrames > raw.length / 2;
+  if (raw.length > 0) {
+    // An angle is flagged for the clip when it was unreliable in MOST frames -
+    // a single occluded frame shouldn't discredit a whole clip's measurement.
+    const majority = (k: string) => (flagFalseCounts[k] ?? 0) <= raw.length / 2;
+    analysis.measuredFlags = {
+      upperArm: majority("upperArm"),
+      lowerArm: majority("lowerArm"),
+      wrist: majority("wrist"),
+      neck: majority("neck"),
+      trunk: majority("trunk"),
+      legs: majority("legs"),
+    };
+  }
   return analysis;
 }
 

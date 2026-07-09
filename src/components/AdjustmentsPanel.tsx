@@ -315,7 +315,10 @@ export function AdjustmentsPanel({
                 />
                 <div className="rounded-xl border border-border bg-card/50 px-3.5 py-2.5">
                   <label className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
-                    <span>Knee flexion</span>
+                    <span className="flex items-center gap-1.5">
+                      Knee flexion
+                      {measuredFlags?.legs === false && <ReviewChip />}
+                    </span>
                     <span className="hud-readout rounded-md bg-secondary px-1.5 py-0.5 font-medium">
                       {Math.round(input.legAngle ?? 0)}°
                     </span>

@@ -6,13 +6,9 @@
  */
 import type { PoseAnalysis, VideoAnalysis, VideoProgress, AnalyzeVideoOptions } from "@/lib/analysis";
 
-/** Legacy signature kept for call-site compatibility; the server path has no
- * model download to report, so it never fires. */
-export type ModelProgress = (loaded: number, total: number) => void;
-
 export interface AnalysisPipeline {
   readonly kind: "remote";
-  analyzePhoto(file: File, onModelProgress?: ModelProgress): Promise<PoseAnalysis>;
+  analyzePhoto(file: File): Promise<PoseAnalysis>;
   analyzeVideo(
     file: File,
     onProgress?: VideoProgress,
@@ -20,7 +16,7 @@ export interface AnalysisPipeline {
     options?: AnalyzeVideoOptions,
   ): Promise<VideoAnalysis>;
   /** Best-effort server wake so the first Analyze isn't also the cold start. */
-  warmUp(onModelProgress?: ModelProgress): Promise<void>;
+  warmUp(): Promise<void>;
 }
 
 const remotePipeline: AnalysisPipeline = {

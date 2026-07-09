@@ -307,6 +307,7 @@ export function VideoResults({
                 input={stats.peak.input}
                 wristMeasured={analysis.wristMeasured}
                 staticRepetition={analysis.temporal.repeated || analysis.temporal.sustained ? "detected" : "assumed"}
+                measuredFlags={analysis.measuredFlags}
               />
             </div>
           )}

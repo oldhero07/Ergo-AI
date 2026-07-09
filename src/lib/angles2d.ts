@@ -323,19 +323,28 @@ export function computeAngles2D(
   // the frame: for a body part cropped out of the photo (e.g. legs cut at the
   // waist), the model clamps its best guess to the image border - a real
   // estimate, but one the assessor must review, so it clears the flag.
-  const margin = 0.015 * Math.max(imgW, imgH);
+  // Margins are per-axis so a portrait photo doesn't get an inflated x-margin.
+  const marginX = 0.015 * imgW;
+  const marginY = 0.015 * imgH;
   const trusted = (idx: number): boolean => {
     if (score(kps, idx) < KP_SCORE_FLOOR) return false;
     const p = pt(kps, idx);
-    return p.x >= margin && p.x <= imgW - margin && p.y >= margin && p.y <= imgH - margin;
+    return p.x >= marginX && p.x <= imgW - marginX && p.y >= marginY && p.y <= imgH - marginY;
   };
   const trunkAnchorsOk =
     trusted(KP.leftShoulder) && trusted(KP.rightShoulder) && trusted(KP.leftHip) && trusted(KP.rightHip);
+  // The neck value reads BOTH ears when both clear the score floor (head =
+  // their midpoint), else just the better one - the flag must match.
+  const headTrusted = bothEars ? trusted(KP.leftEar) && trusted(KP.rightEar) : trusted(earVis);
   const flags: AngleMeasuredFlags = {
     upperArm: trusted(i.sh) && trusted(i.el) && trusted(i.hip),
     lowerArm: trusted(i.sh) && trusted(i.el) && trusted(i.wr),
-    wrist: wrist.measured && trusted(i.el) && trusted(i.wr),
-    neck: trusted(earVis) && trusted(KP.nose) && trunkAnchorsOk,
+    // Every joint the wrist value reads: forearm (elbow->wrist) + hand ray
+    // (root->MCP). wrist.measured covers scores + proximity; trusted() adds
+    // the border check for all four.
+    wrist:
+      wrist.measured && trusted(i.el) && trusted(i.wr) && trusted(i.handRoot) && trusted(i.middleMcp),
+    neck: headTrusted && trusted(KP.nose) && trunkAnchorsOk,
     trunk: trunkAnchorsOk,
     legs: trusted(i.hip) && trusted(i.kn) && trusted(i.an),
   };

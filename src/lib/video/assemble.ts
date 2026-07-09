@@ -39,6 +39,9 @@ export interface VideoAnalysis {
   /** Server-inference path: most sampled frames looked angled/frontal, so
    * sagittal angles may be under-read (foreshortening) - warn, never suppress. */
   offProfile?: boolean;
+  /** Server-inference path: per-angle review flags aggregated over the clip
+   * (false when the angle was unreliably derived in most scored frames). */
+  measuredFlags?: import("@/lib/angles2d").AngleMeasuredFlags;
 }
 
 /** A raw per-frame detection before smoothing/scoring - produced by either backend. */

@@ -111,6 +111,15 @@ describe("photoCsv", () => {
     expect(header.split(",").length).toBe(row.split(",").length);
   });
 
+  it("prepends a sanitized model_version comment line when provenance is known", () => {
+    const analysis = { ...makePoseAnalysis(), modelVersion: "model,v1\nx" };
+    const csv = photoCsv([{ fileName: "weaver-01.jpg", analysis }], "rula");
+    const lines = csv.split("\n");
+    expect(lines[0]).toBe("# model_version: model v1 x"); // commas/newlines neutralized
+    // The header stays the first non-comment line, columns still aligned.
+    expect(lines[1].split(",").length).toBe(lines[2].split(",").length);
+  });
+
   it("includes derived per-component score columns named from group-item labels", () => {
     const items: PhotoCsvItem[] = [{ fileName: "weaver-01.jpg", analysis: makePoseAnalysis() }];
     const csv = photoCsv(items, "rula");

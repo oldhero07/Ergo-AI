@@ -718,25 +718,28 @@ async function addPhotoPage(doc: jsPDF, item: PdfReportItem, isFirstPage: boolea
   // Angles derived from hard-to-see joints: the value is in the score (the
   // model's best read of the actual image), but the report must say so.
   const flags = analysis.measuredFlags;
-  if (flags) {
-    const flagged = (
-      [
-        ["upperArm", "Upper-arm angle"],
-        ["lowerArm", "Lower-arm angle"],
-        ["wrist", "Wrist flexion"],
-        ["neck", "Neck angle"],
-        ["trunk", "Trunk angle"],
-        ["legs", "Knee angle"],
-      ] as const
-    )
-      .filter(([key]) => flags[key] === false)
-      .map(([, label]) => label);
+  {
+    const flagged = flags
+      ? (
+          [
+            ["upperArm", "Upper-arm angle"],
+            ["lowerArm", "Lower-arm angle"],
+            ["wrist", "Wrist flexion"],
+            ["neck", "Neck angle"],
+            ["trunk", "Trunk angle"],
+            ["legs", "Knee angle"],
+          ] as const
+        )
+          .filter(([key]) => flags[key] === false)
+          .map(([, label]) => label)
+      : [];
     const warnings: string[] = [];
     if (flagged.length) {
       warnings.push(
         `Estimated values pending review: ${flagged.join(", ")} - derived from joints that were partially hidden in this photo. They are included in the score but should be verified by the assessor.`,
       );
     }
+    // Independent of measuredFlags - a restored session may carry one, not both.
     if (analysis.offProfile) {
       warnings.push(
         "Camera angle: the photo appears angled/frontal rather than side-on; sagittal angles (and the score) may be underestimated.",

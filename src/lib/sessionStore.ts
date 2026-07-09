@@ -22,6 +22,12 @@ export interface SnapshotItem {
   angles?: AngleSet;
   input?: PostureInput;
   wristMeasured?: boolean;
+  /** Per-angle review flags - without these a restored session would claim
+   * every angle was confidently measured. */
+  measuredFlags?: import("@/lib/angles2d").AngleMeasuredFlags;
+  offProfile?: boolean;
+  /** Pose-model build, so exports from a restored session keep provenance. */
+  modelVersion?: string;
   /** Small JPEG data URL of the skeleton render (restore preview). */
   thumb?: string;
 }

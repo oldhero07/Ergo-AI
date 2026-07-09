@@ -7,11 +7,6 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { exportNioshPdf, type ReportMeta } from "@/lib/pdf";
 
-export interface NioshPrefill {
-  horizontalCm: number;
-  verticalCm: number;
-}
-
 const RISK_PILL_CLASSES: Record<RiskBand, string> = {
   low: "bg-risk-low/15 text-risk-low",
   medium: "bg-risk-medium/15 text-risk-medium",
@@ -235,18 +230,13 @@ function MultiplierTable({ result }: { result: NioshResult }) {
 }
 
 export function NioshCalculator({
-  prefill,
   onBack,
   reportMeta,
 }: {
-  prefill?: NioshPrefill | null;
   onBack: () => void;
   reportMeta?: ReportMeta;
 }) {
-  const [input, setInput] = useState<NioshInput>(() =>
-    prefill ? { ...DEFAULT_INPUT, horizontalCm: prefill.horizontalCm, verticalCm: prefill.verticalCm } : DEFAULT_INPUT,
-  );
-  const [showPrefillChip, setShowPrefillChip] = useState(!!prefill);
+  const [input, setInput] = useState<NioshInput>(DEFAULT_INPUT);
   const [exporting, setExporting] = useState(false);
 
   const exportPdf = async () => {
@@ -282,20 +272,6 @@ export function NioshCalculator({
           Export PDF
         </Button>
       </div>
-
-      {showPrefillChip && (
-        <div className="glass mb-6 inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs">
-          <span className="hud-readout font-mono text-muted-foreground">H &amp; V estimated from photo - adjust to measured values</span>
-          <button
-            type="button"
-            aria-label="Dismiss"
-            onClick={() => setShowPrefillChip(false)}
-            className="ml-1 rounded-full px-1.5 text-muted-foreground transition-colors hover:bg-accent/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            ×
-          </button>
-        </div>
-      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* LEFT: form */}

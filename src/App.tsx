@@ -311,6 +311,9 @@ export default function App() {
               angles: r?.angles,
               input: r?.input,
               wristMeasured: r?.wristMeasured,
+              measuredFlags: r?.measuredFlags,
+              offProfile: r?.offProfile,
+              modelVersion: r?.modelVersion,
               thumb,
             };
           }),
@@ -345,6 +348,9 @@ export default function App() {
         error: s.error,
         angles: s.angles,
         wristMeasured: s.wristMeasured,
+        measuredFlags: s.measuredFlags,
+        offProfile: s.offProfile,
+        modelVersion: s.modelVersion,
         input: s.input,
         assessment: s.input ? compute(s.input) : undefined,
       };
