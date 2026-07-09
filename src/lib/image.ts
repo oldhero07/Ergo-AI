@@ -1,6 +1,5 @@
-/** Longest edge fed to analysis. Detection resizes to a much smaller model
- * input and annotation renders at MAX_RENDER_SIZE, so decoding a 24-48MP photo
- * at full resolution only cost memory and worker-transfer time. */
+/** Longest edge for local decodes (annotation renders at MAX_RENDER_SIZE, so
+ * decoding a 24-48MP photo at full resolution would only cost memory). */
 export const MAX_ANALYZE_EDGE = 2048;
 
 /** Downscale a decoded bitmap to MAX_ANALYZE_EDGE (no-op when already smaller).
@@ -23,11 +22,8 @@ async function capBitmap(bitmap: ImageBitmap): Promise<ImageBitmap> {
   }
 }
 
-/** Hard cap on a single analysis decode. The prepare pass already time-boxes
- * decoding; this gives the analysis pass the same guarantee, so a corrupt or
- * pathological file that makes a decoder hang (rather than reject) can't wedge
- * the whole batch. Generous enough not to trip a slow libheif decode of a real
- * 48MP HEIC on a low-end device. */
+/** Hard cap on a single decode, so a corrupt or pathological file that makes
+ * the decoder hang (rather than reject) can't wedge the whole batch. */
 const DECODE_TIMEOUT_MS = 30000;
 
 /**

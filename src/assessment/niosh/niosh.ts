@@ -1,13 +1,4 @@
-import type { LandmarkPoint as Landmark } from "@/lib/analysis";
 import type { RiskBand } from "@/assessment/types";
-
-/** Landmark-visibility trust check (moved here from the removed angles.ts -
- * this geometry estimator is its only remaining consumer; it runs on legacy
- * 3D world landmarks, which the server-inference path does not provide). */
-const WORLD_VIS_FLOOR = 0.5;
-function isVisible(lm: { visibility?: number } | undefined, threshold = WORLD_VIS_FLOOR): boolean {
-  return (lm?.visibility ?? 0) > threshold;
-}
 
 /**
  * Revised NIOSH Lifting Equation (Waters, Putz-Anderson & Garg 1994,
@@ -148,46 +139,4 @@ export function computeNiosh(input: NioshInput): NioshResult {
   if (FM === 0) notes.push("This frequency/duration/height combination is not sustainable per the NIOSH frequency table (RWL = 0).");
 
   return { rwlKg, li, multipliers: { HM, VM, DM, AM, FM, CM }, riskBand: b.band, riskLabel: b.label, actionLevel: b.action, notes };
-}
-
-// --- Pose prefill (best-effort, clearly labeled "estimated" in the UI) --------
-
-/** MediaPipe world-landmark indices used for geometry estimation. */
-const LM = { leftWrist: 15, rightWrist: 16, leftAnkle: 27, rightAnkle: 28 } as const;
-
-export interface NioshGeometryEstimate {
-  horizontalCm: number;
-  verticalCm: number;
-}
-
-/**
- * Estimate H and V from MediaPipe 3D world landmarks (hip-centered, meters,
- * y-down): V ≈ vertical distance from the lower wrist to the ankle plane;
- * H ≈ horizontal (x/z-plane) distance from the mid-ankle point to that wrist.
- * A single-view estimate to prefill the form - always user-adjustable.
- */
-export function estimateNioshGeometry(world: Landmark[]): NioshGeometryEstimate | null {
-  const lw = world[LM.leftWrist];
-  const rw = world[LM.rightWrist];
-  const la = world[LM.leftAnkle];
-  const ra = world[LM.rightAnkle];
-  if (!lw || !rw || !la || !ra) return null;
-  // A present-but-occluded landmark still gets a coordinate from MediaPipe
-  // (its best guess), just with low visibility - trust none of the four
-  // unless each clears the same floor angles.ts uses for world landmarks.
-  if (!isVisible(lw) || !isVisible(rw) || !isVisible(la) || !isVisible(ra)) return null;
-
-  // y is down in the world frame: the floor is the larger y (deeper) ankle.
-  const floorY = Math.max(la.y, ra.y);
-  // The working wrist is the lower of the two (nearer the load).
-  const wrist = lw.y > rw.y ? lw : rw;
-
-  const verticalM = Math.max(0, floorY - wrist.y);
-  const midAnkle = { x: (la.x + ra.x) / 2, z: (la.z + ra.z) / 2 };
-  const horizontalM = Math.hypot(wrist.x - midAnkle.x, wrist.z - midAnkle.z);
-
-  return {
-    horizontalCm: Math.round(horizontalM * 100),
-    verticalCm: Math.round(verticalM * 100),
-  };
 }

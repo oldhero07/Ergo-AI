@@ -100,9 +100,7 @@ export function annotateSkeleton2D(source: ImageBitmap, kps: ApiKeypoint[] | nul
   return { dataUrl: canvas.toDataURL("image/png"), width, height };
 }
 
-/** Clean downscaled JPEG of the original (PDF embeds this). Standalone copy of
- * annotate.ts's renderOriginalJpeg so this module never pulls the MediaPipe
- * bundle in at runtime. */
+/** Clean downscaled JPEG of the original (the PDF embeds this). */
 export function renderOriginalJpeg2D(source: ImageBitmap, quality = 0.85): string {
   const scale = fitScale(source.width, source.height);
   const width = Math.round(source.width * scale);

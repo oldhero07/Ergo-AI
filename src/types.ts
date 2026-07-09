@@ -6,6 +6,6 @@ export interface UploadItem {
   file: File;
   /** Small preview-thumbnail object URL ("" while it's still being prepared). */
   url: string;
-  /** True while the preview thumb (and, for HEIC, the analysis JPEG) is prepared off-thread. */
+  /** True while the preview thumbnail is being prepared. */
   converting?: boolean;
 }

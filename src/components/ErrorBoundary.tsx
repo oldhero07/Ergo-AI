@@ -23,7 +23,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    // Surfaced for debugging; no telemetry is sent (everything stays on-device).
+    // Surfaced for debugging; no telemetry is sent (photos are never stored).
     console.error("Ergo AI crashed:", error, info.componentStack);
   }
 

@@ -28,8 +28,7 @@ import { PhaseTransition } from "@/components/PhaseTransition";
 import type { AnalysisMode } from "@/types";
 import { exportPdfReport } from "@/lib/pdf";
 import { getMethod, methods } from "@/assessment/registry";
-import { estimateNioshGeometry } from "@/assessment/niosh/niosh";
-import { NioshCalculator, type NioshPrefill } from "@/components/NioshCalculator";
+import { NioshCalculator } from "@/components/NioshCalculator";
 import { RecommendationsPanel } from "@/components/RecommendationsPanel";
 import { downloadText, exportJson, photoCsv } from "@/lib/exportData";
 import type { PostureInput } from "@/assessment/types";
@@ -42,7 +41,7 @@ type ResultMap = Record<string, PoseAnalysis>;
 // memory no longer constrains how much a session can score.
 const MAX_BATCH = 30;
 
-/** Revoke any blob: object URLs a result set holds (worker-path images). */
+/** Revoke any blob: object URLs a result set holds. */
 function revokeResultUrls(results: ResultMap): void {
   for (const r of Object.values(results)) {
     if (r.skeletonUrl?.startsWith("blob:")) URL.revokeObjectURL(r.skeletonUrl);
@@ -50,7 +49,7 @@ function revokeResultUrls(results: ResultMap): void {
   }
 }
 
-/** Revoke per-frame thumbnail object URLs of a video analysis (worker path). */
+/** Revoke per-frame thumbnail object URLs of a video analysis. */
 function revokeVideoUrls(analysis: VideoAnalysis | null): void {
   if (!analysis) return;
   for (const f of analysis.frames) {
@@ -74,7 +73,6 @@ export default function App() {
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [modelProgress, setModelProgress] = useState<number | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [videoName, setVideoName] = useState<string>("video");
   const [videoAnalysis, setVideoAnalysis] = useState<VideoAnalysis | null>(null);
@@ -84,7 +82,6 @@ export default function App() {
   const skipResolveRef = useRef<(() => void) | null>(null);
   const videoAbortRef = useRef<AbortController | null>(null);
   const [restorable, setRestorable] = useState<SessionSnapshot | null>(null);
-  const [nioshPrefill, setNioshPrefill] = useState<NioshPrefill | null>(null);
   // Wakes the inference server on load and drives the warming/unreachable
   // banner. Informational only - analysis is never gated on it (a cold host
   // holds the first request until it's up).
@@ -95,20 +92,17 @@ export default function App() {
   // Cache of small per-item thumbs so snapshot re-saves (adjustments/method
   // switches) don't re-encode images every time.
   const snapshotThumbsRef = useRef<Map<string, string>>(new Map());
-  // Ids of items currently in the queue - lets a late prepare-worker result
-  // detect that its item was removed and revoke the orphaned thumb URL.
+  // Ids of items currently in the queue - lets a late thumbnail result detect
+  // that its item was removed and revoke the orphaned thumb URL.
   const liveIdsRef = useRef<Set<string>>(new Set());
 
-  // Warm the ML models the moment the user reaches the uploader, so the
-  // first Analyze click doesn't pay the model download + GPU init.
+  // Nudge the inference server awake the moment the user reaches the uploader,
+  // so the first Analyze click doesn't also pay the cold start.
   const warmedRef = useRef(false);
   useEffect(() => {
     if (phase !== "idle" || warmedRef.current) return;
     warmedRef.current = true;
-    void getPipeline().warmUp((loaded, total) => {
-      setModelProgress(total > 0 ? Math.min(100, Math.round((loaded / total) * 100)) : null);
-      if (total > 0 && loaded >= total) setModelProgress(null);
-    });
+    void getPipeline().warmUp();
   }, [phase]);
 
   // Offer to restore the last scored session (crash/refresh recovery).
@@ -244,10 +238,8 @@ export default function App() {
   // from the real GSAP timeline duration so it can't drift out of sync with it.
   const MIN_COMPUTE_MS = Math.max(4500, COMPUTE_LOOP_MS);
 
-  // Block analysis until every queued photo has finished preparing off-thread.
-  // For HEIC this waits on the JPEG re-encode that replaces the file; for all
-  // photos it guarantees a valid preview URL exists, so a result card (or the
-  // saved-session thumbnail) can never render a blank/broken image.
+  // Block analysis until every queued photo has a preview thumbnail, so a
+  // result card (or the saved-session thumbnail) never renders blank/broken.
   const preparing = items.some((it) => it.converting);
 
   const runAnalysis = useCallback(async () => {
@@ -264,10 +256,7 @@ export default function App() {
       for (const [idx, it] of items.entries()) {
         setPhotoProgress({ done: idx, total: items.length });
         try {
-          out[it.id] = await pipeline.analyzePhoto(it.file, (loaded, total) => {
-            setModelProgress(total > 0 ? Math.min(100, Math.round((loaded / total) * 100)) : null);
-            if (total > 0 && loaded >= total) setModelProgress(null); // download done
-          });
+          out[it.id] = await pipeline.analyzePhoto(it.file);
         } catch (e) {
           out[it.id] = {
             skeletonUrl: it.url,
@@ -293,7 +282,6 @@ export default function App() {
 
     await Promise.all([work, floor]);
     skipResolveRef.current = null;
-    setModelProgress(null);
     setPhotoProgress(null);
     setResults((prev) => {
       revokeResultUrls(prev);
@@ -520,7 +508,6 @@ export default function App() {
     setExporting(false);
     setShowAnimation(true);
     setNotice(null);
-    setModelProgress(null);
     clearVideo();
     setPhase("idle");
   }, [clearVideo]);
@@ -541,7 +528,6 @@ export default function App() {
     setExporting(false);
     setShowAnimation(true);
     setNotice(null);
-    setModelProgress(null);
     clearVideo();
     // The snapshot survives "go home" (unlike "start over"), so re-offer it.
     void loadSession().then(setRestorable);
@@ -576,18 +562,12 @@ export default function App() {
     });
   }, []);
 
-  // Open the NIOSH lifting calculator, prefilling H/V geometry from the worst
-  // scored photo's 3D world landmarks when results are available.
+  // Open the NIOSH lifting calculator. (Geometry prefill from pose retired
+  // with the 3D landmarks - lift distances in cm need metric data a single
+  // 2D photo cannot honestly provide; the assessor measures and enters them.)
   const openNiosh = useCallback(() => {
-    let prefill: NioshPrefill | null = null;
-    const scored = items
-      .map((it) => results[it.id])
-      .filter((r) => r?.detected && r.worldLandmarks.length && r.assessment)
-      .sort((a, b) => (b.assessment?.grandScore ?? 0) - (a.assessment?.grandScore ?? 0));
-    if (scored[0]) prefill = estimateNioshGeometry(scored[0].worldLandmarks);
-    setNioshPrefill(prefill);
     setPhase("niosh");
-  }, [items, results]);
+  }, []);
 
   const closeNiosh = useCallback(() => {
     setPhase(Object.keys(results).length ? "results" : "landing");
@@ -722,7 +702,7 @@ export default function App() {
 
         {phase === "niosh" && (
           <div className="animate-in fade-in duration-500">
-            <NioshCalculator prefill={nioshPrefill} onBack={closeNiosh} reportMeta={reportMeta} />
+            <NioshCalculator onBack={closeNiosh} reportMeta={reportMeta} />
           </div>
         )}
 
@@ -768,11 +748,6 @@ export default function App() {
                 ? "Tip: a short, steady side-view clip of the working posture reads best."
                 : "Tip: a clear, full-body side view of the working posture reads best."}
             </p>
-            {modelProgress !== null && (
-              <p className="hud-readout mx-auto mt-2 max-w-lg text-center text-xs text-muted-foreground">
-                preparing pose engine in the background · {modelProgress}%
-              </p>
-            )}
           </div>
         )}
 

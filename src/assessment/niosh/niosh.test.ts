@@ -5,7 +5,6 @@ import {
   computeNiosh,
   couplingMultiplier,
   distanceMultiplier,
-  estimateNioshGeometry,
   frequencyMultiplier,
   horizontalMultiplier,
   verticalMultiplier,
@@ -151,35 +150,5 @@ describe("computeNiosh end-to-end", () => {
     expect(computeNiosh({ ...base, loadKg: 34.5 }).riskBand).toBe("medium"); // LI 1.5
     expect(computeNiosh({ ...base, loadKg: 57.5 }).riskBand).toBe("high"); // LI 2.5
     expect(computeNiosh({ ...base, loadKg: 80.5 }).riskBand).toBe("veryhigh"); // LI 3.5
-  });
-});
-
-describe("estimateNioshGeometry", () => {
-  it("estimates H and V from synthetic world landmarks", () => {
-    // World frame: meters, y down. Wrists at y=0.2 (0.6 m above the ankles at
-    // y=0.8), 0.35 m forward of the mid-ankle in z, ankles at z=0.
-    const world = new Array(33).fill(null).map(() => ({ x: 0, y: 0, z: 0, visibility: 1 }));
-    world[15] = { x: 0.05, y: 0.2, z: -0.35, visibility: 1 }; // left wrist
-    world[16] = { x: -0.05, y: 0.2, z: -0.35, visibility: 1 }; // right wrist
-    world[27] = { x: 0.1, y: 0.8, z: 0, visibility: 1 }; // left ankle
-    world[28] = { x: -0.1, y: 0.8, z: 0, visibility: 1 }; // right ankle
-    const est = estimateNioshGeometry(world as never);
-    expect(est).not.toBeNull();
-    expect(est!.verticalCm).toBe(60);
-    // wrist x=±0.05 vs mid-ankle x=0 → hypot(0.05, 0.35) ≈ 0.3536 m
-    expect(est!.horizontalCm).toBe(35);
-  });
-
-  it("returns null when landmarks are missing", () => {
-    expect(estimateNioshGeometry([] as never)).toBeNull();
-  });
-
-  it("returns null when an ankle is present but occluded (low visibility)", () => {
-    const world = new Array(33).fill(null).map(() => ({ x: 0, y: 0, z: 0, visibility: 1 }));
-    world[15] = { x: 0.05, y: 0.2, z: -0.35, visibility: 1 }; // left wrist
-    world[16] = { x: -0.05, y: 0.2, z: -0.35, visibility: 1 }; // right wrist
-    world[27] = { x: 0.1, y: 0.8, z: 0, visibility: 0.1 }; // left ankle - occluded
-    world[28] = { x: -0.1, y: 0.8, z: 0, visibility: 1 }; // right ankle
-    expect(estimateNioshGeometry(world as never)).toBeNull();
   });
 });
