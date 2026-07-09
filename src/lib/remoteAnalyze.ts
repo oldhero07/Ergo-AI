@@ -120,11 +120,28 @@ export async function analyzeVideoRemote(
   }
   let pending: Pending[] = [];
 
+  // One transient server blip (cold start, 5xx, network hiccup) must not
+  // discard a whole clip's worth of already-scored batches - retry the batch
+  // a couple of times with backoff before giving up.
+  const sendBatch = async (blobs: Blob[]) => {
+    let lastErr: unknown;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        return await apiAnalyzeBatch(blobs, signal);
+      } catch (err) {
+        if ((err as Error).name === "AbortError" || signal?.aborted) throw err;
+        lastErr = err;
+        await new Promise((r) => setTimeout(r, 2000 * (attempt + 1)));
+      }
+    }
+    throw lastErr;
+  };
+
   const flush = async () => {
     if (!pending.length) return;
     const batch = pending;
     pending = [];
-    const res = await apiAnalyzeBatch(batch.map((p) => p.blob), signal);
+    const res = await sendBatch(batch.map((p) => p.blob));
     for (let j = 0; j < batch.length; j++) {
       const r = res.results[j];
       if (!r?.detected || !r.keypoints) {

@@ -137,9 +137,11 @@ export default function App() {
 
   const addFiles = useCallback(
     (files: File[]) => {
-      // Accept JPEG/PNG - the formats the inference server decodes.
+      // Accept only JPEG/PNG - the formats the inference server decodes - so a
+      // drag-dropped WebP/GIF gets the same friendly early skip the picker's
+      // accept attribute provides, instead of a server 415 after upload.
       const imgs = files.filter(
-        (f) => f.type.startsWith("image/") && !/image\/(heic|heif)/i.test(f.type) && !/\.(heic|heif)$/i.test(f.name),
+        (f) => /image\/(jpeg|png)/i.test(f.type) || /\.(jpe?g|png)$/i.test(f.name),
       );
       const skipped = files.length - imgs.length;
       if (!imgs.length) {
@@ -931,7 +933,7 @@ export default function App() {
                           className="aspect-[4/3] w-full bg-muted object-contain"
                         />
                         <figcaption className="px-4 py-2 text-xs text-muted-foreground">
-                          MediaPipe skeleton
+                          AI pose skeleton
                         </figcaption>
                       </figure>
                       </div>

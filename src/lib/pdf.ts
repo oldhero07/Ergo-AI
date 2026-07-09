@@ -497,7 +497,7 @@ function addCoverPage(doc: jsPDF, items: PdfReportItem[], meta: ReportMeta, meth
   doc.setFontSize(8.5);
   doc.setTextColor(...CONTENT_MUTED);
   const intro = doc.splitTextToSize(
-    `Scores are computed from MediaPipe Pose landmarks located in each photo, in your browser. ${method} captures ${
+    `Scores are computed from RTMPose wholebody keypoints located in each photo. ${method} captures ${
       method === "REBA" ? "whole-body" : method === "OWAS" ? "whole-body posture-category" : "upper-limb"
     } posture risk. All values are a lower-bound estimate from a single camera view and are not a substitute for a full observation by a trained assessor.`,
     contentWidth,
@@ -634,7 +634,7 @@ async function addPhotoPage(doc: jsPDF, item: PdfReportItem, isFirstPage: boolea
     const skeletonFit = fitWithin(skeleton.width, skeleton.height, imageBoxW, imageBoxH);
     const skeletonX = PAGE_MARGIN + imageBoxW + 12;
     doc.addImage(skeleton.dataUrl, "JPEG", skeletonX + (imageBoxW - skeletonFit.w) / 2, y, skeletonFit.w, skeletonFit.h);
-    doc.text("MediaPipe skeleton", skeletonX, y + imageBoxH + 10);
+    doc.text("AI pose skeleton", skeletonX, y + imageBoxH + 10);
   }
 
   y += imageBoxH + 26;
@@ -827,7 +827,7 @@ function addMethodologyPage(doc: jsPDF, isVideo: boolean): void {
     doc,
     pageWidth,
     "Ergo AI - Technical Methodology & Process Flow",
-    "On-device biomechanical pipeline & AI algorithms",
+    "Deterministic inference pipeline & AI algorithms",
   );
 
   y += 30;
@@ -838,8 +838,8 @@ function addMethodologyPage(doc: jsPDF, isVideo: boolean): void {
     y,
     contentWidth,
     "01",
-    "3D Kinematic Processing (Camera-Invariant)",
-    "The engine extracts MediaPipe's 3D Metric World Landmarks, mapped in real-world meters relative to the body's center. Unlike basic 2D pixel tracking, calculating joint angles as 3D spatial vectors eliminates perspective distortion caused by camera tilt or skew, ensuring consistent, reproducible measurements from any viewing angle.",
+    "Research-Grade Wholebody Pose Estimation",
+    "Each photo is analyzed by RTMPose-wholebody (RTMW), a state-of-the-art top-down pose model that locates 133 body and hand keypoints with per-point confidence. A dedicated person detector (YOLOX) isolates the subject first, so bystanders and background structures cannot contaminate the measurement.",
     false
   );
 
@@ -849,8 +849,8 @@ function addMethodologyPage(doc: jsPDF, isVideo: boolean): void {
     y,
     contentWidth,
     "02",
-    "Region-of-Interest (ROI) Cropping Optimization",
-    "To process high-resolution imagery and video frames at near real-time speeds, the system identifies the wrist coordinate and crops a 35% bounding window around it. Hand landmark detection is executed solely on this sub-image, accelerating performance by up to 10x while maintaining precision. A full-frame scan serves as a quality-assurance fallback.",
+    "Deterministic, Device-Independent Scoring",
+    "Inference runs on a single pinned model build on fixed CPU hardware, and every dependency is version-locked. The same photo therefore produces bit-identical keypoints - and the same RULA/REBA score - regardless of the device, browser, or GPU used to submit it. The exact model build is stamped in this report's footer for full provenance.",
     false
   );
 
@@ -860,8 +860,8 @@ function addMethodologyPage(doc: jsPDF, isVideo: boolean): void {
     y,
     contentWidth,
     "03",
-    "Dual-Model Forearm & Hand Coordination",
-    "Ergo-AI runs dual neural networks in parallel: the primary Pose model tracks the body structure, while the Hand model isolates finger joints. The system intelligently synchronizes these data streams in 3D space to automatically calculate exact wrist flexion and extension angles relative to the forearm axis, removing the need for manual wrist angle estimation.",
+    "Sagittal-Plane Angle Derivation",
+    "Joint angles are computed in the sagittal (side-view) plane from the detected keypoints - the standard method for photo-based RULA/REBA assessment. The wholebody model's hand keypoints yield measured wrist flexion without a second model. Angles derived from low-confidence keypoints are flagged for expert review rather than suppressed, matching professional assessment practice: best estimate plus assessor override.",
     false
   );
 
@@ -883,8 +883,8 @@ function addMethodologyPage(doc: jsPDF, isVideo: boolean): void {
       y,
       contentWidth,
       "04",
-      "Privacy-First On-Device Architecture",
-      "Ergo-AI is engineered for strict enterprise security. All neural network weights and WebAssembly ML models are cached locally. Image processing and biomechanical calculations run entirely on-device within the browser's sandbox. Zero visual data is uploaded to external cloud servers, ensuring 100% compliance with workplace privacy and air-gapped safety protocols.",
+      "Privacy: Stateless In-Memory Processing",
+      "Photos are transmitted over HTTPS to Ergo AI's stateless inference service, processed entirely in memory, and immediately discarded - never written to disk, logged, stored, or used for model training. Scores, adjustments, reports and exports are generated locally in the browser. No account, tracking, or retention of any visual data.",
       true
     );
   }
@@ -893,7 +893,7 @@ function addMethodologyPage(doc: jsPDF, isVideo: boolean): void {
 /**
  * Build and download a PDF report: an optional batch summary page (when more
  * than one item is supplied) followed by one page per photo containing the
- * original image, the MediaPipe skeleton overlay, the assessment breakdown (if a
+ * original image, the pose-skeleton overlay, the assessment breakdown (if a
  * pose was detected), measured angles, the visual-assumption notes, and a
  * methodology caveat. Every page is labelled with the assessment method (RULA
  * or REBA) and stamped with a footer (generation time + page numbers).

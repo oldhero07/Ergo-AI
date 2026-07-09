@@ -12,8 +12,11 @@ self.addEventListener("install", () => {
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     (async () => {
+      // Delete only OUR caches ("ergo-*"): CacheStorage is origin-scoped and
+      // the github.io deployment shares its origin with other project pages -
+      // an unqualified wipe would destroy their caches too.
       for (const key of await caches.keys()) {
-        await caches.delete(key);
+        if (key.startsWith("ergo-")) await caches.delete(key);
       }
       await self.registration.unregister();
       for (const client of await self.clients.matchAll({ type: "window" })) {
