@@ -11,6 +11,8 @@ are mapped back to original pixel space before responding.
 from __future__ import annotations
 
 import io
+import time
+from collections import deque
 from contextlib import asynccontextmanager
 
 import numpy as np
@@ -44,6 +46,20 @@ BODY_LIMITS = {
     "/analyze-batch": 24 * 1024 * 1024,
 }
 
+# Per-IP sliding-window rate limits (requests per RATE_WINDOW_SEC) for the two
+# expensive endpoints; /health stays unlimited for wake polling. In-memory is
+# correct here: the service runs a single instance (--max-instances 1), and an
+# instance restart resetting counters is harmless. A batch request covers up to
+# 16 frames, so 10/min of batches ~= 160 frames/min - plenty for real use,
+# cheap to abuse no longer.
+RATE_LIMITS = {
+    "/analyze": 30,
+    "/analyze-batch": 10,
+}
+RATE_WINDOW_SEC = 60
+# Purge bookkeeping when the table grows past this many client IPs (abuse-scale).
+RATE_TABLE_MAX = 10_000
+
 ALLOWED_ORIGINS = [
     "https://rulaergo.com",
     "https://www.rulaergo.com",
@@ -64,6 +80,41 @@ async def _lifespan(_: FastAPI):
 
 
 app = FastAPI(title="Ergo AI pose inference", docs_url=None, redoc_url=None, lifespan=_lifespan)
+
+
+def _client_ip(request: Request) -> str:
+    """First hop of X-Forwarded-For (Cloud Run appends the real client IP as
+    the first value); falls back to the socket peer for local/dev runs."""
+    fwd = request.headers.get("x-forwarded-for")
+    if fwd:
+        return fwd.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
+# {(ip, path): deque[timestamps]} - pruned per request and size-capped.
+_rate_table: dict[tuple[str, str], deque[float]] = {}
+
+
+@app.middleware("http")
+async def _rate_limit(request: Request, call_next):
+    limit = RATE_LIMITS.get(request.url.path)
+    if limit is not None and request.method == "POST":
+        now = time.monotonic()
+        key = (_client_ip(request), request.url.path)
+        if len(_rate_table) > RATE_TABLE_MAX:
+            _rate_table.clear()  # abuse-scale reset; legitimate users re-accrue instantly
+        window = _rate_table.setdefault(key, deque())
+        while window and now - window[0] > RATE_WINDOW_SEC:
+            window.popleft()
+        if len(window) >= limit:
+            retry_after = max(1, int(RATE_WINDOW_SEC - (now - window[0])) + 1)
+            return JSONResponse(
+                status_code=429,
+                content={"detail": "Too many requests - please wait a moment and try again."},
+                headers={"Retry-After": str(retry_after)},
+            )
+        window.append(now)
+    return await call_next(request)
 
 
 @app.middleware("http")
