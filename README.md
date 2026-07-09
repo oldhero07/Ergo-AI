@@ -1,71 +1,68 @@
-# Ergo-AI
-### State-of-the-Art On-Device Ergonomic Assessment (RULA & REBA)
+# Ergo AI
+### Deterministic Ergonomic Assessment (RULA & REBA) from Photos and Video
 
-Ergo-AI is a high-precision, privacy-first computer vision platform designed for ergonomics professionals, safety engineers, and occupational therapists. It automates **RULA (Rapid Upper Limb Assessment)** and **REBA (Rapid Entire Body Assessment)** workflows directly in-browser using advanced machine learning.
+Ergo AI is a computer-vision platform for ergonomics professionals, safety engineers, and occupational therapists. It automates **RULA (Rapid Upper Limb Assessment)** and **REBA (Rapid Entire Body Assessment)** workflows: upload a photo or short clip of a working posture, get a scored, reviewable, exportable assessment.
 
----
-
-## 🌟 Why Ergo-AI Leads the Field
-
-Traditional ergonomic tools force a compromise between **scientific accuracy**, **data privacy**, and **processing speed**. Ergo-AI eliminates these tradeoffs:
-
-### 1. True 3D Kinematic Math (Perspective-Invariant)
-*   **The Problem in Competitors:** Most 2D posture calculators analyze raw image pixels. If the camera is tilted or the subject is standing at a slight angle (e.g., 45° instead of a flat 90° profile), the estimated joint angles distort, shifting results by up to 2 full risk bands.
-*   **The Ergo-AI Solution:** We use Google MediaPipe's **3D Metric World Landmarks** (hip-centered coordinates in meters). Joint angles for the upper arm, lower arm, neck, trunk, and knees are computed in true 3D space, resolving camera-angle distortion and providing clinical-grade consistency.
-
-### 2. Dual-Model Precision (Automatic Wrist Flexion)
-*   **The Problem in Competitors:** Standard pose estimation models (33 body landmarks) cannot track fingers or hands, meaning wrist flexion/extension is ignored or left to optimistic defaults.
-*   **The Ergo-AI Solution:** When a wrist is visible, Ergo-AI automatically launches a secondary **Hand Landmarker model** in parallel. It calculates the exact angle of wrist flexion/extension relative to the forearm axis, eliminating manual estimation.
-
-### 3. High-Speed Cropped Video Tracking (ROI Optimization)
-*   **The Problem in Competitors:** Running two neural networks simultaneously on high-resolution video frames (e.g. 720p or 1080p) causes intense browser lag and memory crashes.
-*   **The Ergo-AI Solution:** Ergo-AI tracks the wrist coordinate via the Pose model, **crops a 35% square bounding region (Region of Interest)** around the hand, runs the hand landmarker *only* on that small sub-image, and scales the coordinates back. This is **5x to 10x faster** than full-frame analysis while maintaining a quality fallback to full-frame detection if the hand is extended.
-
-### 4. Privacy-First & Fully Offline (Local-Execution)
-*   **The Problem in Competitors:** Cloud-based ML tools upload video clips of employees to external servers, creating major legal, security, and union issues.
-*   **The Ergo-AI Solution:** Everything runs entirely client-side on the user's device using WebGL-accelerated WebAssembly. 
-*   **Service Worker Integration (`sw.js`):** Large neural net model tasks (30.7 MB Pose model and 5.7 MB Hand model) are bundled and cached locally. After the first load, the app opens instantly and runs **100% offline** without transferring a single byte of data.
+Live at **[rulaergo.com](https://rulaergo.com)**.
 
 ---
 
-## 📊 Feature Highlights
+## Why Ergo AI
 
-*   **RULA & REBA Scoring Engines:** Full tabular lookup tables implemented directly from McAtamney & Corlett (1993) and Hignett & McAtamney (2000).
-*   **Batch Image Processing:** Queue and score up to 30 images simultaneously, automatically sorted from worst to best posture with visual risk indicators.
-*   **Temporal Video Analysis:** Seeking, sampling, and smoothing of frame-by-frame angles over time, complete with posture cycle detection to automatically flag repetitive or static task strain.
-*   **Interactive Adjustments Panel:** Tweak factors that a single camera cannot observe (e.g., wrist deviation/twist, arm support, muscle use, external load force) with live RULA/REBA re-scoring.
-*   **Professional PDF Audits:** Export formatted reports including cover pages, color-coded risk legends, measured joint angles, and documented task assumptions.
+### 1. Same photo, same score — on every device, every time
+Browser-side ML gives different results on different machines: GPU inference is not bit-identical across vendors and drivers, which shifts keypoints and can flip a risk band at a boundary. Ergo AI runs pose inference on a **single pinned model build on fixed CPU hardware** (a stateless inference service, see [`server/`](server/)). The same image bytes always produce identical keypoints — and identical scores — regardless of the phone, laptop, or browser used. Every report and export is stamped with the exact `model_version` for provenance.
 
----
+### 2. Research-grade pose estimation
+Detection uses **RTMPose wholebody (RTMW)** — 133 body + hand keypoints with per-point confidence — behind a YOLOX person detector that isolates the subject before measurement, so bystanders can't contaminate the result. The wholebody hand keypoints yield measured wrist flexion without a second model. Angles are derived in the sagittal plane, the standard method for photo-based RULA/REBA.
 
-## 🛠️ Technical Architecture
+### 3. Best estimate + expert review — never silent guesses
+When a joint is occluded or out of frame, the model still produces its best geometric estimate — and Ergo AI **flags it** instead of hiding it: the results card names the estimated angles, the measurement summary separates *measured* from *estimated — review*, the adjustment sliders carry review chips, and PDF exports print the same warnings. Angled/frontal photos get an explicit foreshortening warning. This mirrors professional assessment practice: best estimate plus assessor override, with nothing suppressed and nothing silently trusted.
 
-*   **Framework:** React 18 + Vite + TypeScript (Single Page Application)
-*   **Styling:** Tailwind CSS + shadcn/ui + custom Glassmorphic HUD elements
-*   **Animations:** GSAP (GreenSock) for high-performance timeline rendering
-*   **ML Runtimes:** `@mediapipe/tasks-vision` (WebAssembly & WebGL)
-*   **Service Worker:** Custom caching middleware with Cache-First & Stale-While-Revalidate configurations
+### 4. Private by architecture
+Photos are transmitted over HTTPS to the stateless inference service, processed **entirely in memory, and immediately discarded** — never written to disk, logged, stored, or used for training. Scores, adjustments, session restore, and every export are generated locally in the browser. No accounts, no tracking.
 
 ---
 
-## 🚀 Getting Started (Local Development)
+## Feature Highlights
 
-### Prerequisites
-*   Node.js (v18 or higher)
-*   npm or yarn
+*   **RULA & REBA scoring engines:** full tabular lookups implemented directly from McAtamney & Corlett (1993) and Hignett & McAtamney (2000), cross-checked cell-for-cell against the published worksheets, plus OWAS and a NIOSH lifting-equation calculator.
+*   **Batch image processing:** queue and score up to 30 photos, automatically sorted worst-first with a batch summary.
+*   **Temporal video analysis:** fixed-policy frame sampling with rolling-window smoothing and posture-cycle detection that flags repetitive or sustained static strain.
+*   **Interactive adjustments panel:** tweak the factors a single camera cannot observe (wrist deviation, arm support, muscle use, load) with live re-scoring.
+*   **Professional exports:** PDF reports (cover page, risk legend, measured angles, flagged estimates, documented assumptions), plus CSV and JSON with full model provenance.
 
-### Installation
-1.  Clone the repository:
-    ```bash
-    git clone https://github.com/oldhero07/Ergo-AI.git
-    cd Ergo-AI
-    ```
-2.  Install dependencies:
-    ```bash
-    npm install
-    ```
-3.  Launch the local development server:
-    ```bash
-    npm run dev
-    ```
-4.  Open your browser to the local URL (typically `http://localhost:5173/`).
+## Technical Architecture
+
+*   **Client:** React 18 + Vite + TypeScript SPA (GitHub Pages). Scoring engines, angle derivation, exports, and session restore all run in the browser.
+*   **Inference service:** FastAPI + ONNX Runtime (CPU) in a Docker container ([`server/`](server/)) — stateless, in-memory only, model files SHA-256-pinned at build. Portable to any container host; currently on Google Cloud Run (scale-to-zero).
+*   **Styling / animation:** Tailwind CSS + GSAP.
+*   **Testing:** vitest (client, fixture-driven — no live server needed) and pytest (server, golden keypoint regression + run-to-run determinism gates).
+
+## Getting Started (Local Development)
+
+### Client
+```bash
+git clone https://github.com/oldhero07/Ergo-AI.git
+cd Ergo-AI
+npm install
+npm run dev          # http://localhost:5173
+npm test             # vitest
+npm run typecheck
+```
+
+By default the client talks to the production inference service. To run against a local one, create `.env.local` with `VITE_POSE_API_URL=http://localhost:7860`.
+
+### Inference server
+```bash
+cd server
+pip install -r requirements.txt
+python scripts/download_models.py   # fetches + verifies the pinned ONNX models
+uvicorn app:app --port 7860
+pytest
+```
+
+See [server/README.md](server/README.md) for the API contract and reproducibility guarantees.
+
+---
+
+*Scores are a lower-bound estimate from a single camera view and are not a substitute for a full observation by a trained assessor.*

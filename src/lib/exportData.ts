@@ -143,6 +143,10 @@ export function photoCsv(items: PhotoCsvItem[], methodId: string): string {
 
   const header = [...BASE_COLUMNS, ...scoreSlugs, ...FLAG_COLUMNS];
   const lines = [csvRow(header)];
+  // Provenance comment (same style as videoCsv's metadata lines): the exact
+  // pose-model build these rows came from.
+  const modelVersion = items.map((it) => it.analysis.modelVersion).find(Boolean);
+  if (modelVersion) lines.unshift(`# model_version: ${modelVersion}`);
 
   for (const item of items) {
     const { analysis } = item;

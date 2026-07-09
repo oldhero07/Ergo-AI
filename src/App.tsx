@@ -583,25 +583,29 @@ export default function App() {
   }, [items, results, methodId, excludedIds]);
 
   const exportJsonFile = useCallback(() => {
+    const included = items.filter((it) => results[it.id] && !excludedIds.has(it.id));
     const payload = {
       app: "ergo-ai",
       generatedAt: new Date().toISOString(),
       method: methodId,
+      // Exact pose-model build for provenance: any future score comparison is
+      // attributable to a specific model, not a mystery.
+      modelVersion: included.map((it) => results[it.id].modelVersion).find(Boolean) ?? null,
       meta: { assessor: reportMeta.assessor, organization: reportMeta.organization, subject: reportMeta.subject },
-      items: items
-        .filter((it) => results[it.id] && !excludedIds.has(it.id))
-        .map((it) => {
-          const r = results[it.id];
-          return {
-            fileName: it.file.name,
-            detected: r.detected,
-            error: r.error,
-            angles: r.angles,
-            wristMeasured: r.wristMeasured,
-            input: r.input,
-            assessment: r.assessment,
-          };
-        }),
+      items: included.map((it) => {
+        const r = results[it.id];
+        return {
+          fileName: it.file.name,
+          detected: r.detected,
+          error: r.error,
+          angles: r.angles,
+          wristMeasured: r.wristMeasured,
+          measuredFlags: r.measuredFlags,
+          offProfile: r.offProfile,
+          input: r.input,
+          assessment: r.assessment,
+        };
+      }),
     };
     if (!payload.items.length) return;
     downloadText(`ergo-ai-${methodId}-data.json`, "application/json", exportJson(payload));
