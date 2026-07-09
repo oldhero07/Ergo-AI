@@ -26,5 +26,6 @@ COPY inference.py app.py ./
 # HF Spaces runs the container as a non-root user with a random uid.
 RUN chmod -R a+r /app
 
+# Cloud Run injects PORT (8080); HF Spaces and local runs fall back to 7860.
 EXPOSE 7860
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "7860", "--workers", "1"]
+CMD ["sh", "-c", "uvicorn app:app --host 0.0.0.0 --port ${PORT:-7860} --workers 1"]
