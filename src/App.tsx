@@ -8,6 +8,7 @@ import { ComputeAnimation } from "@/components/ComputeAnimation";
 import { AdjustmentsPanel } from "@/components/AdjustmentsPanel";
 import { MeasurementSummary } from "@/components/MeasurementSummary";
 import { COMPUTE_LOOP_MS } from "@/hooks/useComputeTimeline";
+import { useServerHealth } from "@/hooks/useServerHealth";
 import { Button } from "@/components/ui/button";
 import type { PoseAnalysis, VideoAnalysis } from "@/lib/analyze";
 import { getPipeline } from "@/lib/pipeline";
@@ -92,6 +93,13 @@ export default function App() {
   const videoAbortRef = useRef<AbortController | null>(null);
   const [restorable, setRestorable] = useState<SessionSnapshot | null>(null);
   const [nioshPrefill, setNioshPrefill] = useState<NioshPrefill | null>(null);
+  // Wakes the inference server on load and drives the warming/unreachable
+  // banner. Informational only - analysis is never gated on it (a cold host
+  // holds the first request until it's up).
+  const { health: serverHealth, retry: retryServer } = useServerHealth();
+  // "Photo n of m" progress for the compute screen (upload + inference are
+  // now one server round-trip per photo, so per-photo is the honest unit).
+  const [photoProgress, setPhotoProgress] = useState<{ done: number; total: number } | null>(null);
   // Cache of small per-item thumbs so snapshot re-saves (adjustments/method
   // switches) don't re-encode images every time.
   const snapshotThumbsRef = useRef<Map<string, string>>(new Map());
@@ -291,9 +299,11 @@ export default function App() {
     const startedAt = performance.now();
     const out: ResultMap = {};
 
+    setPhotoProgress({ done: 0, total: items.length });
     const work = (async () => {
       const pipeline = getPipeline();
-      for (const it of items) {
+      for (const [idx, it] of items.entries()) {
+        setPhotoProgress({ done: idx, total: items.length });
         try {
           out[it.id] = await pipeline.analyzePhoto(it.file, (loaded, total) => {
             setModelProgress(total > 0 ? Math.min(100, Math.round((loaded / total) * 100)) : null);
@@ -325,6 +335,7 @@ export default function App() {
     await Promise.all([work, floor]);
     skipResolveRef.current = null;
     setModelProgress(null);
+    setPhotoProgress(null);
     setResults((prev) => {
       revokeResultUrls(prev);
       return out;
@@ -780,6 +791,20 @@ export default function App() {
                 Could not analyze the video: {videoError}
               </p>
             )}
+            {serverHealth === "warming" && (
+              <p className="hud-readout mx-auto mt-4 flex max-w-3xl items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-4 py-2 text-center text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />
+                Waking the analysis engine - a first visit can take a couple of minutes. You can queue photos meanwhile.
+              </p>
+            )}
+            {serverHealth === "unreachable" && (
+              <p className="mx-auto mt-4 flex max-w-3xl items-center justify-center gap-3 rounded-xl bg-amber-50 px-4 py-2 text-center text-sm text-amber-700 dark:bg-amber-950/40 dark:text-amber-400">
+                The analysis server can't be reached - check your connection.
+                <Button size="sm" variant="outline" onClick={retryServer}>
+                  Retry
+                </Button>
+              </p>
+            )}
             <p className="mx-auto mt-6 max-w-lg text-center text-sm text-muted-foreground">
               {mode === "video"
                 ? "Tip: a short, steady side-view clip of the working posture reads best."
@@ -804,11 +829,13 @@ export default function App() {
             {showAnimation ? (
               <ComputeAnimation
                 note={
-                  modelProgress !== null
-                    ? `Downloading the pose model - ${modelProgress}%. This only happens the first time; afterwards it’s saved on your device.`
+                  serverHealth === "warming"
+                    ? "Waking the analysis server - a first visit can take a couple of minutes. Your photos are queued and will be scored as soon as it's up."
                     : videoProgress !== null
                       ? `Analyzing video - ${videoProgress}% (sampling frames)`
-                      : undefined
+                      : photoProgress && photoProgress.total > 1
+                        ? `Analyzing photo ${Math.min(photoProgress.done + 1, photoProgress.total)} of ${photoProgress.total}`
+                        : undefined
                 }
                 onSkip={mode === "video" ? undefined : skipAnimation}
               />
@@ -816,11 +843,13 @@ export default function App() {
               <div className="flex min-h-[50vh] flex-col items-center justify-center gap-3 text-center">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 <p className="text-sm text-muted-foreground">
-                  {modelProgress !== null
-                    ? `Downloading the pose model - ${modelProgress}% (first time only)`
+                  {serverHealth === "warming"
+                    ? "Waking the analysis server - this can take a couple of minutes on a first visit…"
                     : videoProgress !== null
                       ? `Analyzing video - ${videoProgress}%`
-                      : "Still working…"}
+                      : photoProgress && photoProgress.total > 1
+                        ? `Analyzing photo ${Math.min(photoProgress.done + 1, photoProgress.total)} of ${photoProgress.total}`
+                        : "Still working…"}
                 </p>
               </div>
             )}
