@@ -48,6 +48,7 @@ ALLOWED_ORIGINS = [
     "https://rulaergo.com",
     "https://www.rulaergo.com",
     "https://oldhero07.github.io",
+    "https://ergo-ai.vercel.app",
     "http://localhost:5173",
     "http://localhost:4173",
 ]

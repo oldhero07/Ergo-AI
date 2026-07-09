@@ -35,8 +35,22 @@ function scoreFromKeypoints(out: PoseAnalysis, res: AnalyzeResult): void {
   out.assessment = computeRula(out.input);
 }
 
+async function sendPhotoWithRetry(file: File): Promise<AnalyzeResult> {
+  let lastErr: unknown;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      return await apiAnalyzePhoto(file);
+    } catch (err) {
+      if ((err as Error).name === "AbortError") throw err;
+      lastErr = err;
+      await new Promise((resolve) => setTimeout(resolve, 2000 * (attempt + 1)));
+    }
+  }
+  throw lastErr;
+}
+
 export async function analyzePhotoRemote(file: File): Promise<PoseAnalysis> {
-  const res = await apiAnalyzePhoto(file);
+  const res = await sendPhotoWithRetry(file);
 
   const out: PoseAnalysis = {
     skeletonUrl: "",
