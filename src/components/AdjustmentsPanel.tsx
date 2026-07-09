@@ -1,7 +1,19 @@
 import { useState } from "react";
-import { ChevronDown, SlidersHorizontal } from "lucide-react";
+import { ChevronDown, Eye, SlidersHorizontal } from "lucide-react";
 import type { PostureInput } from "@/assessment/types";
+import type { AngleMeasuredFlags } from "@/lib/angles2d";
 import { cn } from "@/lib/utils";
+
+/** Amber "estimate - review" chip shown beside a value whose source joints
+ * were hard to see. The value is still in the score (flag-never-suppress) -
+ * this marks it for assessor review/override. */
+function ReviewChip() {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-risk-medium/15 px-1.5 py-0.5 text-[10px] font-bold text-risk-medium">
+      <Eye className="h-3 w-3" /> estimate - review
+    </span>
+  );
+}
 
 function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
@@ -82,10 +94,13 @@ export function AdjustmentsPanel({
   input,
   methodId,
   onChange,
+  measuredFlags,
 }: {
   input: PostureInput;
   methodId: string;
   onChange: (next: PostureInput) => void;
+  /** Per-angle confidence flags - flagged sliders get a review chip. */
+  measuredFlags?: AngleMeasuredFlags;
 }) {
   const [open, setOpen] = useState(false);
   const set = <K extends keyof PostureInput>(key: K, value: PostureInput[K]) => onChange({ ...input, [key]: value });
@@ -152,7 +167,10 @@ export function AdjustmentsPanel({
               <Toggle label="Weight on both legs (bilateral)" checked={input.legsBilateral} onChange={(v) => set("legsBilateral", v)} />
               <div className="rounded-xl border border-border bg-card/50 px-3.5 py-2.5">
                 <label className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
-                  <span>Knee flexion</span>
+                  <span className="flex items-center gap-1.5">
+                    Knee flexion
+                    {measuredFlags?.legs === false && <ReviewChip />}
+                  </span>
                   <span className="hud-readout rounded-md bg-secondary px-1.5 py-0.5 font-medium">
                     {Math.round(input.legAngle ?? 0)}°
                   </span>
@@ -214,7 +232,10 @@ export function AdjustmentsPanel({
             </div>
             <div className="rounded-xl border border-border bg-card/50 px-3.5 py-2.5">
               <label className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
-                <span>Wrist flexion / extension</span>
+                <span className="flex items-center gap-1.5">
+                  Wrist flexion / extension
+                  {measuredFlags?.wrist === false && <ReviewChip />}
+                </span>
                 <span className="hud-readout rounded-md bg-secondary px-1.5 py-0.5 font-medium">
                   {Math.round(input.wristAngle)}°
                 </span>

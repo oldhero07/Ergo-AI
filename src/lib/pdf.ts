@@ -39,6 +39,8 @@ const PAGE_MARGIN = 36; // pt
 const FOOTER_RESERVE = 28; // pt kept clear at the bottom of every page for the footer
 const CONTENT_MUTED: [number, number, number] = [100, 100, 100];
 const CONTENT_DARK: [number, number, number] = [30, 30, 30];
+/** Amber for review-pending warnings (matches the UI's risk-medium). */
+const RISK_MEDIUM_DARK: [number, number, number] = [180, 120, 10];
 const RULE_GRAY: [number, number, number] = [210, 210, 210];
 
 /** Longest edge (px) we embed images at in the PDF. The display box is ~255pt
@@ -711,6 +713,44 @@ async function addPhotoPage(doc: jsPDF, item: PdfReportItem, isFirstPage: boolea
       y += lines.length * 10;
     }
     y += 4;
+  }
+
+  // Angles derived from hard-to-see joints: the value is in the score (the
+  // model's best read of the actual image), but the report must say so.
+  const flags = analysis.measuredFlags;
+  if (flags) {
+    const flagged = (
+      [
+        ["upperArm", "Upper-arm angle"],
+        ["lowerArm", "Lower-arm angle"],
+        ["wrist", "Wrist flexion"],
+        ["neck", "Neck angle"],
+        ["trunk", "Trunk angle"],
+        ["legs", "Knee angle"],
+      ] as const
+    )
+      .filter(([key]) => flags[key] === false)
+      .map(([, label]) => label);
+    const warnings: string[] = [];
+    if (flagged.length) {
+      warnings.push(
+        `Estimated values pending review: ${flagged.join(", ")} - derived from joints that were partially hidden in this photo. They are included in the score but should be verified by the assessor.`,
+      );
+    }
+    if (analysis.offProfile) {
+      warnings.push(
+        "Camera angle: the photo appears angled/frontal rather than side-on; sagittal angles (and the score) may be underestimated.",
+      );
+    }
+    for (const w of warnings) {
+      const lines = doc.splitTextToSize(w, contentWidth) as string[];
+      y = ensureSpace(doc, y, lines.length * 10 + 4, pageWidth, title);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8.5);
+      doc.setTextColor(...RISK_MEDIUM_DARK);
+      doc.text(lines, PAGE_MARGIN, y);
+      y += lines.length * 10 + 4;
+    }
   }
 
   if (analysis.input) {

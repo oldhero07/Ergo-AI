@@ -292,6 +292,14 @@ export function VideoResults({
             </p>
           )}
 
+          {analysis.offProfile && (
+            <p className="mt-3 rounded-lg border border-risk-medium/40 bg-risk-medium/10 px-4 py-2 text-sm text-muted-foreground">
+              <strong className="font-semibold text-foreground">Camera angle:</strong> most of this clip looks
+              angled or frontal rather than side-on, so joint angles (and scores) may be underestimated. For
+              best accuracy, film from directly side-on to the working posture.
+            </p>
+          )}
+
           {stats && (
             <div className="mt-4 overflow-hidden rounded-xl border bg-card">
               <MeasurementSummary

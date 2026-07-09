@@ -318,20 +318,26 @@ export function computeAngles2D(
   // used but unflagged is this repo's historical unguarded-visibility bug in
   // its new form (audit findings: upper arm uses the hip for the trunk line;
   // neck uses the hips via trunkUp and the nose via the facing sign).
+  //
+  // A joint is trusted only when its score clears the floor AND it sits inside
+  // the frame: for a body part cropped out of the photo (e.g. legs cut at the
+  // waist), the model clamps its best guess to the image border - a real
+  // estimate, but one the assessor must review, so it clears the flag.
+  const margin = 0.015 * Math.max(imgW, imgH);
+  const trusted = (idx: number): boolean => {
+    if (score(kps, idx) < KP_SCORE_FLOOR) return false;
+    const p = pt(kps, idx);
+    return p.x >= margin && p.x <= imgW - margin && p.y >= margin && p.y <= imgH - margin;
+  };
   const trunkAnchorsOk =
-    Math.min(
-      score(kps, KP.leftShoulder),
-      score(kps, KP.rightShoulder),
-      score(kps, KP.leftHip),
-      score(kps, KP.rightHip),
-    ) >= KP_SCORE_FLOOR;
+    trusted(KP.leftShoulder) && trusted(KP.rightShoulder) && trusted(KP.leftHip) && trusted(KP.rightHip);
   const flags: AngleMeasuredFlags = {
-    upperArm: Math.min(score(kps, i.sh), score(kps, i.el), score(kps, i.hip)) >= KP_SCORE_FLOOR,
-    lowerArm: Math.min(score(kps, i.sh), score(kps, i.el), score(kps, i.wr)) >= KP_SCORE_FLOOR,
-    wrist: wrist.measured,
-    neck: Math.min(score(kps, earVis), score(kps, KP.nose)) >= KP_SCORE_FLOOR && trunkAnchorsOk,
+    upperArm: trusted(i.sh) && trusted(i.el) && trusted(i.hip),
+    lowerArm: trusted(i.sh) && trusted(i.el) && trusted(i.wr),
+    wrist: wrist.measured && trusted(i.el) && trusted(i.wr),
+    neck: trusted(earVis) && trusted(KP.nose) && trunkAnchorsOk,
     trunk: trunkAnchorsOk,
-    legs: Math.min(score(kps, i.hip), score(kps, i.kn), score(kps, i.an)) >= KP_SCORE_FLOOR,
+    legs: trusted(i.hip) && trusted(i.kn) && trusted(i.an),
   };
 
   const angles: AngleSet = {

@@ -123,6 +123,20 @@ describe("computeAngles2D on synthetic geometry", () => {
     expect(angles.neck).toBeGreaterThanOrEqual(0);
   });
 
+  it("out-of-frame (edge-clamped) joints flag measured:false but keep values", () => {
+    // Legs cropped out of the photo: the model clamps knee/ankle to the bottom
+    // border with decent confidence - a real estimate, but review-worthy.
+    const kps = uprightFigure();
+    kps[KP.leftKnee] = [500, 999, 0.6];
+    kps[KP.rightKnee] = [500, 999, 0.6];
+    kps[KP.leftAnkle] = [500, 1000, 0.55];
+    kps[KP.rightAnkle] = [500, 1000, 0.55];
+    const { angles, flags } = computeAngles2D(kps, 1000, 1000);
+    expect(flags.legs).toBe(false); // flagged for review...
+    expect(angles.legAngle).toBeDefined(); // ...value still present
+    expect(flags.trunk).toBe(true); // in-frame anchors unaffected
+  });
+
   it("low-score joints flag measured:false but still produce values", () => {
     const kps = uprightFigure();
     kps[KP.leftKnee][2] = 0.1;

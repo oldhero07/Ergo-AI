@@ -957,6 +957,8 @@ export default function App() {
                                 r.angles?.neckSideBend !== undefined || r.angles?.trunkSideBend !== undefined
                               }
                               staticRepetition="assumed"
+                              measuredFlags={r.measuredFlags}
+                              offProfile={r.offProfile}
                             />
                           </div>
                         )}
@@ -965,6 +967,7 @@ export default function App() {
                             input={r.input}
                             methodId={methodId}
                             onChange={(next) => updateInput(it.id, next)}
+                            measuredFlags={r.measuredFlags}
                           />
                         )}
                         {r.input && <RecommendationsPanel result={r.assessment} input={r.input} />}
