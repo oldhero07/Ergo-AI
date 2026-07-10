@@ -24,7 +24,7 @@ from app import app  # noqa: E402
 
 FIXTURES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fixtures")
 GOLDENS = os.path.join(FIXTURES, "goldens")
-SAMPLES = ["office-typing.jpg", "warehouse-lifting.jpg", "assembly-standing.jpg", "weaver-sample.jpg"]
+SAMPLES = ["office-typing.jpg", "warehouse-lifting.jpg", "assembly-standing.jpg"]
 
 
 @pytest.fixture(scope="module")

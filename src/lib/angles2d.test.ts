@@ -230,7 +230,6 @@ describe("computeAngles2D on real captured fixtures", () => {
   // weaver-loom-1..3 are keypoints captured from real loin-loom field photos
   // (the project's actual subject: floor-seated, backward-leaning, arms
   // elevated) - the hardest case for hip occlusion and trunk reference.
-  // (weaver-sample is excluded: that bundled jpg is a copy of office-typing.)
   const names = [
     "office-typing",
     "warehouse-lifting",
