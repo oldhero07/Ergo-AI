@@ -4,77 +4,64 @@
 
 @layer base {
   :root {
-    /* Light "lab white": cool near-white surfaces, deep-teal accent.
-       (Dark is the app default - see the .dark block and the pre-paint
-       script in index.html - but tokens keep light in :root so the existing
-       `dark:` variant mechanics stay untouched.) */
-    --background: 210 30% 98%;
-    --foreground: 222 40% 12%;
+    /* Clinical Professional - light is the app default. Sky-tinted near-white
+       surfaces, clinical blue primary, slate-blue ink. All fg/bg pairs meet
+       WCAG AA (>= 4.5:1) on their intended surfaces. */
+    --background: 204 60% 98%;
+    --foreground: 202 80% 24%;
     --card: 0 0% 100%;
-    --card-foreground: 222 40% 12%;
+    --card-foreground: 202 80% 24%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222 40% 12%;
-    --primary: 174 85% 27%; /* deep bio-teal, AA on white */
+    --popover-foreground: 202 80% 24%;
+    --primary: 201 96% 32%; /* clinical blue (sky-700), AA on white */
     --primary-foreground: 0 0% 100%;
-    --secondary: 214 25% 94%;
-    --secondary-foreground: 222 30% 20%;
-    --muted: 214 25% 94%;
-    --muted-foreground: 218 14% 42%;
-    --accent: 174 60% 92%; /* soft teal tint */
-    --accent-foreground: 174 85% 20%;
+    --secondary: 204 45% 94%;
+    --secondary-foreground: 202 60% 26%;
+    --muted: 208 30% 95%;
+    --muted-foreground: 207 22% 40%;
+    --accent: 204 90% 94%; /* sky tint for hover/selected */
+    --accent-foreground: 201 96% 28%;
     --destructive: 0 72% 46%;
     --destructive-foreground: 0 0% 100%;
-    --border: 216 22% 88%;
-    --input: 216 22% 88%;
-    --ring: 174 85% 32%;
-    --radius: 1rem;
+    --border: 205 50% 88%;
+    --input: 205 50% 88%;
+    --ring: 201 96% 32%;
+    --radius: 0.625rem;
+    --success: 145 63% 30%;
 
-    /* Sci-fi lab families (light variants are subtle, not neon). */
-    --glass-bg: 0 0% 100% / 0.65;
-    --glass-border: 174 60% 35% / 0.18;
-    --glow-primary: 174 85% 32%;
-    --glow-accent: 262 70% 50%;
-    --grid-line: 218 40% 40% / 0.07;
-
-    --risk-low: 152 70% 30%;
-    --risk-medium: 36 95% 32%;
-    --risk-high: 18 90% 42%;
-    --risk-veryhigh: 350 80% 44%;
+    --risk-low: 142 72% 29%;
+    --risk-medium: 26 90% 37%;
+    --risk-high: 17 88% 40%;
+    --risk-veryhigh: 0 74% 42%;
   }
 
   .dark {
-    /* Deep-space biomechanics lab: near-black blue surfaces, bio-teal
-       primary, electric-violet accent, neon risk hues. */
-    --background: 222 45% 5%;
-    --foreground: 210 30% 92%;
-    --card: 222 40% 8%;
-    --card-foreground: 210 30% 92%;
-    --popover: 222 40% 8%;
-    --popover-foreground: 210 30% 92%;
-    --primary: 174 90% 45%; /* bio-teal / cyan */
-    --primary-foreground: 222 45% 6%;
-    --secondary: 222 30% 13%;
-    --secondary-foreground: 210 30% 88%;
-    --muted: 222 28% 12%;
-    --muted-foreground: 215 15% 64%;
-    --accent: 262 45% 18%; /* violet surface tint */
-    --accent-foreground: 262 85% 82%;
-    --destructive: 0 72% 56%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 220 26% 16%;
-    --input: 220 26% 16%;
-    --ring: 174 90% 45%;
+    /* Desaturated clinical night - calm slate-blue surfaces, no neon. */
+    --background: 208 28% 9%;
+    --foreground: 208 25% 92%;
+    --card: 208 26% 12%;
+    --card-foreground: 208 25% 92%;
+    --popover: 208 26% 12%;
+    --popover-foreground: 208 25% 92%;
+    --primary: 199 85% 58%;
+    --primary-foreground: 208 40% 10%;
+    --secondary: 208 22% 16%;
+    --secondary-foreground: 208 20% 88%;
+    --muted: 208 20% 15%;
+    --muted-foreground: 208 14% 66%;
+    --accent: 202 45% 18%;
+    --accent-foreground: 199 75% 78%;
+    --destructive: 0 70% 58%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 208 18% 21%;
+    --input: 208 18% 21%;
+    --ring: 199 85% 58%;
+    --success: 145 55% 52%;
 
-    --glass-bg: 222 40% 10% / 0.55;
-    --glass-border: 190 80% 60% / 0.16;
-    --glow-primary: 174 90% 45%;
-    --glow-accent: 262 80% 66%;
-    --grid-line: 200 60% 55% / 0.06;
-
-    --risk-low: 152 76% 45%;
-    --risk-medium: 42 96% 55%;
-    --risk-high: 18 95% 58%;
-    --risk-veryhigh: 350 85% 58%;
+    --risk-low: 145 55% 52%;
+    --risk-medium: 38 90% 56%;
+    --risk-high: 20 88% 60%;
+    --risk-veryhigh: 0 78% 64%;
   }
 }
 
@@ -90,80 +77,10 @@
 }
 
 @layer components {
-  /* Frosted glass panel - the core surface of the lab aesthetic. */
-  .glass {
-    background-color: hsl(var(--glass-bg));
-    border: 1px solid hsl(var(--glass-border));
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-  }
-
-  /* Monospace HUD readout: telemetry numbers, angle values, score digits. */
-  .hud-readout {
+  /* Monospace tabular readout: angle values, score digits, data columns. */
+  .tabular-readout {
     font-family: theme("fontFamily.mono");
     font-variant-numeric: tabular-nums;
     letter-spacing: 0.04em;
-  }
-
-  /* Soft neon halo around interactive/highlight elements. */
-  .glow-ring {
-    box-shadow:
-      0 0 0 1px hsl(var(--glow-primary) / 0.35),
-      0 0 18px -2px hsl(var(--glow-primary) / 0.45);
-  }
-
-  /* Animated gradient hairline border (uses a padded background trick). */
-  .gradient-border {
-    position: relative;
-    background:
-      linear-gradient(hsl(var(--card)), hsl(var(--card))) padding-box,
-      linear-gradient(
-          120deg,
-          hsl(var(--glow-primary) / 0.9),
-          hsl(var(--glow-accent) / 0.6),
-          hsl(var(--glow-primary) / 0.9)
-        )
-        border-box;
-    border: 1px solid transparent;
-    background-size: 100% 100%, 300% 300%;
-    animation: gradient-pan 8s linear infinite;
-  }
-
-  /* Faint blueprint grid backdrop for hero/section backgrounds. */
-  .grid-bg {
-    background-image:
-      linear-gradient(hsl(var(--grid-line)) 1px, transparent 1px),
-      linear-gradient(90deg, hsl(var(--grid-line)) 1px, transparent 1px);
-    background-size: 32px 32px;
-  }
-}
-
-.ticker-mask {
-  -webkit-mask-image: linear-gradient(90deg, transparent, black 10%, black 90%, transparent);
-  mask-image: linear-gradient(90deg, transparent, black 10%, black 90%, transparent);
-}
-
-.ticker-track {
-  animation: ticker-scroll 16s linear infinite;
-}
-
-@keyframes ticker-scroll {
-  to {
-    transform: translateX(-50%);
-  }
-}
-
-@keyframes gradient-pan {
-  to {
-    background-position:
-      0 0,
-      300% 300%;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .ticker-track,
-  .gradient-border {
-    animation: none;
   }
 }

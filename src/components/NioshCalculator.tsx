@@ -2,24 +2,10 @@ import { useMemo, useState } from "react";
 import { ArrowLeft, FileDown, Loader2 } from "lucide-react";
 import { computeNiosh } from "@/assessment/niosh/niosh";
 import type { NioshInput, NioshResult } from "@/assessment/niosh/niosh";
-import type { RiskBand } from "@/assessment/types";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { exportNioshPdf, type ReportMeta } from "@/lib/pdf";
-
-const RISK_PILL_CLASSES: Record<RiskBand, string> = {
-  low: "bg-risk-low/15 text-risk-low",
-  medium: "bg-risk-medium/15 text-risk-medium",
-  high: "bg-risk-high/15 text-risk-high",
-  veryhigh: "bg-risk-veryhigh/15 text-risk-veryhigh",
-};
-
-const RISK_STROKE_CLASSES: Record<RiskBand, string> = {
-  low: "text-risk-low",
-  medium: "text-risk-medium",
-  high: "text-risk-high",
-  veryhigh: "text-risk-veryhigh",
-};
+import { RISK_PILL, RISK_TEXT } from "@/lib/risk";
 
 const DEFAULT_INPUT: NioshInput = {
   horizontalCm: 40,
@@ -50,7 +36,7 @@ function SegButton({
       className={cn(
         "rounded-lg px-3 py-1.5 text-xs font-semibold capitalize transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background",
         active
-          ? "bg-primary text-primary-foreground shadow-glow-sm"
+          ? "bg-primary text-primary-foreground shadow-sm"
           : "bg-secondary text-secondary-foreground hover:bg-secondary/80",
       )}
     >
@@ -81,10 +67,10 @@ function SliderRow({
   onChange: (v: number) => void;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-card/50 px-3.5 py-2.5">
+    <div className="rounded-lg border bg-muted/40 px-3.5 py-2.5">
       <label htmlFor={id} className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
         <span>{label}</span>
-        <span className="hud-readout rounded-md bg-secondary px-1.5 py-0.5 font-medium text-secondary-foreground">
+        <span className="tabular-readout rounded-md bg-secondary px-1.5 py-0.5 font-medium text-secondary-foreground">
           {value.toFixed(decimals)}
           {unit}
         </span>
@@ -118,19 +104,10 @@ function LiGauge({ result }: { result: NioshResult }) {
   const c = 2 * Math.PI * r;
   const isInfinite = result.li === Infinity;
   const frac = isInfinite ? 1 : Math.max(0, Math.min(1, result.li / 4));
-  const strokeClass = RISK_STROKE_CLASSES[result.riskBand];
+  const strokeClass = RISK_TEXT[result.riskBand];
 
   return (
     <svg viewBox="0 0 120 120" className="h-32 w-32 shrink-0" role="img" aria-label={`Lifting Index ${isInfinite ? "infinite" : result.li.toFixed(2)}`}>
-      <defs>
-        <filter id="niosh-li-glow" x="-30%" y="-30%" width="160%" height="160%">
-          <feGaussianBlur stdDeviation="3" result="blur" />
-          <feMerge>
-            <feMergeNode in="blur" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
-      </defs>
       <circle cx="60" cy="60" r={r} fill="none" stroke="hsl(var(--muted))" strokeWidth="10" />
       <circle
         cx="60"
@@ -143,13 +120,12 @@ function LiGauge({ result }: { result: NioshResult }) {
         strokeDasharray={c}
         strokeDashoffset={c * (1 - frac)}
         transform="rotate(-90 60 60)"
-        filter="url(#niosh-li-glow)"
         style={{ transition: "stroke-dashoffset 0.6s ease" }}
       />
-      <text x="60" y="57" textAnchor="middle" className="hud-readout fill-foreground" style={{ fontSize: isInfinite ? 34 : 26, fontWeight: 700 }}>
+      <text x="60" y="57" textAnchor="middle" className="tabular-readout fill-foreground" style={{ fontSize: isInfinite ? 34 : 26, fontWeight: 700 }}>
         {isInfinite ? "∞" : result.li.toFixed(2)}
       </text>
-      <text x="60" y="76" textAnchor="middle" className="hud-readout fill-muted-foreground" style={{ fontSize: 10 }}>
+      <text x="60" y="76" textAnchor="middle" className="tabular-readout fill-muted-foreground" style={{ fontSize: 10 }}>
         LIFTING INDEX
       </text>
     </svg>
@@ -185,7 +161,7 @@ function MultiplierTable({ result }: { result: NioshResult }) {
   }, [multipliers]);
 
   return (
-    <div className="glass rounded-2xl p-5">
+    <div className="rounded-lg border bg-card p-5 shadow-card">
       <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Multiplier breakdown</h3>
       <div className="mt-3 divide-y divide-border">
         {MULTIPLIER_ROWS.map((row) => {
@@ -196,11 +172,11 @@ function MultiplierTable({ result }: { result: NioshResult }) {
             <div key={row.key} className="flex items-center justify-between gap-3 py-2.5 text-sm">
               <div>
                 <div className="font-medium">{row.name}</div>
-                <div className="hud-readout text-xs text-muted-foreground">{row.formula}</div>
+                <div className="tabular-readout text-xs text-muted-foreground">{row.formula}</div>
               </div>
               <span
                 className={cn(
-                  "hud-readout rounded-md bg-secondary px-2 py-1 text-sm font-semibold text-secondary-foreground",
+                  "tabular-readout rounded-md bg-secondary px-2 py-1 text-sm font-semibold text-secondary-foreground",
                   isZero && "text-risk-veryhigh",
                   isLimiting && !isZero && "text-risk-medium",
                 )}
@@ -251,7 +227,7 @@ export function NioshCalculator({
   const result = useMemo(() => computeNiosh(input), [input]);
   const set = <K extends keyof NioshInput>(key: K, value: NioshInput[K]) => setInput((prev) => ({ ...prev, [key]: value }));
 
-  const pillClasses = RISK_PILL_CLASSES[result.riskBand];
+  const pillClasses = RISK_PILL[result.riskBand];
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -263,7 +239,7 @@ export function NioshCalculator({
         </Button>
         <div>
           <h2 className="text-lg font-semibold leading-none tracking-tight">NIOSH Lifting Equation</h2>
-          <p className="hud-readout mt-1 text-xs text-muted-foreground">
+          <p className="tabular-readout mt-1 text-xs text-muted-foreground">
             Revised lifting equation (Waters et al., 1994) · RWL &amp; Lifting Index
           </p>
         </div>
@@ -275,7 +251,7 @@ export function NioshCalculator({
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* LEFT: form */}
-        <div className="glass rounded-2xl p-5">
+        <div className="rounded-lg border bg-card p-5 shadow-card">
           <h3 className="mb-4 text-xs font-bold uppercase tracking-widest text-muted-foreground">Task variables</h3>
           <div className="space-y-3">
             <SliderRow
@@ -337,7 +313,7 @@ export function NioshCalculator({
               onChange={(v) => set("loadKg", v)}
             />
 
-            <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card/50 px-3.5 py-2.5 text-sm">
+            <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/40 px-3.5 py-2.5 text-sm">
               <span className="text-muted-foreground">Duration</span>
               <div className="flex gap-1">
                 <SegButton label="≤1h" active={input.durationHours === 1} onClick={() => set("durationHours", 1)} />
@@ -346,7 +322,7 @@ export function NioshCalculator({
               </div>
             </div>
 
-            <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card/50 px-3.5 py-2.5 text-sm">
+            <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/40 px-3.5 py-2.5 text-sm">
               <span className="text-muted-foreground">Coupling</span>
               <div className="flex gap-1">
                 <SegButton label="Good" active={input.coupling === "good"} onClick={() => set("coupling", "good")} />
@@ -358,10 +334,10 @@ export function NioshCalculator({
         </div>
 
         {/* RIGHT: results */}
-        <div className="glass flex flex-col items-center rounded-2xl p-5 text-center">
+        <div className="flex flex-col items-center self-start rounded-lg border bg-card p-5 text-center shadow-card lg:sticky lg:top-20">
           <h3 className="mb-4 self-start text-xs font-bold uppercase tracking-widest text-muted-foreground">Result</h3>
           <LiGauge result={result} />
-          <p className="hud-readout mt-4 text-sm text-muted-foreground">
+          <p className="tabular-readout mt-4 text-sm text-muted-foreground">
             Recommended Weight Limit: <span className="font-semibold text-foreground">{result.rwlKg.toFixed(1)} kg</span>
           </p>
           <div className={cn("mt-3 inline-block rounded-lg px-2.5 py-0.5 text-lg font-bold tracking-tight", pillClasses)}>

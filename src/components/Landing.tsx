@@ -1,5 +1,7 @@
 import { Camera, Video, ScanLine, Gauge, ShieldCheck, ArrowRight, Scale, FileText } from "lucide-react";
 import { Logo } from "@/components/Logo";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import type { AnalysisMode } from "@/types";
 
 /**
@@ -14,11 +16,11 @@ export function Landing({ onStart }: { onStart: (mode: AnalysisMode) => void }) 
       <section className="mx-auto max-w-5xl px-2 pt-6 pb-14 sm:pt-12">
         <div className="grid items-center gap-10 lg:grid-cols-2">
           <div className="text-center lg:text-left">
-            <span className="glass glow-ring inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium text-muted-foreground">
+            <Badge variant="outline" className="gap-1.5 rounded-full px-3 py-1 text-muted-foreground">
               <ShieldCheck className="h-3.5 w-3.5 text-primary" /> Processed in memory · never stored
-            </span>
-            <h1 className="mt-6 text-balance bg-gradient-to-r from-primary via-foreground to-foreground bg-clip-text text-4xl font-semibold tracking-tight text-transparent sm:text-5xl">
-              Ergonomic risk scoring, made friendly
+            </Badge>
+            <h1 className="mt-6 text-balance text-4xl font-semibold tracking-tight sm:text-5xl">
+              Ergonomic risk assessment from a photo
             </h1>
             <p className="mx-auto mt-4 max-w-xl text-pretty text-base text-muted-foreground sm:text-lg lg:mx-0">
               Get <strong className="font-semibold text-foreground">RULA</strong> and{" "}
@@ -26,11 +28,10 @@ export function Landing({ onStart }: { onStart: (mode: AnalysisMode) => void }) 
               short video - with a professional PDF report. Free, private, no sign-up.
             </p>
 
-            {/* HUD stat chips */}
             <div className="mt-5 flex flex-wrap items-center justify-center gap-2 lg:justify-start">
-              <HudChip>133 keypoints</HudChip>
-              <HudChip>RULA · REBA</HudChip>
-              <HudChip>Same photo, same score, every device</HudChip>
+              <Badge variant="muted" className="tabular-readout rounded-full">133 keypoints</Badge>
+              <Badge variant="muted" className="tabular-readout rounded-full">RULA · REBA · OWAS</Badge>
+              <Badge variant="muted" className="tabular-readout rounded-full">Same photo, same score, every device</Badge>
             </div>
 
             <div className="mt-8 grid gap-3 sm:grid-cols-2">
@@ -57,54 +58,51 @@ export function Landing({ onStart }: { onStart: (mode: AnalysisMode) => void }) 
       </section>
 
       {/* How it works */}
-      <section className="relative overflow-hidden border-t py-14 grid-bg">
-        <div
-          className="motion-safe:animate-scanline pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-primary/0 via-primary/60 to-primary/0"
-          aria-hidden="true"
-        />
+      <section className="border-t py-14">
         <div className="mx-auto max-w-4xl px-2">
-          <h2 className="text-center font-mono text-sm font-semibold uppercase tracking-widest text-primary">
+          <h2 className="text-center text-sm font-semibold uppercase tracking-widest text-primary">
             How it works
           </h2>
-          <div className="mt-8 relative">
-            {/* Connector line between steps */}
-            <div className="absolute top-[28px] left-[calc(16.66%+0px)] right-[calc(16.66%+0px)] hidden h-px bg-gradient-to-r from-primary/20 via-primary/40 to-primary/20 sm:block" />
-            <div className="grid gap-4 sm:grid-cols-3">
-              <Step icon={<Camera className="h-5 w-5" />} n="1" title="Upload">
-                A clear side view of the working posture - photo or short clip. Analyzed in memory, never stored.
-              </Step>
-              <Step icon={<ScanLine className="h-5 w-5" />} n="2" title="AI reads the pose">
-                Research-grade AI (RTMPose wholebody) locates 133 body and hand keypoints and derives the joint angles.
-              </Step>
-              <Step icon={<Gauge className="h-5 w-5" />} n="3" title="Score + report">
-                A RULA or REBA grand score with a per-joint breakdown and an exportable PDF.
-              </Step>
-            </div>
+          <div className="mt-8 grid gap-4 sm:grid-cols-3">
+            <Step icon={<Camera className="h-5 w-5" />} n="1" title="Upload">
+              A clear side view of the working posture - photo or short clip. Analyzed in memory, never stored.
+            </Step>
+            <Step icon={<ScanLine className="h-5 w-5" />} n="2" title="AI reads the pose">
+              Research-grade AI (RTMPose wholebody) locates 133 body and hand keypoints and derives the joint angles.
+            </Step>
+            <Step icon={<Gauge className="h-5 w-5" />} n="3" title="Score + report">
+              A RULA or REBA grand score with a per-joint breakdown and an exportable PDF.
+            </Step>
           </div>
         </div>
       </section>
 
       {/* Methods */}
       <section className="border-t py-14">
-        <div className="mx-auto grid max-w-4xl gap-4 px-2 sm:grid-cols-2">
-          <MethodCard
-            name="RULA"
-            full="Rapid Upper Limb Assessment"
-            scale="Grand score 1-7"
-            body="Focuses on the upper body - arms, wrists, neck and trunk. Best for seated, desk and bench tasks."
-          />
-          <MethodCard
-            name="REBA"
-            full="Rapid Entire Body Assessment"
-            scale="Grand score 1-15"
-            body="Whole-body assessment adding legs, load, coupling and an activity score. Best for dynamic, lifting and field work."
-          />
+        <div className="mx-auto max-w-4xl px-2">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <MethodCard
+              name="RULA"
+              full="Rapid Upper Limb Assessment"
+              scale="Grand score 1-7"
+              body="Focuses on the upper body - arms, wrists, neck and trunk. Best for seated, desk and bench tasks."
+            />
+            <MethodCard
+              name="REBA"
+              full="Rapid Entire Body Assessment"
+              scale="Grand score 1-15"
+              body="Whole-body assessment adding legs, load, coupling and an activity score. Best for dynamic, lifting and field work."
+            />
+          </div>
+          <p className="mt-4 text-center text-sm text-muted-foreground">
+            Also included: OWAS postural classification and the NIOSH lifting equation calculator.
+          </p>
         </div>
       </section>
 
       {/* Why / privacy */}
-      <section className="border-t py-14 grid-bg">
-        <div className="mx-auto grid max-w-4xl gap-6 px-2 sm:grid-cols-3">
+      <section className="border-t py-14">
+        <div className="mx-auto grid max-w-4xl gap-4 px-2 sm:grid-cols-3">
           <Feature icon={<ShieldCheck className="h-5 w-5" />} title="Never stored">
             Photos are analyzed in memory on our inference server and immediately discarded - never
             saved, logged, or used for training.
@@ -140,14 +138,6 @@ export function Landing({ onStart }: { onStart: (mode: AnalysisMode) => void }) 
   );
 }
 
-function HudChip({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="hud-readout glass inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-medium text-muted-foreground">
-      {children}
-    </span>
-  );
-}
-
 function EntryCard({
   icon,
   title,
@@ -166,14 +156,14 @@ function EntryCard({
       type="button"
       onClick={onClick}
       className={
-        "group glass flex items-center gap-3 rounded-2xl p-4 text-left transition-all hover:-translate-y-1 hover:shadow-glow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
-        (primary ? "border-primary/40 bg-primary/5" : "")
+        "group flex items-center gap-3 rounded-lg border bg-card p-4 text-left shadow-card transition-all hover:border-primary/50 hover:shadow-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
+        (primary ? "border-primary/40 bg-accent/40" : "")
       }
     >
       <span
         className={
-          "grid h-11 w-11 shrink-0 place-items-center rounded-xl " +
-          (primary ? "bg-primary text-primary-foreground shadow-glow-sm" : "bg-secondary text-secondary-foreground")
+          "grid h-11 w-11 shrink-0 place-items-center rounded-lg " +
+          (primary ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground")
         }
       >
         {icon}
@@ -189,86 +179,47 @@ function EntryCard({
   );
 }
 
-/** A static, token-colored product motif: an annotated pose skeleton with an angle arc and a RULA gauge. */
+/** A static, token-colored product motif: an annotated pose skeleton with an
+ * angle arc and a score gauge. Clean clinical line-art - no glow filters. */
 function HeroVisual() {
   return (
-    <div className="glass mx-auto w-full max-w-sm rounded-3xl p-6 shadow-glow relative overflow-hidden">
-      {/* Decorative ambient background blur lights - token colors only */}
-      <div className="absolute -left-20 -top-20 h-40 w-40 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
-      <div className="absolute -right-20 -bottom-20 h-40 w-40 rounded-full bg-accent/20 blur-3xl pointer-events-none" />
+    <Card className="mx-auto w-full max-w-sm p-6">
+      <svg viewBox="0 0 260 250" className="w-full" role="img" aria-label="Pose skeleton with angle and risk score">
+        {/* Keypoint annotation */}
+        <text x={10} y={20} className="fill-muted-foreground font-mono" style={{ fontSize: 8, letterSpacing: "0.05em" }}>
+          133 KEYPOINTS · SIDE VIEW
+        </text>
 
-      <svg viewBox="0 0 260 250" className="w-full relative z-10" role="img" aria-label="Pose skeleton with angle and risk score">
-        <defs>
-          {/* Diagnostic UI grid */}
-          <pattern id="hero-grid" width="20" height="20" patternUnits="userSpaceOnUse">
-            <circle cx="20" cy="20" r="0.75" fill="currentColor" opacity="0.1" />
-          </pattern>
-          {/* Soft neon glow */}
-          <filter id="hero-glow" x="-20%" y="-20%" width="140%" height="140%">
-            <feGaussianBlur stdDeviation="2.5" result="blur" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-        </defs>
-
-        {/* Ambient Grid */}
-        <rect width="260" height="250" fill="url(#hero-grid)" className="text-muted-foreground" />
-
-        {/* HUD corner brackets */}
-        <path d="M 10 24 L 10 10 L 24 10" fill="none" stroke="hsl(var(--primary))" strokeWidth="1.5" opacity="0.5" />
-        <path d="M 236 10 L 250 10 L 250 24" fill="none" stroke="hsl(var(--primary))" strokeWidth="1.5" opacity="0.5" />
-        <path d="M 250 226 L 250 240 L 236 240" fill="none" stroke="hsl(var(--primary))" strokeWidth="1.5" opacity="0.5" />
-        <path d="M 24 240 L 10 240 L 10 226" fill="none" stroke="hsl(var(--primary))" strokeWidth="1.5" opacity="0.5" />
-
-        {/* Diagnostic HUD Overlay */}
-        <g fill="currentColor" opacity="0.7">
-          <rect x={10} y={32} width={6} height={6} rx={1} fill="hsl(var(--primary))" />
-          <text x={22} y={38} className="font-mono fill-foreground" style={{ fontSize: 8, letterSpacing: "0.05em", fontWeight: 600 }}>
-            POSE ENGINE: ACTIVE
-          </text>
-          <text x={10} y={52} className="font-mono fill-muted-foreground" style={{ fontSize: 7 }}>
-            133 KEYPOINTS / CONF: 98.4%
-          </text>
+        {/* Skeleton bones */}
+        <g stroke="hsl(var(--primary))" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none">
+          <path d="M120 44 L104 86" />
+          <path d="M104 86 L138 120" />
+          <path d="M138 120 L128 160" />
+          <path d="M104 86 L98 176" />
+          <path d="M98 176 L110 214" />
         </g>
 
-        {/* Main Biomechanical Model */}
-        <g>
-          {/* Skeleton Bones */}
-          <g stroke="hsl(var(--primary))" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none" opacity="0.85" filter="url(#hero-glow)">
-            <path d="M120 44 L104 86" />
-            <path d="M104 86 L138 120" />
-            <path d="M138 120 L128 160" />
-            <path d="M104 86 L98 176" />
-            <path d="M98 176 L110 214" />
-          </g>
-
-          {/* Joint Nodes */}
-          <g fill="hsl(var(--primary))" filter="url(#hero-glow)">
-            <circle cx="120" cy="44" r="8" fill="hsl(var(--primary))" />
-            <circle cx="120" cy="44" r="3.5" fill="hsl(var(--primary-foreground))" />
-            <circle cx="104" cy="86" r="5" />
-            <circle cx="138" cy="120" r="5" />
-            <circle cx="128" cy="160" r="5" />
-            <circle cx="98" cy="176" r="5" />
-            <circle cx="110" cy="214" r="5" />
-          </g>
-
-          {/* Measured Angle Highlight - Concentric Angle Arc around Elbow Joint (138, 120) */}
-          <path d="M 124 106 A 20 20 0 0 0 133 139" stroke="hsl(var(--risk-high))" strokeWidth="2" fill="none" filter="url(#hero-glow)" />
-
-          <rect x={128} y={94} width={42} height={16} rx={4} fill="hsl(var(--risk-high))" fillOpacity={0.15} />
-          <text x={132} y={106} className="fill-foreground font-mono" style={{ fontSize: 9, fontWeight: 700 }}>
-            θ = 42.6°
-          </text>
+        {/* Joint nodes */}
+        <g fill="hsl(var(--primary))">
+          <circle cx="120" cy="44" r="8" />
+          <circle cx="120" cy="44" r="3.5" fill="hsl(var(--primary-foreground))" />
+          <circle cx="104" cy="86" r="5" />
+          <circle cx="138" cy="120" r="5" />
+          <circle cx="128" cy="160" r="5" />
+          <circle cx="98" cy="176" r="5" />
+          <circle cx="110" cy="214" r="5" />
         </g>
 
-        {/* HUD Gauge Panel */}
+        {/* Measured angle arc at the elbow */}
+        <path d="M 124 106 A 20 20 0 0 0 133 139" stroke="hsl(var(--risk-high))" strokeWidth="2" fill="none" />
+        <rect x={128} y={94} width={42} height={16} rx={4} fill="hsl(var(--risk-high))" fillOpacity={0.12} />
+        <text x={132} y={106} className="fill-foreground font-mono" style={{ fontSize: 9, fontWeight: 700 }}>
+          θ = 42.6°
+        </text>
+
+        {/* Score gauge */}
         <g transform="translate(208,80)">
-          {/* Gauge Background ring */}
           <circle r="32" fill="none" stroke="hsl(var(--muted))" strokeWidth="8" />
-          {/* Gauge Active Ring */}
           <circle
             r="32"
             fill="none"
@@ -278,11 +229,7 @@ function HeroVisual() {
             strokeDasharray="201"
             strokeDashoffset="130"
             transform="rotate(-90)"
-            filter="url(#hero-glow)"
           />
-          {/* Inner glass overlay */}
-          <circle r="26" fill="currentColor" fillOpacity={0.03} className="text-foreground" />
-          {/* Score Text */}
           <text x="0" y="7" textAnchor="middle" className="fill-foreground font-mono" style={{ fontSize: 22, fontWeight: 800 }}>
             3
           </text>
@@ -290,57 +237,49 @@ function HeroVisual() {
         <text x="208" y="138" textAnchor="middle" className="fill-muted-foreground font-mono font-medium" style={{ fontSize: 10, letterSpacing: "0.05em" }}>
           RULA SCORE
         </text>
-
-        {/* Biomechanical key lines */}
-        <path d="M 198 20 L 238 20 L 238 40" fill="none" stroke="currentColor" className="text-muted-foreground" strokeWidth="0.5" opacity="0.3" />
-        <path d="M 20 230 L 20 200 L 40 200" fill="none" stroke="currentColor" className="text-muted-foreground" strokeWidth="0.5" opacity="0.3" />
       </svg>
-    </div>
+    </Card>
   );
 }
 
 function Step({ icon, n, title, children }: { icon: React.ReactNode; n: string; title: string; children: React.ReactNode }) {
   return (
-    <div className="group glass relative rounded-2xl p-5 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-glow-sm">
+    <Card className="p-5 transition-shadow hover:shadow-card-hover">
       <div className="flex items-center gap-3">
-        <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-primary/30 to-primary/5 text-primary ring-1 ring-primary/25 transition-all group-hover:from-primary/40 group-hover:to-primary/10">
+        <span className="grid h-10 w-10 place-items-center rounded-lg bg-accent text-accent-foreground">
           {icon}
         </span>
-        <span className="hud-readout inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-widest text-primary">
+        <Badge variant="muted" className="rounded-full font-mono text-[10px] font-bold uppercase tracking-widest text-primary">
           Step {n}
-        </span>
+        </Badge>
       </div>
       <h3 className="mt-3 font-semibold tracking-tight">{title}</h3>
       <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{children}</p>
-      {/* Subtle bottom accent line on hover */}
-      <span className="absolute bottom-0 left-6 right-6 h-0.5 scale-x-0 rounded-full bg-gradient-to-r from-primary/0 via-primary to-primary/0 transition-transform duration-300 group-hover:scale-x-100" />
-    </div>
+    </Card>
   );
 }
 
 function MethodCard({ name, full, scale, body }: { name: string; full: string; scale: string; body: string }) {
   return (
-    <div className="group glass rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-glow-sm">
+    <Card className="p-6 transition-shadow hover:shadow-card-hover">
       <div className="flex items-baseline justify-between">
-        <h3 className="text-xl font-bold tracking-tight text-foreground transition-colors group-hover:text-primary">{name}</h3>
-        <span className="hud-readout rounded-full bg-primary/10 px-2.5 py-0.5 font-mono text-xs font-semibold text-primary ring-1 ring-primary/20">
-          {scale}
-        </span>
+        <h3 className="text-xl font-bold tracking-tight">{name}</h3>
+        <Badge variant="muted" className="tabular-readout rounded-full text-primary">{scale}</Badge>
       </div>
       <p className="mt-0.5 font-mono text-[11px] uppercase tracking-widest text-primary">{full}</p>
       <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{body}</p>
-    </div>
+    </Card>
   );
 }
 
 function Feature({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
   return (
-    <div className="group glass rounded-2xl p-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-glow-sm">
-      <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-primary/25 to-accent/20 text-primary ring-1 ring-primary/15 transition-all group-hover:from-primary/35 group-hover:to-accent/30">
+    <Card className="p-5">
+      <span className="grid h-10 w-10 place-items-center rounded-lg bg-accent text-accent-foreground">
         {icon}
       </span>
       <h3 className="mt-3 font-semibold">{title}</h3>
       <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{children}</p>
-    </div>
+    </Card>
   );
 }

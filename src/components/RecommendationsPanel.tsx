@@ -2,10 +2,11 @@ import { Lightbulb } from "lucide-react";
 import type { AssessmentResult, PostureInput } from "@/assessment/types";
 import { buildRecommendations, type Severity } from "@/assessment/recommendations";
 import { cn } from "@/lib/utils";
+import { RISK_PILL } from "@/lib/risk";
 
 const SEVERITY_CLASSES: Record<Severity, string> = {
-  critical: "bg-risk-veryhigh/15 text-risk-veryhigh",
-  important: "bg-risk-medium/15 text-risk-medium",
+  critical: RISK_PILL.veryhigh,
+  important: RISK_PILL.medium,
   advisory: "bg-muted text-muted-foreground",
 };
 
@@ -31,18 +32,18 @@ export function RecommendationsPanel({ result, input }: { result: AssessmentResu
       </h4>
       <ul className="space-y-3">
         {recs.map((rec) => (
-          <li key={rec.id} className="glass rounded-xl p-3.5">
+          <li key={rec.id} className="rounded-lg border bg-muted/40 p-3.5">
             <div className="flex flex-wrap items-center gap-2">
               <span
                 className={cn(
-                  "hud-readout rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider",
+                  "tabular-readout rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider",
                   SEVERITY_CLASSES[rec.severity],
                 )}
               >
                 {SEVERITY_LABEL[rec.severity]}
               </span>
               <span className="text-sm font-medium">{rec.title}</span>
-              <span className="hud-readout ml-auto text-[10px] text-muted-foreground">{rec.component}</span>
+              <span className="tabular-readout ml-auto text-[10px] text-muted-foreground">{rec.component}</span>
             </div>
             <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{rec.body}</p>
           </li>

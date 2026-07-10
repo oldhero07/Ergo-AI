@@ -25,7 +25,7 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
       className={cn(
         "flex w-full items-center justify-between gap-3 rounded-xl border px-3.5 py-2.5 text-left text-sm transition-all duration-200",
         checked
-          ? "border-primary/40 bg-primary/8 shadow-glow-sm"
+          ? "border-primary/40 bg-primary/8 shadow-sm"
           : "border-border bg-card/50 hover:border-border/80 hover:bg-card",
       )}
     >
@@ -71,9 +71,9 @@ function ForceControl({
             aria-pressed={value === v}
             onClick={() => onChange(v)}
             className={cn(
-              "hud-readout h-7 w-7 rounded-lg text-xs font-bold transition-all duration-150",
+              "tabular-readout h-7 w-7 rounded-lg text-xs font-bold transition-all duration-150",
               value === v
-                ? "bg-primary text-primary-foreground shadow-glow-sm"
+                ? "bg-primary text-primary-foreground shadow-sm"
                 : "bg-secondary text-secondary-foreground hover:bg-secondary/80",
             )}
           >
@@ -145,7 +145,7 @@ export function AdjustmentsPanel({
                       className={cn(
                         "rounded-lg px-2.5 py-1 text-xs font-semibold capitalize transition-all duration-150",
                         (input.armsAboveShoulder ?? "none") === v
-                          ? "bg-primary text-primary-foreground shadow-glow-sm"
+                          ? "bg-primary text-primary-foreground shadow-sm"
                           : "bg-secondary text-secondary-foreground hover:bg-secondary/80",
                       )}
                     >
@@ -171,7 +171,7 @@ export function AdjustmentsPanel({
                     Knee flexion
                     {measuredFlags?.legs === false && <ReviewChip />}
                   </span>
-                  <span className="hud-readout rounded-md bg-secondary px-1.5 py-0.5 font-medium">
+                  <span className="tabular-readout rounded-md bg-secondary px-1.5 py-0.5 font-medium">
                     {Math.round(input.legAngle ?? 0)}°
                   </span>
                 </label>
@@ -236,7 +236,7 @@ export function AdjustmentsPanel({
                   Wrist flexion / extension
                   {measuredFlags?.wrist === false && <ReviewChip />}
                 </span>
-                <span className="hud-readout rounded-md bg-secondary px-1.5 py-0.5 font-medium">
+                <span className="tabular-readout rounded-md bg-secondary px-1.5 py-0.5 font-medium">
                   {Math.round(input.wristAngle)}°
                 </span>
               </label>
@@ -319,7 +319,7 @@ export function AdjustmentsPanel({
                       Knee flexion
                       {measuredFlags?.legs === false && <ReviewChip />}
                     </span>
-                    <span className="hud-readout rounded-md bg-secondary px-1.5 py-0.5 font-medium">
+                    <span className="tabular-readout rounded-md bg-secondary px-1.5 py-0.5 font-medium">
                       {Math.round(input.legAngle ?? 0)}°
                     </span>
                   </label>

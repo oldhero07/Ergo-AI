@@ -1,4 +1,6 @@
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { shrinkToDataUrl } from "@/lib/sessionStore";
 
 export interface ReportMetaValues {
@@ -37,33 +39,39 @@ export function ReportDetails({
   };
 
   return (
-    <details className="mb-6 rounded-lg border bg-muted/20">
-      <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-muted-foreground">
+    <details className="mb-6 rounded-lg border bg-card shadow-card">
+      <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
         Report details (shown on the PDF cover page)
       </summary>
       <div className="grid gap-3 px-4 pb-4 sm:grid-cols-3">
         {fields.map((f) => (
-          <label key={f.key} className="text-xs text-muted-foreground">
-            {f.label}
-            <input
+          <div key={f.key} className="space-y-1.5">
+            <Label htmlFor={`report-${f.key}`} className="text-xs text-muted-foreground">
+              {f.label}
+            </Label>
+            <Input
+              id={`report-${f.key}`}
               type="text"
               value={meta[f.key]}
               placeholder={f.placeholder}
               onChange={(e) => set(f.key, e.target.value)}
-              className="mt-1 w-full rounded-md border bg-background px-2 py-1.5 text-sm text-foreground"
+              className="h-9"
             />
-          </label>
+          </div>
         ))}
         <div className="flex items-end gap-3 sm:col-span-3">
-          <label className="text-xs text-muted-foreground">
-            Logo (optional, drawn on the cover)
+          <div className="space-y-1.5">
+            <Label htmlFor="report-logo" className="text-xs text-muted-foreground">
+              Logo (optional, drawn on the cover)
+            </Label>
             <input
+              id="report-logo"
               type="file"
               accept="image/*"
               onChange={(e) => void onLogo(e.target.files?.[0])}
-              className="mt-1 block w-full text-xs text-muted-foreground file:mr-3 file:rounded-md file:border file:border-border file:bg-background file:px-2.5 file:py-1.5 file:text-xs file:text-foreground"
+              className="block w-full text-xs text-muted-foreground file:mr-3 file:rounded-md file:border file:border-border file:bg-card file:px-2.5 file:py-1.5 file:text-xs file:text-foreground"
             />
-          </label>
+          </div>
           {meta.logoDataUrl && (
             <>
               <img src={meta.logoDataUrl} alt="report logo" className="h-10 w-10 rounded-md border object-contain" />

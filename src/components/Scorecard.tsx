@@ -1,21 +1,7 @@
 import type { AssessmentResult, GroupBreakdown, RiskBand } from "@/assessment/types";
 import { cn } from "@/lib/utils";
+import { RISK_PILL, RISK_BORDER, RISK_TEXT } from "@/lib/risk";
 import { CheckCircle2, AlertTriangle, ShieldAlert, OctagonAlert } from "lucide-react";
-
-/** Static (JIT-safelisted) class lookups so risk colors stay token-driven. */
-const RISK_PILL_CLASSES: Record<RiskBand, string> = {
-  low: "bg-risk-low/15 text-risk-low",
-  medium: "bg-risk-medium/15 text-risk-medium",
-  high: "bg-risk-high/15 text-risk-high",
-  veryhigh: "bg-risk-veryhigh/15 text-risk-veryhigh",
-};
-
-const RISK_BORDER_CLASSES: Record<RiskBand, string> = {
-  low: "border-risk-low",
-  medium: "border-risk-medium",
-  high: "border-risk-high",
-  veryhigh: "border-risk-veryhigh",
-};
 
 function Gauge({ score, max, riskBand }: { score: number; max: number; riskBand: RiskBand }) {
   const r = 46;
@@ -23,16 +9,6 @@ function Gauge({ score, max, riskBand }: { score: number; max: number; riskBand:
   const frac = Math.max(0, Math.min(1, score / max));
   return (
     <svg viewBox="0 0 120 120" className="h-28 w-28 shrink-0" role="img" aria-label={`Score ${score} of ${max}`}>
-      {/* Glow filter - soft neon halo behind the progress stroke */}
-      <defs>
-        <filter id="score-glow" x="-30%" y="-30%" width="160%" height="160%">
-          <feGaussianBlur stdDeviation="3" result="blur" />
-          <feMerge>
-            <feMergeNode in="blur" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
-      </defs>
       {/* Track */}
       <circle cx="60" cy="60" r={r} fill="none" stroke="hsl(var(--muted))" strokeWidth="10" />
       {/* Progress */}
@@ -41,20 +17,19 @@ function Gauge({ score, max, riskBand }: { score: number; max: number; riskBand:
         cy="60"
         r={r}
         fill="none"
-        className={cn(RISK_PILL_CLASSES[riskBand].split(" ")[1], "stroke-current")}
+        className={cn(RISK_TEXT[riskBand], "stroke-current")}
         strokeWidth="10"
         strokeLinecap="round"
         strokeDasharray={c}
         strokeDashoffset={c * (1 - frac)}
         transform="rotate(-90 60 60)"
-        filter="url(#score-glow)"
         style={{ transition: "stroke-dashoffset 0.6s ease" }}
       />
       {/* Score text */}
-      <text x="60" y="57" textAnchor="middle" className="hud-readout fill-foreground" style={{ fontSize: 30, fontWeight: 700 }}>
+      <text x="60" y="57" textAnchor="middle" className="tabular-readout fill-foreground" style={{ fontSize: 30, fontWeight: 700 }}>
         {score}
       </text>
-      <text x="60" y="74" textAnchor="middle" className="hud-readout fill-muted-foreground" style={{ fontSize: 11 }}>
+      <text x="60" y="74" textAnchor="middle" className="tabular-readout fill-muted-foreground" style={{ fontSize: 11 }}>
         of {max}
       </text>
     </svg>
@@ -63,7 +38,7 @@ function Gauge({ score, max, riskBand }: { score: number; max: number; riskBand:
 
 function ScoreChip({ value }: { value: number }) {
   return (
-    <span className="hud-readout inline-flex h-6 min-w-[1.75rem] items-center justify-center rounded-lg bg-secondary px-2 text-xs font-bold text-secondary-foreground">
+    <span className="tabular-readout inline-flex h-6 min-w-[1.75rem] items-center justify-center rounded-lg bg-secondary px-2 text-xs font-bold text-secondary-foreground">
       {value}
     </span>
   );
@@ -71,7 +46,7 @@ function ScoreChip({ value }: { value: number }) {
 
 function Group({ group }: { group: GroupBreakdown }) {
   return (
-    <div className="glass rounded-xl p-4">
+    <div className="rounded-lg border bg-muted/40 p-4">
       <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{group.name}</h4>
       <div className="mt-3 space-y-2">
         {group.items.map((it) => (
@@ -88,7 +63,7 @@ function Group({ group }: { group: GroupBreakdown }) {
         <span>{group.scoreLabel}</span>
         <ScoreChip value={group.score} />
       </div>
-      <p className="hud-readout mt-1.5 text-[10px] text-muted-foreground/70">
+      <p className="tabular-readout mt-1.5 text-[10px] text-muted-foreground/70">
         posture {group.posture} · +muscle {group.muscle} · +force {group.force}
       </p>
     </div>
@@ -96,8 +71,8 @@ function Group({ group }: { group: GroupBreakdown }) {
 }
 
 export function Scorecard({ result, className }: { result: AssessmentResult; className?: string }) {
-  const pillClasses = RISK_PILL_CLASSES[result.riskBand];
-  const borderClass = RISK_BORDER_CLASSES[result.riskBand];
+  const pillClasses = RISK_PILL[result.riskBand];
+  const borderClass = RISK_BORDER[result.riskBand];
 
   return (
     <div className={cn("p-5", className)}>

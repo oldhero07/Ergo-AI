@@ -18,10 +18,10 @@ function apply(theme: Theme) {
 export function useTheme() {
   const [theme, setThemeState] = useState<Theme>(() => {
     try {
-      // Dark is the app's default look; users can still pick light or system.
-      return (localStorage.getItem(KEY) as Theme) || "dark";
+      // Light is the app's default look; users can still pick dark or system.
+      return (localStorage.getItem(KEY) as Theme) || "light";
     } catch {
-      return "dark";
+      return "light";
     }
   });
 

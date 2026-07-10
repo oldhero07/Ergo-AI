@@ -27,21 +27,38 @@ export interface ReportMeta {
   logoDataUrl?: string;
 }
 
-/** RGB fill/text colors per risk band - jsPDF wants plain RGB triples, not CSS `hsl(var(--x))`. */
+/** Clinical Professional brand palette - keep in sync with src/index.css tokens.
+ * jsPDF wants plain RGB triples, not CSS `hsl(var(--x))`. */
+const PDF_BRAND = {
+  /** Clinical blue (UI --primary, #0369A1). */
+  primary: [3, 105, 161] as [number, number, number],
+  /** Slate-blue ink (UI --foreground, #0C4A6E). */
+  ink: [12, 74, 110] as [number, number, number],
+  /** Muted slate for secondary text. */
+  muted: [71, 85, 105] as [number, number, number],
+  /** Hairline rules (slate-300). */
+  rule: [203, 213, 225] as [number, number, number],
+  /** Light sky tint for callout fills (sky-50). */
+  tint: [240, 249, 255] as [number, number, number],
+  /** Light sky rule for timeline connectors (sky-200). */
+  tintRule: [186, 230, 253] as [number, number, number],
+};
+
+/** RGB fill/text colors per risk band (700-weight hues, match UI risk tokens). */
 const RISK_RGB: Record<RiskBand, [number, number, number]> = {
-  low: [22, 163, 74],
-  medium: [217, 119, 6],
-  high: [234, 88, 12],
-  veryhigh: [220, 38, 38],
+  low: [21, 128, 61],
+  medium: [180, 83, 9],
+  high: [194, 65, 12],
+  veryhigh: [185, 28, 28],
 };
 
 const PAGE_MARGIN = 36; // pt
 const FOOTER_RESERVE = 28; // pt kept clear at the bottom of every page for the footer
-const CONTENT_MUTED: [number, number, number] = [100, 100, 100];
-const CONTENT_DARK: [number, number, number] = [30, 30, 30];
+const CONTENT_MUTED: [number, number, number] = PDF_BRAND.muted;
+const CONTENT_DARK: [number, number, number] = PDF_BRAND.ink;
 /** Amber for review-pending warnings (matches the UI's risk-medium). */
-const RISK_MEDIUM_DARK: [number, number, number] = [180, 120, 10];
-const RULE_GRAY: [number, number, number] = [210, 210, 210];
+const RISK_MEDIUM_DARK: [number, number, number] = RISK_RGB.medium;
+const RULE_GRAY: [number, number, number] = PDF_BRAND.rule;
 
 /** Longest edge (px) we embed images at in the PDF. The display box is ~255pt
  * wide (~530px @150dpi print), so ~1000px is plenty sharp while keeping the file
@@ -112,8 +129,8 @@ function methodNameToId(method: string): string {
 }
 
 const SEVERITY_RGB: Record<Severity, [number, number, number]> = {
-  critical: [220, 38, 38],
-  important: [217, 119, 6],
+  critical: RISK_RGB.veryhigh,
+  important: RISK_RGB.medium,
   advisory: CONTENT_MUTED,
 };
 
@@ -218,8 +235,12 @@ function addCaveat(doc: jsPDF, x: number, y: number, maxWidth: number, method: s
   return y + lines.length * 10;
 }
 
-/** Page header: bold title, optional muted subtitle, and a rule beneath. Returns the y cursor below it. */
+/** Page header: brand accent bar, bold ink title, optional muted subtitle, and
+ * a rule beneath. Returns the y cursor below it. */
 function drawHeader(doc: jsPDF, pageWidth: number, title: string, subtitle?: string): number {
+  // Clinical-blue accent bar above the title - the brand mark of every page.
+  doc.setFillColor(...PDF_BRAND.primary);
+  doc.rect(PAGE_MARGIN, PAGE_MARGIN - 22, 28, 4, "F");
   doc.setFont("helvetica", "bold");
   doc.setFontSize(14);
   doc.setTextColor(...CONTENT_DARK);
@@ -821,15 +842,15 @@ function drawTimelineBlock(
   description: string,
   isLast: boolean
 ): number {
-  const coral = [255, 111, 97] as [number, number, number];
-  
+  const accent = PDF_BRAND.primary;
+
   if (!isLast) {
-    doc.setDrawColor(254, 215, 210); // Very light coral
+    doc.setDrawColor(...PDF_BRAND.tintRule);
     doc.setLineWidth(3);
     doc.line(x + 20, y + 36, x + 20, y + 144);
   }
 
-  doc.setFillColor(...coral);
+  doc.setFillColor(...accent);
   doc.circle(x + 20, y + 20, 16, "F");
   
   doc.setFont("helvetica", "bold");
@@ -840,10 +861,10 @@ function drawTimelineBlock(
   const boxX = x + 50;
   const boxW = w - 50;
   
-  doc.setFillColor(255, 250, 249); // Ultra-light coral tint
+  doc.setFillColor(...PDF_BRAND.tint);
   doc.roundedRect(boxX, y, boxW, 95, 6, 6, "F");
-  
-  doc.setDrawColor(...coral);
+
+  doc.setDrawColor(...accent);
   doc.setLineWidth(4);
   doc.line(boxX, y + 6, boxX, y + 89);
 

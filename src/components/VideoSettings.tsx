@@ -32,7 +32,7 @@ export function VideoSettings({ settings, onChange }: VideoSettingsProps) {
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="mt-5 rounded-2xl border bg-card/65 backdrop-blur-sm transition-all duration-200">
+    <div className="mt-5 rounded-lg border bg-card shadow-card transition-all duration-200">
       <button
         type="button"
         onClick={() => setOpen(!open)}

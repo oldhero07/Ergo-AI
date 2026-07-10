@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Upload, X, Images, Play, Trash2, Loader2, Camera, Video, ArrowRight } from "lucide-react";
+import { Upload, X, Images, Play, Trash2, Loader2, Camera, Video, ArrowRight, Monitor, Package, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { VideoSettings, type VideoSettingsValues } from "@/components/VideoSettings";
 import { cn } from "@/lib/utils";
 import { isVideoFile } from "@/lib/videoFile";
@@ -108,13 +110,17 @@ export function Uploader({
   return (
     <div className="mx-auto w-full max-w-3xl">
       {/* Photo / Video mode switch */}
-      <div
-        role="tablist"
-        aria-label="Analysis mode"
-        className="glass mx-auto mb-6 inline-flex rounded-xl p-1"
-      >
-        <ModeTab active={!isVideoMode} icon={<Camera className="h-4 w-4" />} label="Photo" onClick={() => onSwitchMode("photo")} />
-        <ModeTab active={isVideoMode} icon={<Video className="h-4 w-4" />} label="Video" onClick={() => onSwitchMode("video")} />
+      <div className="mb-6 flex justify-center">
+        <Tabs value={mode} onValueChange={(v) => onSwitchMode(v as AnalysisMode)}>
+          <TabsList aria-label="Analysis mode">
+            <TabsTrigger value="photo">
+              <Camera className="h-4 w-4" /> Photo
+            </TabsTrigger>
+            <TabsTrigger value="video">
+              <Video className="h-4 w-4" /> Video
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
 
       <div
@@ -135,11 +141,11 @@ export function Uploader({
           handleFiles(e.dataTransfer.files);
         }}
         className={cn(
-          "glass flex flex-col items-center justify-center rounded-3xl border-2 border-dashed px-6 py-14 text-center transition-all cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring",
-          dragging ? "border-primary shadow-glow-sm" : "border-border hover:border-primary/50 hover:bg-accent/40",
+          "flex flex-col items-center justify-center rounded-lg border-2 border-dashed bg-card px-6 py-14 text-center shadow-card transition-all cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          dragging ? "border-primary bg-accent/60" : "border-input hover:border-primary/50 hover:bg-accent/40",
         )}
       >
-        <div className="mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-primary/10 text-primary">
+        <div className="mb-4 grid h-14 w-14 place-items-center rounded-lg bg-accent text-accent-foreground">
           {isVideoMode ? <Video className="h-6 w-6" /> : <Upload className="h-6 w-6" />}
         </div>
         <p className="text-base font-medium">
@@ -172,25 +178,27 @@ export function Uploader({
 
       {/* Right under the dropzone so it can't scroll out of view below a big grid. */}
       {!isVideoMode && notice && (
-        <p className="mt-4 rounded-xl bg-amber-50 px-4 py-2 text-center text-sm text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
-          {notice}
-        </p>
+        <Alert variant="warning" className="mt-4">
+          <AlertDescription className="text-center">{notice}</AlertDescription>
+        </Alert>
       )}
 
       {wrongType && (
-        <div className="mt-4 flex flex-wrap items-center justify-center gap-2 rounded-xl border bg-amber-50 px-4 py-3 text-center text-sm text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
-          {wrongType === "video" ? "That's a video." : "That's an image."}
-          <button
-            type="button"
-            onClick={() => {
-              setWrongType(null);
-              onSwitchMode(wrongType === "video" ? "video" : "photo");
-            }}
-            className="inline-flex items-center gap-1 font-medium text-primary underline-offset-2 hover:underline"
-          >
-            Switch to {wrongType === "video" ? "Video" : "Photo"} analysis <ArrowRight className="h-3.5 w-3.5" />
-          </button>
-        </div>
+        <Alert variant="warning" className="mt-4">
+          <AlertDescription className="flex flex-wrap items-center justify-center gap-2">
+            {wrongType === "video" ? "That's a video." : "That's an image."}
+            <button
+              type="button"
+              onClick={() => {
+                setWrongType(null);
+                onSwitchMode(wrongType === "video" ? "video" : "photo");
+              }}
+              className="inline-flex items-center gap-1 font-medium text-primary underline-offset-2 hover:underline"
+            >
+              Switch to {wrongType === "video" ? "Video" : "Photo"} analysis <ArrowRight className="h-3.5 w-3.5" />
+            </button>
+          </AlertDescription>
+        </Alert>
       )}
 
       {!isVideoMode && onUseSample && items.length === 0 && (
@@ -199,27 +207,9 @@ export function Uploader({
             Or test with a sample scenario:
           </p>
           <div className="flex flex-wrap justify-center gap-3">
-            <button
-              type="button"
-              onClick={() => onUseSample("office")}
-              className="glass inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all hover:shadow-glow-sm hover:text-foreground"
-            >
-              💻 Office Desk Work
-            </button>
-            <button
-              type="button"
-              onClick={() => onUseSample("warehouse")}
-              className="glass inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all hover:shadow-glow-sm hover:text-foreground"
-            >
-              📦 Warehouse Lifting
-            </button>
-            <button
-              type="button"
-              onClick={() => onUseSample("assembly")}
-              className="glass inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all hover:shadow-glow-sm hover:text-foreground"
-            >
-              ⚙️ Assembly Standing
-            </button>
+            <SampleButton icon={<Monitor className="h-3.5 w-3.5" />} label="Office Desk Work" onClick={() => onUseSample("office")} />
+            <SampleButton icon={<Package className="h-3.5 w-3.5" />} label="Warehouse Lifting" onClick={() => onUseSample("warehouse")} />
+            <SampleButton icon={<Wrench className="h-3.5 w-3.5" />} label="Assembly Standing" onClick={() => onUseSample("assembly")} />
           </div>
         </div>
       )}
@@ -269,19 +259,14 @@ export function Uploader({
   );
 }
 
-function ModeTab({ active, icon, label, onClick }: { active: boolean; icon: React.ReactNode; label: string; onClick: () => void }) {
+function SampleButton({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick: () => void }) {
   return (
     <button
       type="button"
-      role="tab"
-      aria-selected={active}
       onClick={onClick}
-      className={cn(
-        "inline-flex items-center gap-2 rounded-lg px-4 py-1.5 font-mono text-xs uppercase tracking-wider transition-all",
-        active ? "bg-primary text-primary-foreground shadow-glow-sm" : "text-muted-foreground hover:text-foreground",
-      )}
+      className="inline-flex items-center gap-1.5 rounded-lg border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground shadow-card transition-all hover:border-primary/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
-      {icon}
+      <span className="text-primary">{icon}</span>
       {label}
     </button>
   );
@@ -308,7 +293,7 @@ function PhotoGuide() {
   const [isOpen, setIsOpen] = useState(true);
 
   return (
-    <div className="mt-8 rounded-2xl border border-border bg-card/65 p-5 text-left shadow-sm backdrop-blur-sm transition-all duration-200">
+    <div className="mt-8 rounded-lg border bg-card p-5 text-left shadow-card transition-all duration-200">
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}

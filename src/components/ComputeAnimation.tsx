@@ -8,15 +8,6 @@ const PHASES = [
   { label: "Scoring", caption: "Group A × Group B → grand score" },
 ] as const;
 
-const TICKER_ITEMS = [
-  "θ = cos⁻¹(a·b / |a||b|)",
-  "v = p₂ − p₁",
-  "RULA = f(A, B, C, D)",
-  "ScoreA = TableA[UA][LA][W][WT]",
-  "ScoreB = TableB[N][T][L]",
-  "Grand = TableC[C][D]",
-];
-
 export function ComputeAnimation({ note, onSkip }: { note?: string; onSkip?: () => void }) {
   const { rootRef, phase, reducedMotion } = useComputeTimeline();
 
@@ -47,61 +38,21 @@ export function ComputeAnimation({ note, onSkip }: { note?: string; onSkip?: () 
 
   return (
     <div className="flex min-h-[50vh] flex-col items-center justify-center gap-5 text-center">
-      <svg ref={rootRef} viewBox="0 0 280 300" className="h-72 w-64 rounded-2xl text-primary grid-bg" role="img" aria-label="Computing">
+      <svg
+        ref={rootRef}
+        viewBox="0 0 280 300"
+        className="h-72 w-64 rounded-lg border bg-card text-primary shadow-card"
+        role="img"
+        aria-label="Computing"
+      >
         <defs>
           <marker id="ca-arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto" markerUnits="userSpaceOnUse">
             <path d="M0,0.5 L5.5,3 L0,5.5 Z" fill="hsl(var(--risk-medium))" />
           </marker>
-          
-          {/* Neon Glow Filter */}
-          <filter id="ca-glow" x="-20%" y="-20%" width="140%" height="140%">
-            <feGaussianBlur stdDeviation="3" result="blur" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-
-          {/* High-tech digital dot-grid pattern */}
-          <pattern id="ca-grid" width="20" height="20" patternUnits="userSpaceOnUse">
-            <line x1="20" y1="0" x2="20" y2="20" stroke="currentColor" strokeWidth="0.5" opacity="0.08" />
-            <line x1="0" y1="20" x2="20" y2="20" stroke="currentColor" strokeWidth="0.5" opacity="0.08" />
-            <circle cx="20" cy="20" r="0.75" fill="currentColor" opacity="0.15" />
-          </pattern>
-
-          {/* Biomechanical pulse gradient */}
-          <radialGradient id="ca-bg-glow" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.12" />
-            <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0" />
-          </radialGradient>
         </defs>
 
-        <style>
-          {`
-            @keyframes ca-scan-sweep {
-              0% { transform: translateY(5px); opacity: 0; }
-              10% { opacity: 0.8; }
-              90% { opacity: 0.8; }
-              100% { transform: translateY(295px); opacity: 0; }
-            }
-            .animate-ca-scan {
-              animation: ca-scan-sweep 4s infinite linear;
-            }
-          `}
-        </style>
-
-        {/* Ambient Grid & Background Glow */}
-        <rect width="280" height="300" fill="url(#ca-grid)" className="text-muted-foreground" />
-        <rect width="280" height="300" fill="url(#ca-bg-glow)" />
-
-        {/* Dynamic laser scanning beam */}
-        <g className="animate-ca-scan">
-          <line x1="10" y1="0" x2="270" y2="0" stroke="hsl(var(--primary))" strokeWidth="2" filter="url(#ca-glow)" />
-          <line x1="10" y1="0" x2="270" y2="0" stroke="hsl(var(--primary-foreground))" strokeWidth="0.75" opacity="0.9" />
-        </g>
-
-        {/* abstract wireframe skeleton */}
-        <g stroke="hsl(var(--primary))" strokeWidth={2.5} strokeLinecap="round" fill="none" opacity={0.7} filter="url(#ca-glow)">
+        {/* abstract line-art skeleton */}
+        <g stroke="hsl(var(--primary))" strokeWidth={2.5} strokeLinecap="round" fill="none" opacity={0.85}>
           <line data-anim="edge" x1={140} y1={49} x2={128} y2={86} />
           <line data-anim="edge" x1={128} y1={86} x2={154} y2={124} />
           <line data-anim="edge" x1={154} y1={124} x2={146} y2={166} />
@@ -111,7 +62,7 @@ export function ComputeAnimation({ note, onSkip }: { note?: string; onSkip?: () 
         </g>
         
         {/* Skeleton Joint Nodes */}
-        <g fill="hsl(var(--primary))" filter="url(#ca-glow)">
+        <g fill="hsl(var(--primary))">
           <circle data-anim="node" cx={140} cy={36} r={12} fill="hsl(var(--primary))" />
           <circle data-anim="node" cx={140} cy={36} r={5} fill="hsl(var(--primary-foreground))" />
           <circle data-anim="node" cx={128} cy={86} r={5} />
@@ -123,7 +74,7 @@ export function ComputeAnimation({ note, onSkip }: { note?: string; onSkip?: () 
         </g>
 
         {/* vectors */}
-        <g stroke="hsl(var(--risk-medium))" strokeWidth={1.5} markerEnd="url(#ca-arrow)" filter="url(#ca-glow)">
+        <g stroke="hsl(var(--risk-medium))" strokeWidth={1.5} markerEnd="url(#ca-arrow)">
           <line data-anim="vector" x1={128} y1={86} x2={154} y2={124} transform="translate(8,-4)" />
           <line data-anim="vector" x1={154} y1={124} x2={146} y2={166} transform="translate(11,-1)" />
         </g>
@@ -141,7 +92,7 @@ export function ComputeAnimation({ note, onSkip }: { note?: string; onSkip?: () 
           stroke="hsl(var(--risk-high))"
           strokeWidth={2}
           fill="none"
-          filter="url(#ca-glow)"
+         
         />
         <text
           data-anim="degree"
@@ -149,7 +100,7 @@ export function ComputeAnimation({ note, onSkip }: { note?: string; onSkip?: () 
           y={126}
           className="fill-foreground font-mono"
           style={{ fontSize: 13, fontWeight: 800 }}
-          filter="url(#ca-glow)"
+         
         >
           0°
         </text>
@@ -165,7 +116,7 @@ export function ComputeAnimation({ note, onSkip }: { note?: string; onSkip?: () 
             strokeWidth={7}
             strokeLinecap="round"
             transform="rotate(-90)"
-            filter="url(#ca-glow)"
+           
           />
           <text
             data-anim="gauge-text"
@@ -209,20 +160,12 @@ export function ComputeAnimation({ note, onSkip }: { note?: string; onSkip?: () 
         ))}
       </div>
 
-      <div className="ticker-mask w-full max-w-md overflow-hidden">
-        <div className="ticker-track flex w-max gap-8 whitespace-nowrap font-mono text-xs text-muted-foreground/70">
-          {[...TICKER_ITEMS, ...TICKER_ITEMS].map((t, i) => (
-            <span key={i}>{t}</span>
-          ))}
-        </div>
-      </div>
-
       {note && <p className="text-xs text-muted-foreground">{note}</p>}
       {onSkip && (
         <button
           type="button"
           onClick={onSkip}
-          className="mt-2 rounded-full border border-border bg-background/60 px-5 py-1.5 text-xs font-medium text-muted-foreground backdrop-blur-sm transition-all hover:border-primary/40 hover:bg-primary/5 hover:text-foreground"
+          className="mt-2 rounded-full border bg-card px-5 py-1.5 text-xs font-medium text-muted-foreground transition-all hover:border-primary/40 hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           Skip animation →
         </button>

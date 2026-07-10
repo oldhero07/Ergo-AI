@@ -45,6 +45,7 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        success: "hsl(var(--success))",
         risk: {
           low: "hsl(var(--risk-low))",
           medium: "hsl(var(--risk-medium))",
@@ -62,20 +63,8 @@ export default {
         mono: ['"JetBrains Mono Variable"', "ui-monospace", "SFMono-Regular", "Menlo", "Consolas", "monospace"],
       },
       boxShadow: {
-        card: "0 1px 2px hsl(222 40% 4% / 0.05), 0 4px 16px hsl(222 40% 4% / 0.07)",
-        "card-hover": "0 2px 4px hsl(222 40% 4% / 0.07), 0 8px 28px hsl(222 40% 4% / 0.12)",
-        glow: "0 0 0 1px hsl(var(--glow-primary) / 0.35), 0 0 24px -4px hsl(var(--glow-primary) / 0.5)",
-        "glow-sm": "0 0 0 1px hsl(var(--glow-primary) / 0.25), 0 0 12px -2px hsl(var(--glow-primary) / 0.4)",
-        "glow-accent": "0 0 0 1px hsl(var(--glow-accent) / 0.3), 0 0 24px -4px hsl(var(--glow-accent) / 0.45)",
-      },
-      keyframes: {
-        scanline: {
-          "0%": { transform: "translateY(-100%)" },
-          "100%": { transform: "translateY(100%)" },
-        },
-      },
-      animation: {
-        scanline: "scanline 4s linear infinite",
+        card: "0 1px 2px hsl(205 60% 20% / 0.06), 0 4px 12px hsl(205 60% 20% / 0.06)",
+        "card-hover": "0 2px 4px hsl(205 60% 20% / 0.08), 0 8px 24px hsl(205 60% 20% / 0.1)",
       },
     },
   },

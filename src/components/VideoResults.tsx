@@ -6,25 +6,12 @@ import { getMethod, methods } from "@/assessment/registry";
 import { Scorecard } from "@/components/Scorecard";
 import { MeasurementSummary } from "@/components/MeasurementSummary";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { exportVideoPdfReport, type VideoPdfReport } from "@/lib/pdf";
 import { downloadText, videoCsv } from "@/lib/exportData";
 import { RecommendationsPanel } from "@/components/RecommendationsPanel";
-
-/** Static (JIT-safelisted) risk-band -> Tailwind class lookups. */
-const RISK_FILL_CLASSES: Record<RiskBand, string> = {
-  low: "fill-risk-low",
-  medium: "fill-risk-medium",
-  high: "fill-risk-high drop-shadow-[0_0_5px_hsl(var(--risk-high)_/_65%)]",
-  veryhigh: "fill-risk-veryhigh drop-shadow-[0_0_5px_hsl(var(--risk-veryhigh)_/_65%)]",
-};
-
-const RISK_TEXT_CLASSES: Record<RiskBand, string> = {
-  low: "text-risk-low",
-  medium: "text-risk-medium",
-  high: "text-risk-high",
-  veryhigh: "text-risk-veryhigh",
-};
+import { RISK_FILL, RISK_TEXT } from "@/lib/risk";
 
 interface ScoredFrame {
   timeSec: number;
@@ -210,23 +197,15 @@ export function VideoResults({
     <div className="mx-auto w-full max-w-4xl">
       <div className="mb-4 flex flex-wrap items-center gap-4">
         <h2 className="text-xl font-semibold">Video analysis</h2>
-        <div role="tablist" aria-label="Assessment method" className="glass inline-flex rounded-lg p-0.5">
-          {methods.map((m) => (
-            <button
-              key={m.id}
-              type="button"
-              role="tab"
-              aria-selected={methodId === m.id}
-              onClick={() => onMethodChange(m.id)}
-              className={
-                "rounded-md px-3 py-1 text-sm font-medium transition-colors " +
-                (methodId === m.id ? "bg-primary text-primary-foreground shadow-glow-sm" : "text-muted-foreground hover:text-foreground")
-              }
-            >
-              {m.name}
-            </button>
-          ))}
-        </div>
+        <Tabs value={methodId} onValueChange={onMethodChange}>
+          <TabsList aria-label="Assessment method">
+            {methods.map((m) => (
+              <TabsTrigger key={m.id} value={m.id}>
+                {m.name}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
         {scored.length > 0 && (
           <div className="ml-auto flex items-center gap-2">
             <Button variant="outline" onClick={exportPdf} disabled={exporting}>
@@ -245,7 +224,7 @@ export function VideoResults({
       {exportError && <p className="mb-3 text-sm text-destructive">Could not generate the PDF: {exportError}</p>}
 
       {!scored.length ? (
-        <div className="flex items-center gap-2 rounded-xl border px-5 py-6 text-sm text-amber-600">
+        <div className="flex items-center gap-2 rounded-lg border px-5 py-6 text-sm text-risk-medium">
           <AlertTriangle className="h-4 w-4" /> No scorable full-body pose in this clip - the head and torso must be in frame. Try a clearer, full-body side view.
         </div>
       ) : (
@@ -358,7 +337,7 @@ function Stat({
 }) {
   const inner = (
     <>
-      <div className={cn("hud-readout text-2xl font-semibold", riskBand ? RISK_TEXT_CLASSES[riskBand] : "text-foreground")}>
+      <div className={cn("tabular-readout text-2xl font-semibold", riskBand ? RISK_TEXT[riskBand] : "text-foreground")}>
         {value}
       </div>
       <div className="text-xs text-muted-foreground">{label}</div>
@@ -366,7 +345,7 @@ function Stat({
     </>
   );
   return (
-    <div className="glass rounded-xl p-4 text-center">
+    <div className="rounded-lg border bg-card p-4 text-center shadow-card">
       {onClick ? (
         <button type="button" onClick={onClick} className="w-full rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring">
           {inner}
@@ -392,7 +371,7 @@ function Timeline({ scored, playhead, onSeek }: { scored: ScoredFrame[]; playhea
       <svg
         viewBox={`0 0 ${W} ${H}`}
         preserveAspectRatio="none"
-        className="h-28 w-full cursor-pointer rounded-lg border bg-muted/20 grid-bg"
+        className="h-28 w-full cursor-pointer rounded-lg border bg-muted/30"
         role="img"
         aria-label="Risk score over time"
         onClick={(e) => {
@@ -412,7 +391,7 @@ function Timeline({ scored, playhead, onSeek }: { scored: ScoredFrame[]; playhea
               width={barW}
               height={h}
               rx={1}
-              className={RISK_FILL_CLASSES[s.assessment.riskBand]}
+              className={RISK_FILL[s.assessment.riskBand]}
             />
           );
         })}
