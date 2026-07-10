@@ -150,3 +150,33 @@ def test_batch_returns_per_frame_results(client):
     assert all(r["detected"] for r in body["results"])
     # bbox reuse: all three frames are identical, so keypoints must be identical too.
     assert body["results"][0]["keypoints"] == body["results"][1]["keypoints"]
+
+
+def test_batch_subject_leaves_frame_mid_batch(client):
+    """Regression: analyze_batch() detects a person once (frame 0) and reuses
+    that bbox for the rest of the batch. If the subject leaves partway through,
+    later frames must NOT be scored against the now-stale bbox - they must
+    report detected=False like a fresh no-person frame would, not fabricate
+    keypoints/angles from whatever RTMPose finds in that empty crop."""
+    with open(os.path.join(FIXTURES, "office-typing.jpg"), "rb") as f:
+        person_frame = f.read()
+    w, h = Image.open(io.BytesIO(person_frame)).size
+    blank_frame = _jpeg_bytes(w, h)  # same dimensions, solid color, no person
+
+    files = [
+        ("frames", ("f0.jpg", person_frame, "image/jpeg")),
+        ("frames", ("f1.jpg", blank_frame, "image/jpeg")),
+        ("frames", ("f2.jpg", blank_frame, "image/jpeg")),
+    ]
+    res = client.post("/analyze-batch", files=files)
+    assert res.status_code == 200
+    results = res.json()["results"]
+    assert len(results) == 3
+
+    assert results[0]["detected"] is True
+    assert results[0]["keypoints"] is not None
+
+    for r in results[1:]:
+        assert r["detected"] is False, "stale bbox reused on a blank frame must not report detected=True"
+        assert r["bbox"] is None
+        assert r["keypoints"] is None

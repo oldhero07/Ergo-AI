@@ -27,6 +27,22 @@ POSE_ONNX = os.path.join(MODELS_DIR, "rtmw_dw_x_l_256x192.onnx")
 DET_INPUT_SIZE = (640, 640)
 POSE_INPUT_SIZE = (192, 256)
 
+# Empirically calibrated against the bundled sample photos: the top-5 highest-
+# confidence keypoints average 1.05-1.11 for a genuine detection (even with
+# some individual joints occluded down to 0.14), and 0.28-0.36 when RTMPose is
+# run on a bbox that no longer contains a real person. A top-5 mean (not an
+# all-133 mean) so partial occlusion of a real person never trips this - only
+# "no plausible skeleton anywhere in this crop" does. This exists because
+# analyze_batch() reuses one bbox across many video frames (see below); once
+# the subject leaves frame, later frames must not silently score whatever
+# RTMPose hallucinates from the stale crop.
+MIN_POSE_CONFIDENCE = 0.5
+
+
+def _pose_confidence(scores: np.ndarray) -> float:
+    top5 = np.sort(scores)[-5:]
+    return float(top5.mean())
+
 
 def _largest_bbox(bboxes: np.ndarray) -> list[float]:
     """Select exactly one person BEFORE pose inference: largest box by area.
@@ -53,6 +69,12 @@ class PoseEngine:
         keypoints, scores = self.pose(img_bgr, bboxes=[bbox_xyxy])
         kps = keypoints[0]  # (133, 2), pixel coords in the (possibly downscaled) image
         sc = scores[0]  # (133,)
+        if _pose_confidence(sc) < MIN_POSE_CONFIDENCE:
+            # The bbox no longer contains a plausible person - this IS the "no
+            # person" hard failure, just caught late via pose confidence rather
+            # than the person detector (whose bbox may be stale/reused; see
+            # analyze_batch). Report it the same way as a fresh non-detection.
+            return {"detected": False, "bbox": None, "keypoints": None}
         # Map back to ORIGINAL image pixel space (client drew/reads against the original).
         x1, y1, x2, y2 = bbox_xyxy
         return {
