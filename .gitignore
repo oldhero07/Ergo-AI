@@ -19,3 +19,10 @@ yarn-error.log*
 __pycache__/
 .pytest_cache/
 /corpus-keypoints.local.json
+
+# Local-only process docs (never push — internal notes, contains GCP account IDs)
+/REBUILD_PLAN.md
+/HANDOVER.md
+/docs/agent-review-methodology.md
+/docs/pre-change-assessment.md
+/docs/sweep-backlog.md
