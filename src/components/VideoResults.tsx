@@ -236,7 +236,13 @@ export function VideoResults({
             className="mx-auto block max-h-[420px] max-w-full rounded-xl border bg-black"
           />
 
-          <Timeline scored={scored} playhead={playhead} onSeek={seek} />
+          <Timeline
+            scored={scored}
+            playhead={playhead}
+            onSeek={seek}
+            durationSec={analysis.sampledDurationSec}
+            fps={analysis.fps}
+          />
 
           {stats && (
             <div className="mt-4 grid grid-cols-3 gap-3">
@@ -357,13 +363,31 @@ function Stat({
   );
 }
 
-/** Clickable SVG strip: one bar per frame, height ∝ score, coloured by risk band. */
-function Timeline({ scored, playhead, onSeek }: { scored: ScoredFrame[]; playhead: number; onSeek: (t: number) => void }) {
+/** Clickable SVG strip: one bar per frame, height ∝ score, coloured by risk band.
+ * Bars are positioned by each frame's real `timeSec` (not its index in the
+ * scored list) so skipped frames show up as gaps instead of silently
+ * compressing every later frame's score into the wrong spot on the clip. */
+function Timeline({
+  scored,
+  playhead,
+  onSeek,
+  durationSec,
+  fps,
+}: {
+  scored: ScoredFrame[];
+  playhead: number;
+  onSeek: (t: number) => void;
+  durationSec: number;
+  fps: number;
+}) {
   const W = 1000;
   const H = 120;
-  const last = scored[scored.length - 1]?.timeSec || 1;
-  const span = Math.max(last, 0.001);
-  const barW = (W / scored.length) * 0.8;
+  const span = Math.max(durationSec, scored[scored.length - 1]?.timeSec || 0, 0.001);
+  // Sized to the clip's full sampling rate (not the count of frames that
+  // survived scoring) so bars keep a consistent width whether or not frames
+  // around them were skipped.
+  const expectedSlots = Math.max(1, Math.round(durationSec * fps));
+  const barW = (W / expectedSlots) * 0.8;
   const maxScore = scored[0]?.assessment.maxScore || 7;
 
   return (
@@ -380,12 +404,12 @@ function Timeline({ scored, playhead, onSeek }: { scored: ScoredFrame[]; playhea
           onSeek(Math.max(0, Math.min(span, frac * span)));
         }}
       >
-        {scored.map((s, i) => {
-          const x = (i / scored.length) * W;
+        {scored.map((s) => {
+          const x = (s.timeSec / span) * W;
           const h = (s.assessment.grandScore / maxScore) * (H - 12);
           return (
             <rect
-              key={i}
+              key={s.timeSec}
               x={x}
               y={H - h}
               width={barW}
