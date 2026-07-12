@@ -1,4 +1,6 @@
+import { useRef } from "react";
 import { FileDown, Loader2, RotateCcw, AlertTriangle, Eye, Weight } from "lucide-react";
+import { useScrollReveal } from "@/hooks/useScrollMotion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -36,11 +38,13 @@ export function PhotoResultsScreen() {
   const { photo, exports, methodId, reportMeta, setReportMeta, navigate, reset } = useAppState();
   const { items, results, excludedIds, includedItems, worstIncludedId } = photo;
   const { exporting, exportError } = exports;
+  const rootRef = useRef<HTMLDivElement>(null);
+  useScrollReveal(rootRef);
 
   const reviewCount = includedItems.filter((it) => needsReview(results[it.id])).length;
 
   return (
-    <div className="mx-auto w-full max-w-4xl animate-in fade-in duration-500">
+    <div ref={rootRef} className="mx-auto w-full max-w-4xl animate-in fade-in duration-500">
       {/* Header: what was assessed + which method scores it */}
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
@@ -122,6 +126,7 @@ export function PhotoResultsScreen() {
             return (
               <Card
                 key={it.id}
+                data-reveal
                 className={cn(
                   "overflow-hidden p-0",
                   excluded && "opacity-60",
@@ -248,7 +253,7 @@ function BatchSummary({
   const worst = scored.find(({ r }) => r.assessment.grandScore === max);
 
   return (
-    <Card className="mb-4 grid grid-cols-2 gap-3 p-4 text-center sm:grid-cols-4">
+    <Card data-reveal-stagger className="mb-4 grid grid-cols-2 gap-3 p-4 text-center sm:grid-cols-4">
       <div>
         <div className="tabular-readout text-2xl font-semibold">
           {scored.length}/{items.length}

@@ -1,12 +1,34 @@
+import { useEffect, useRef } from "react";
 import type { AssessmentResult, GroupBreakdown, RiskBand } from "@/assessment/types";
 import { cn } from "@/lib/utils";
 import { RISK_PILL, RISK_BORDER, RISK_TEXT } from "@/lib/risk";
+import { gsap } from "@/hooks/useScrollMotion";
 import { CheckCircle2, AlertTriangle, ShieldAlert, OctagonAlert } from "lucide-react";
 
 function Gauge({ score, max, riskBand }: { score: number; max: number; riskBand: RiskBand }) {
   const r = 46;
   const c = 2 * Math.PI * r;
   const frac = Math.max(0, Math.min(1, score / max));
+  const textRef = useRef<SVGTextElement>(null);
+
+  // Count the number up on mount and whenever the score changes (method switch).
+  // The DOM default is the final value, so reduced-motion users see it directly.
+  useEffect(() => {
+    const mm = gsap.matchMedia();
+    mm.add("(prefers-reduced-motion: no-preference)", () => {
+      const counter = { v: 0 };
+      gsap.to(counter, {
+        v: score,
+        duration: 0.6,
+        ease: "power2.out",
+        onUpdate: () => {
+          if (textRef.current) textRef.current.textContent = String(Math.round(counter.v));
+        },
+      });
+    });
+    return () => mm.revert();
+  }, [score]);
+
   return (
     <svg viewBox="0 0 120 120" className="h-28 w-28 shrink-0" role="img" aria-label={`Score ${score} of ${max}`}>
       {/* Track */}
@@ -26,7 +48,7 @@ function Gauge({ score, max, riskBand }: { score: number; max: number; riskBand:
         style={{ transition: "stroke-dashoffset 0.6s ease" }}
       />
       {/* Score text */}
-      <text x="60" y="57" textAnchor="middle" className="tabular-readout fill-foreground" style={{ fontSize: 30, fontWeight: 700 }}>
+      <text ref={textRef} x="60" y="57" textAnchor="middle" className="tabular-readout fill-foreground" style={{ fontSize: 30, fontWeight: 700 }}>
         {score}
       </text>
       <text x="60" y="74" textAnchor="middle" className="tabular-readout fill-muted-foreground" style={{ fontSize: 11 }}>
