@@ -81,8 +81,7 @@ export function VideoSettings({ settings, onChange }: VideoSettingsProps) {
           </div>
 
           <p className="text-[11px] text-muted-foreground">
-            Frames are sampled at {SAMPLE_FPS} fps and {MAX_EDGE}p — one fixed policy for every device, so the
-            same clip always produces the same result.
+            Frames are sampled at {SAMPLE_FPS} fps and {MAX_EDGE}p.
           </p>
         </div>
       )}

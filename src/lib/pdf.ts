@@ -891,7 +891,7 @@ function addMethodologyPage(doc: jsPDF, isVideo: boolean): void {
     doc,
     pageWidth,
     "Ergo AI - Technical Methodology & Process Flow",
-    "Deterministic inference pipeline & AI algorithms",
+    "Inference pipeline & scoring algorithms",
   );
 
   y += 30;

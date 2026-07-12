@@ -31,7 +31,7 @@ export function Landing({ onStart }: { onStart: (mode: AnalysisMode) => void }) 
             <div className="mt-5 flex flex-wrap items-center justify-center gap-2 lg:justify-start">
               <Badge variant="muted" className="tabular-readout rounded-full">133 keypoints</Badge>
               <Badge variant="muted" className="tabular-readout rounded-full">RULA · REBA · OWAS</Badge>
-              <Badge variant="muted" className="tabular-readout rounded-full">Same photo, same score, every device</Badge>
+              <Badge variant="muted" className="tabular-readout rounded-full">Batch up to 30 photos</Badge>
             </div>
 
             <div className="mt-8 grid gap-3 sm:grid-cols-2">
