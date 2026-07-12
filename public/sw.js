@@ -1,10 +1,11 @@
 // Self-destructing service worker. The app no longer uses one (inference moved
-// server-side, so there are no 71 MB model/wasm assets to cache), but existing
-// visitors still have the old caching SW ("ergo-ai-cache-v9") registered and
-// its caches ("ergo-models-v2" etc.) stored. This replacement installs over
-// it, deletes EVERY cache on the origin, unregisters itself, and reloads open
-// tabs so they fetch fresh from the network. Keep it deployed for a release or
-// two, then the registration call can be removed entirely.
+// server-side, so there are no 71 MB model/wasm assets to cache), but visitors
+// from before the migration may still have the old caching SW ("ergo-ai-cache-v9")
+// registered at this same URL. The app no longer registers any service worker;
+// this file stays deployed because browsers re-fetch a registered SW's script
+// on navigation, so returning stale visitors auto-update to this self-destructor,
+// which deletes the old "ergo-*" caches and unregisters. Safe to delete this
+// file once the pre-migration visitor population has cycled out.
 self.addEventListener("install", () => {
   self.skipWaiting();
 });
