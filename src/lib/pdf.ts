@@ -52,6 +52,25 @@ const RISK_RGB: Record<RiskBand, [number, number, number]> = {
   veryhigh: [185, 28, 28],
 };
 
+/** Pale panel fills per risk band (50-weight hues) - backgrounds for verdict
+ * panels and score strips, print-safe under the 700-weight text colors above. */
+const RISK_TINT_RGB: Record<RiskBand, [number, number, number]> = {
+  low: [240, 253, 244],
+  medium: [255, 251, 235],
+  high: [255, 247, 237],
+  veryhigh: [254, 242, 242],
+};
+
+/** Zebra-stripe fill for table rows (slate-50). */
+const ZEBRA_RGB: [number, number, number] = [248, 250, 252];
+
+const METHOD_FULL_NAME: Record<string, string> = {
+  RULA: "Rapid Upper Limb Assessment",
+  REBA: "Rapid Entire Body Assessment",
+  OWAS: "Ovako Working Posture Analysing System",
+  NERPA: "Novel Ergonomic Postural Assessment",
+};
+
 const PAGE_MARGIN = 36; // pt
 const FOOTER_RESERVE = 28; // pt kept clear at the bottom of every page for the footer
 const CONTENT_MUTED: [number, number, number] = PDF_BRAND.muted;
@@ -327,9 +346,9 @@ function addThresholdTable(doc: jsPDF, y: number, input: PostureInput, methodId:
 
   doc.setFontSize(8.5);
   doc.text("Joint", colX.joint, cursor);
-  doc.text("Measured", colX.measured, cursor);
+  doc.text("Measured", colX.measured + 42, cursor, { align: "right" });
   doc.text("Band", colX.band, cursor);
-  doc.text("Score", colX.score, cursor);
+  doc.text("Score", colX.score + 24, cursor, { align: "right" });
   doc.text("Next threshold", colX.next, cursor);
   cursor += 4;
   doc.setDrawColor(...RULE_GRAY);
@@ -339,17 +358,24 @@ function addThresholdTable(doc: jsPDF, y: number, input: PostureInput, methodId:
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8.5);
+  let zebra = false;
   for (const row of rows) {
     cursor = ensureSpace(doc, cursor, 12, pageWidth, title);
+    const nextLines = doc.splitTextToSize(row.nextThreshold ?? "-", pageWidth - PAGE_MARGIN - colX.next) as string[];
+    const rowH = Math.max(1, nextLines.length) * 12;
+    if (zebra) {
+      doc.setFillColor(...ZEBRA_RGB);
+      doc.rect(PAGE_MARGIN - 2, cursor - 8.5, pageWidth - PAGE_MARGIN * 2 + 4, rowH, "F");
+    }
+    zebra = !zebra;
     doc.setTextColor(...CONTENT_DARK);
     doc.text(row.joint, colX.joint, cursor);
-    doc.text(`${fmt(row.measuredDeg!)}°`, colX.measured, cursor);
+    doc.text(`${fmt(row.measuredDeg!)}°`, colX.measured + 42, cursor, { align: "right" });
     doc.text(row.band, colX.band, cursor);
-    doc.text(fmt(row.score), colX.score, cursor);
+    doc.text(fmt(row.score), colX.score + 24, cursor, { align: "right" });
     doc.setTextColor(...CONTENT_MUTED);
-    const nextLines = doc.splitTextToSize(row.nextThreshold ?? "-", pageWidth - PAGE_MARGIN - colX.next) as string[];
     doc.text(nextLines, colX.next, cursor);
-    cursor += Math.max(1, nextLines.length) * 12;
+    cursor += rowH;
   }
 
   return cursor + 6;
@@ -442,16 +468,31 @@ function drawCoverLogo(doc: jsPDF, pageWidth: number, logoDataUrl: string | unde
   }
 }
 
-/** Cover page: title, provenance (assessor/org/subject/date), batch totals, and a risk-band legend. */
+/** Cover page: large title, at-a-glance verdict panel (worst score, band color,
+ * action level), provenance rows, and a risk-band legend. */
 function addCoverPage(doc: jsPDF, items: PdfReportItem[], meta: ReportMeta, method: string, maxScore: number): void {
   const pageWidth = doc.internal.pageSize.getWidth();
   const contentWidth = pageWidth - PAGE_MARGIN * 2;
-  let y = drawHeader(
-    doc,
-    pageWidth,
-    "Ergonomic Risk Assessment",
-    `${method} method · grand-score scale ${methodScale(maxScore)}`,
+
+  // Cover-scale title treatment (every other page uses the compact drawHeader).
+  doc.setFillColor(...PDF_BRAND.primary);
+  doc.rect(PAGE_MARGIN, PAGE_MARGIN - 16, 42, 5, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(23);
+  doc.setTextColor(...CONTENT_DARK);
+  doc.text("Ergonomic Risk Assessment", PAGE_MARGIN, PAGE_MARGIN + 14);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.setTextColor(...CONTENT_MUTED);
+  doc.text(
+    `${method} · ${METHOD_FULL_NAME[method] ?? method} · grand-score scale ${methodScale(maxScore)}`,
+    PAGE_MARGIN,
+    PAGE_MARGIN + 32,
   );
+  doc.setDrawColor(...RULE_GRAY);
+  doc.setLineWidth(0.75);
+  doc.line(PAGE_MARGIN, PAGE_MARGIN + 44, pageWidth - PAGE_MARGIN, PAGE_MARGIN + 44);
+  let y = PAGE_MARGIN + 66;
   drawCoverLogo(doc, pageWidth, meta.logoDataUrl);
 
   const scored = items.filter((it) => it.analysis.detected && it.analysis.assessment);
@@ -459,23 +500,61 @@ function addCoverPage(doc: jsPDF, items: PdfReportItem[], meta: ReportMeta, meth
   const mean = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
   const max = scores.length ? Math.max(...scores) : 0;
 
+  // Verdict panel: the report's answer, readable at arm's length. Band and
+  // action level come from the worst-scoring photo (the decision driver).
+  const worst = scored.reduce<PdfReportItem | null>(
+    (acc, it) => (!acc || it.analysis.assessment!.grandScore > acc.analysis.assessment!.grandScore ? it : acc),
+    null,
+  );
+  if (worst?.analysis.assessment) {
+    const wa = worst.analysis.assessment;
+    const rgb = RISK_RGB[wa.riskBand];
+    const panelH = 74;
+    doc.setFillColor(...RISK_TINT_RGB[wa.riskBand]);
+    doc.roundedRect(PAGE_MARGIN, y, contentWidth, panelH, 5, 5, "F");
+    doc.setFillColor(...rgb);
+    doc.rect(PAGE_MARGIN, y + 5, 4, panelH - 10, "F");
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(30);
+    doc.setTextColor(...rgb);
+    const scoreStr = fmt(max);
+    doc.text(scoreStr, PAGE_MARGIN + 20, y + 42);
+    const scoreW = doc.getTextWidth(scoreStr);
+    doc.setFontSize(12);
+    doc.setTextColor(...CONTENT_MUTED);
+    doc.text(`/ ${fmt(maxScore)}`, PAGE_MARGIN + 24 + scoreW, y + 42);
+
+    const textX = PAGE_MARGIN + 24 + scoreW + doc.getTextWidth(`/ ${fmt(maxScore)}`) + 22;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.setTextColor(...rgb);
+    doc.text(wa.riskLabel, textX, y + 30);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(...CONTENT_DARK);
+    const actionLines = doc.splitTextToSize(wa.actionLevel, pageWidth - PAGE_MARGIN - textX - 14) as string[];
+    doc.text(actionLines.slice(0, 2), textX, y + 44);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(...CONTENT_MUTED);
+    doc.text(
+      scored.length > 1
+        ? `Worst of ${scored.length} scored photos · batch mean ${fmt(mean)}`
+        : `${method} grand score`,
+      PAGE_MARGIN + 20, y + panelH - 12,
+    );
+    y += panelH + 22;
+  }
+
   // Provenance block - key/value rows, blanks shown as an em dash.
-  y += 6;
   const rows: [string, string][] = [
     ["Assessor", meta.assessor?.trim() || "-"],
     ["Organization", meta.organization?.trim() || "-"],
     ["Subject / task", meta.subject?.trim() || "-"],
     ["Date generated", new Date().toLocaleString()],
-    [
-      "Method",
-      `${method} (${
-        method === "REBA"
-          ? "Rapid Entire Body Assessment"
-          : method === "OWAS"
-            ? "Ovako Working Posture Analysing System"
-            : "Rapid Upper Limb Assessment"
-      })`,
-    ],
+    ["Method", `${method} (${METHOD_FULL_NAME[method] ?? method})`],
     ["Photos analyzed", `${items.length} (${scored.length} with a detected pose)`],
   ];
   if (scored.length) rows.push(["Grand score", `mean ${fmt(mean)} · max ${fmt(max)} (of ${fmt(maxScore)})`]);
@@ -565,50 +644,66 @@ function addSummaryPage(doc: jsPDF, items: PdfReportItem[], method: string, maxS
   y += 14;
 
   doc.setFont("helvetica", "normal");
+  let zebra = false;
   for (const item of items) {
     const { analysis } = item;
     doc.setFontSize(9);
-    doc.setTextColor(...CONTENT_DARK);
     const nameLines = doc.splitTextToSize(item.fileName, colX.score - colX.file - 8) as string[];
-    doc.text(nameLines, colX.file, y);
 
     if (analysis.detected && analysis.assessment) {
       const a = analysis.assessment;
-      doc.setTextColor(...CONTENT_DARK);
-      doc.text(`${fmt(a.grandScore)} / ${fmt(a.maxScore)}`, colX.score, y);
-      const rgb = RISK_RGB[a.riskBand];
-      doc.setTextColor(...rgb);
-      doc.setFont("helvetica", "bold");
       const bandLines = doc.splitTextToSize(a.riskLabel, colX.action - colX.band - 8) as string[];
-      doc.text(bandLines, colX.band, y);
+      const actionLines = doc.splitTextToSize(a.actionLevel, pageWidth - PAGE_MARGIN - colX.action) as string[];
+      const rowH = Math.max(nameLines.length, bandLines.length, actionLines.length) * 12 + 6;
+      if (zebra) {
+        doc.setFillColor(...ZEBRA_RGB);
+        doc.rect(PAGE_MARGIN - 2, y - 9, pageWidth - PAGE_MARGIN * 2 + 4, rowH, "F");
+      }
+      doc.setTextColor(...CONTENT_DARK);
+      doc.text(nameLines, colX.file, y);
+      const rgb = RISK_RGB[a.riskBand];
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(...rgb);
+      doc.text(`${fmt(a.grandScore)} / ${fmt(a.maxScore)}`, colX.score, y);
+      const bandY = y;
+      doc.text(bandLines, colX.band, bandY);
       doc.setFont("helvetica", "normal");
       doc.setTextColor(...CONTENT_DARK);
-      const actionLines = doc.splitTextToSize(a.actionLevel, pageWidth - PAGE_MARGIN - colX.action) as string[];
       doc.text(actionLines, colX.action, y);
-      y += Math.max(nameLines.length, bandLines.length, actionLines.length) * 12 + 6;
+      y += rowH;
     } else {
+      const rowH = nameLines.length * 12 + 6;
+      if (zebra) {
+        doc.setFillColor(...ZEBRA_RGB);
+        doc.rect(PAGE_MARGIN - 2, y - 9, pageWidth - PAGE_MARGIN * 2 + 4, rowH, "F");
+      }
+      doc.setTextColor(...CONTENT_DARK);
+      doc.text(nameLines, colX.file, y);
       doc.setTextColor(...CONTENT_MUTED);
       doc.text(analysis.error ?? "No pose detected", colX.score, y);
-      y += nameLines.length * 12 + 6;
+      y += rowH;
     }
+    zebra = !zebra;
 
     if (y > doc.internal.pageSize.getHeight() - PAGE_MARGIN - FOOTER_RESERVE - 40) {
       doc.addPage();
       y = drawHeader(doc, pageWidth, "Ergo AI - Batch Summary (cont.)");
+      zebra = false;
     }
   }
 
   // Highlighted mean/max strip.
   y += 8;
   y = ensureSpace(doc, y, 44, pageWidth, "Ergo AI - Batch Summary (cont.)");
-  doc.setDrawColor(...RULE_GRAY);
-  doc.setFillColor(245, 245, 245);
+  doc.setFillColor(...PDF_BRAND.tint);
   const boxW = pageWidth - PAGE_MARGIN * 2;
-  doc.rect(PAGE_MARGIN, y, boxW, 36, "FD");
+  doc.roundedRect(PAGE_MARGIN, y, boxW, 36, 4, 4, "F");
+  doc.setFillColor(...PDF_BRAND.primary);
+  doc.rect(PAGE_MARGIN, y + 4, 3.5, 28, "F");
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
   doc.setTextColor(...CONTENT_DARK);
-  doc.text(`Batch mean grand score: ${fmt(mean)}`, PAGE_MARGIN + 12, y + 22);
+  doc.text(`Batch mean grand score: ${fmt(mean)}`, PAGE_MARGIN + 14, y + 22);
   doc.text(`Batch max grand score: ${fmt(max)}`, PAGE_MARGIN + boxW / 2, y + 22);
 }
 
@@ -674,29 +769,31 @@ async function addPhotoPage(doc: jsPDF, item: PdfReportItem, isFirstPage: boolea
   const a: AssessmentResult = analysis.assessment;
   const rgb = RISK_RGB[a.riskBand];
 
-  // Grand-score strip - auto-sized to the wrapped action text so nothing overflows the box.
+  // Grand-score strip - band-tinted with a color-coded accent bar, auto-sized
+  // to the wrapped action text so nothing overflows the box.
   const scoreText = `${a.method} grand score: ${fmt(a.grandScore)} / ${fmt(a.maxScore)}`;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
-  const actionLines = doc.splitTextToSize(`Action: ${a.actionLevel}`, contentWidth - 20) as string[];
+  const actionLines = doc.splitTextToSize(`Action: ${a.actionLevel}`, contentWidth - 24) as string[];
   const stripH = 18 + 14 + actionLines.length * 11 + 8;
 
-  doc.setDrawColor(...RULE_GRAY);
-  doc.setFillColor(245, 245, 245);
-  doc.rect(PAGE_MARGIN, y, contentWidth, stripH, "FD");
+  doc.setFillColor(...RISK_TINT_RGB[a.riskBand]);
+  doc.roundedRect(PAGE_MARGIN, y, contentWidth, stripH, 4, 4, "F");
+  doc.setFillColor(...rgb);
+  doc.rect(PAGE_MARGIN, y + 4, 3.5, stripH - 8, "F");
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11.5);
   doc.setTextColor(...CONTENT_DARK);
-  doc.text(scoreText, PAGE_MARGIN + 10, y + 20);
+  doc.text(scoreText, PAGE_MARGIN + 14, y + 20);
   const scoreW = doc.getTextWidth(scoreText);
   doc.setTextColor(...rgb);
-  doc.text(`- ${a.riskLabel}`, PAGE_MARGIN + 10 + scoreW + 8, y + 20);
+  doc.text(`- ${a.riskLabel}`, PAGE_MARGIN + 14 + scoreW + 8, y + 20);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(...CONTENT_DARK);
-  doc.text(actionLines, PAGE_MARGIN + 10, y + 36);
+  doc.text(actionLines, PAGE_MARGIN + 14, y + 36);
   y += stripH + 12;
 
   // Measured angles + pose confidence.
@@ -1071,23 +1168,24 @@ export async function exportVideoPdfReport(report: VideoPdfReport, meta: ReportM
     y += Math.max(1, lines.length) * 13 + 2;
   }
 
-  // Stats strip.
+  // Stats strip - tinted by the clip's peak risk band, matching the cover verdict style.
   y += 10;
-  doc.setDrawColor(...RULE_GRAY);
-  doc.setFillColor(245, 245, 245);
-  doc.rect(PAGE_MARGIN, y, contentWidth, 40, "FD");
+  doc.setFillColor(...RISK_TINT_RGB[report.stats.peakBand]);
+  doc.roundedRect(PAGE_MARGIN, y, contentWidth, 40, 4, 4, "F");
+  doc.setFillColor(...RISK_RGB[report.stats.peakBand]);
+  doc.rect(PAGE_MARGIN, y + 4, 3.5, 32, "F");
   const third = contentWidth / 3;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(13);
   doc.setTextColor(...RISK_RGB[report.stats.peakBand]);
-  doc.text(`${fmt(report.stats.peakScore)} / ${fmt(maxScore)}`, PAGE_MARGIN + 12, y + 20);
+  doc.text(`${fmt(report.stats.peakScore)} / ${fmt(maxScore)}`, PAGE_MARGIN + 14, y + 20);
   doc.setTextColor(...CONTENT_DARK);
   doc.text(fmt(report.stats.mean), PAGE_MARGIN + third + 12, y + 20);
   doc.text(`${report.stats.highPct}%`, PAGE_MARGIN + third * 2 + 12, y + 20);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(...CONTENT_MUTED);
-  doc.text(`peak · ${report.stats.peakLabel} at ${fmtClock(report.stats.peakTimeSec)}`, PAGE_MARGIN + 12, y + 33);
+  doc.text(`peak · ${report.stats.peakLabel} at ${fmtClock(report.stats.peakTimeSec)}`, PAGE_MARGIN + 14, y + 33);
   doc.text("mean grand score", PAGE_MARGIN + third + 12, y + 33);
   doc.text("time at high / very-high risk", PAGE_MARGIN + third * 2 + 12, y + 33);
   y += 40 + 18;
