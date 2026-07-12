@@ -39,6 +39,14 @@ const SCORE_RULES: ScoreRule[] = [
     body: "The upper arm is elevated beyond 45°. Reduce shelf/bench height, tilt the work toward the worker, or move frequently used items into the forearm 'power zone' (waist to mid-chest) so the elbow can stay near the body.",
   },
   {
+    methods: ["NERPA"],
+    label: "Upper arm",
+    minScore: 3,
+    severity: "important",
+    title: "Lower the working height or bring the task closer",
+    body: "The upper arm is elevated beyond 60°. Reduce shelf/bench height, tilt the work toward the worker, or move frequently used items into the forearm 'power zone' (waist to mid-chest) so the elbow can stay near the body.",
+  },
+  {
     methods: ["RULA", "REBA"],
     label: "Upper arm",
     minScore: 4,
@@ -48,7 +56,7 @@ const SCORE_RULES: ScoreRule[] = [
   },
   // --- Lower arm ---------------------------------------------------------------
   {
-    methods: ["RULA", "REBA"],
+    methods: ["RULA", "REBA", "NERPA"],
     label: "Lower arm",
     minScore: 2,
     severity: "advisory",
@@ -64,9 +72,17 @@ const SCORE_RULES: ScoreRule[] = [
     title: "Bring the wrist toward neutral",
     body: "Wrist flexion/extension exceeds 15°. Re-angle the tool or handle (bend the tool, not the wrist), reposition the work surface, or add a wrist support for keyboard-style tasks.",
   },
+  {
+    methods: ["NERPA"],
+    label: "Wrist",
+    minScore: 3,
+    severity: "important",
+    title: "Bring the wrist toward neutral",
+    body: "Wrist flexion/extension exceeds 45°. Re-angle the tool or handle (bend the tool, not the wrist), reposition the work surface, or add a wrist support for keyboard-style tasks.",
+  },
   // --- Neck --------------------------------------------------------------------
   {
-    methods: ["RULA", "REBA"],
+    methods: ["RULA", "REBA", "NERPA"],
     label: "Neck",
     minScore: 3,
     severity: "important",
@@ -74,7 +90,7 @@ const SCORE_RULES: ScoreRule[] = [
     body: "The neck is flexed beyond 20°. Raise the display, work piece, or task lighting so the eyes' natural line of sight (~15° below horizontal) reaches it without bending the neck.",
   },
   {
-    methods: ["RULA"],
+    methods: ["RULA", "NERPA"],
     label: "Neck",
     minScore: 4,
     severity: "critical",
@@ -91,7 +107,15 @@ const SCORE_RULES: ScoreRule[] = [
     body: "Trunk flexion exceeds 20°. Raise the work surface, use a sit-stand stool or jig to support the posture, and slide the task closer so the spine can stay upright under load.",
   },
   {
-    methods: ["RULA", "REBA"],
+    methods: ["NERPA"],
+    label: "Trunk",
+    minScore: 3,
+    severity: "important",
+    title: "Reduce forward bending of the trunk",
+    body: "Trunk flexion exceeds 40°. Raise the work surface, use a sit-stand stool or jig to support the posture, and slide the task closer so the spine can stay upright under load.",
+  },
+  {
+    methods: ["RULA", "REBA", "NERPA"],
     label: "Trunk",
     minScore: 4,
     severity: "critical",
@@ -100,7 +124,7 @@ const SCORE_RULES: ScoreRule[] = [
   },
   // --- Legs --------------------------------------------------------------------
   {
-    methods: ["RULA", "REBA"],
+    methods: ["RULA", "REBA", "NERPA"],
     label: "Legs",
     minScore: 2,
     severity: "advisory",
@@ -146,7 +170,7 @@ interface FlagRule {
 
 const FLAG_RULES: FlagRule[] = [
   {
-    methods: ["RULA", "REBA"],
+    methods: ["RULA", "REBA", "NERPA"],
     applies: (i) => i.muscleUseA || i.muscleUseB || i.activityStatic || i.activityRepeated,
     id: "muscle-use",
     component: "Muscle use",
@@ -155,7 +179,7 @@ const FLAG_RULES: FlagRule[] = [
     body: "The posture is held or repeated. Introduce micro-breaks (20-30 s every few minutes), rotate tasks across muscle groups, or mechanize the repetitive element.",
   },
   {
-    methods: ["RULA", "REBA"],
+    methods: ["RULA", "REBA", "NERPA"],
     applies: (i) => Math.max(i.forceA, i.forceB) >= 2 || i.load >= 2 || i.loadShock,
     id: "force-load",
     component: "Force / load",

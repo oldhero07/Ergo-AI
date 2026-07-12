@@ -30,7 +30,7 @@ export function Landing({ onStart }: { onStart: (mode: AnalysisMode) => void }) 
 
             <div className="mt-5 flex flex-wrap items-center justify-center gap-2 lg:justify-start">
               <Badge variant="muted" className="tabular-readout rounded-full">133 keypoints</Badge>
-              <Badge variant="muted" className="tabular-readout rounded-full">RULA · REBA · OWAS</Badge>
+              <Badge variant="muted" className="tabular-readout rounded-full">RULA · REBA · OWAS · NERPA</Badge>
               <Badge variant="muted" className="tabular-readout rounded-full">Batch up to 30 photos</Badge>
             </div>
 
@@ -95,7 +95,8 @@ export function Landing({ onStart }: { onStart: (mode: AnalysisMode) => void }) 
             />
           </div>
           <p className="mt-4 text-center text-sm text-muted-foreground">
-            Also included: OWAS postural classification and the NIOSH lifting equation calculator.
+            Also included: OWAS postural classification, NERPA (the ISO 11226-based RULA variant), and the NIOSH
+            lifting equation calculator.
           </p>
         </div>
       </section>

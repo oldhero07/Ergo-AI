@@ -121,10 +121,11 @@ function fmt(n: number): string {
 
 const COUPLING_LABELS = ["good", "fair", "poor", "unacceptable"];
 
-/** pdf.ts works with method NAMES ("RULA"/"REBA"/"OWAS"); map to registry ids. */
+/** pdf.ts works with method NAMES ("RULA"/"REBA"/"OWAS"/"NERPA"); map to registry ids. */
 function methodNameToId(method: string): string {
   if (method === "REBA") return "reba";
   if (method === "OWAS") return "owas";
+  if (method === "NERPA") return "nerpa";
   return "rula";
 }
 

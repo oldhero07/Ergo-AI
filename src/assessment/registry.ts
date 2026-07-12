@@ -2,9 +2,10 @@ import type { AssessmentMethod } from "@/assessment/types";
 import { rula } from "@/assessment/rula/rula";
 import { reba } from "@/assessment/reba/reba";
 import { owas } from "@/assessment/owas/owas";
+import { nerpa } from "@/assessment/nerpa/nerpa";
 
 /** Registered assessment methods (pose-driven: compute from a PostureInput). */
-export const methods: AssessmentMethod[] = [rula, reba, owas];
+export const methods: AssessmentMethod[] = [rula, reba, owas, nerpa];
 
 /** Form-driven calculators (not pose-driven; they have their own input UIs). */
 export interface CalculatorMethod {

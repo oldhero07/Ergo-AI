@@ -25,7 +25,7 @@ Photos are transmitted over HTTPS to the stateless inference service, processed 
 
 ## Feature Highlights
 
-*   **RULA & REBA scoring engines:** full tabular lookups implemented directly from McAtamney & Corlett (1993) and Hignett & McAtamney (2000), cross-checked cell-for-cell against the published worksheets, plus OWAS and a NIOSH lifting-equation calculator.
+*   **RULA & REBA scoring engines:** full tabular lookups implemented directly from McAtamney & Corlett (1993) and Hignett & McAtamney (2000), cross-checked cell-for-cell against the published worksheets, plus OWAS, NERPA (Sánchez-Lite et al. 2013), and a NIOSH lifting-equation calculator.
 *   **Batch image processing:** queue and score up to 30 photos, automatically sorted worst-first with a batch summary.
 *   **Temporal video analysis:** fixed-policy frame sampling with rolling-window smoothing and posture-cycle detection that flags repetitive or sustained static strain.
 *   **Interactive adjustments panel:** tweak the factors a single camera cannot observe (wrist deviation, arm support, muscle use, load) with live re-scoring.

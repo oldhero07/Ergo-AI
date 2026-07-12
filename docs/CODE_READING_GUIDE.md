@@ -9,7 +9,7 @@ Ergo-AI is two pieces:
 - A **single-page app** (React 18, Vite, TypeScript) that owns everything the user sees: upload, angle derivation, scoring, adjustments, exports, session restore.
 - A **stateless inference service** (`server/` — FastAPI + ONNX Runtime on CPU, in Docker) that does exactly one job: take image bytes, return 133 wholebody keypoints from a pinned RTMPose model behind a YOLOX person detector. It holds no state and stores nothing; models are SHA-256-pinned at build (`server/models.lock`).
 
-The flow in one line: an image goes to the server, keypoints come back, a math layer turns keypoints into joint angles, a scoring layer looks those angles up in the RULA/REBA/OWAS tables, and the UI shows the result and lets you adjust the parts a camera cannot see.
+The flow in one line: an image goes to the server, keypoints come back, a math layer turns keypoints into joint angles, a scoring layer looks those angles up in the RULA/REBA/OWAS/NERPA tables, and the UI shows the result and lets you adjust the parts a camera cannot see.
 
 The design principle worth knowing up front: **flag, never suppress**. Low keypoint confidence never blocks or changes a score — it clears that angle's `measured` flag so the UI and PDF highlight it for expert review. The only hard failure is the person detector finding nobody. The flags travel in a parallel `AngleMeasuredFlags` object that the scoring engines never see.
 
@@ -22,7 +22,7 @@ Read in this order the first time. Each step builds on the last.
 3. `src/assessment/types.ts` and `src/lib/analysis.ts` — the shared data shapes. `PostureInput`, `AssessmentResult`, and `PoseAnalysis` are the three you will see everywhere.
 4. `src/lib/poseClient.ts` — the typed HTTP client for the inference API. Note that it sends original file bytes, never a canvas re-encode: browser JPEG encoders differ per device, and the whole point of server inference is that the same photo produces identical keypoints everywhere.
 5. `src/lib/angles2d.ts` — the heart of the app. Keypoints to joint angles in the sagittal plane, the worst-side choice, the signed neck angle, the `KP_SCORE_FLOOR` review flags, and the off-profile detection. Read this slowly. The `KP` table at the top is the single source of truth for COCO-WholeBody keypoint indices.
-6. `src/assessment/rula/rula.ts` and `src/assessment/rula/rulaTables.ts` — how angles become a score. `buildAutoInput` (angles to a `PostureInput`) and `computeRula` live here. Then `reba/`, `owas/`, and `registry.ts` for the other pose-driven methods, and `niosh/` for the form-driven calculator.
+6. `src/assessment/rula/rula.ts` and `src/assessment/rula/rulaTables.ts` — how angles become a score. `buildAutoInput` (angles to a `PostureInput`) and `computeRula` live here. Then `reba/`, `owas/`, `nerpa/` (a RULA variant with ISO 11226-derived angle bands, reusing RULA's tables), and `registry.ts` for the other pose-driven methods, and `niosh/` for the form-driven calculator.
 7. `src/lib/remoteAnalyze.ts` — the orchestrator that wires upload, keypoints, angles, annotation, and scoring together for one photo, and the batched video version below it.
 8. `src/lib/video/assemble.ts` — everything video-specific: rolling-window smoothing, posture-cycle counting, sustained/repeated detection, and per-frame assembly. Pure DOM-free math, heavily tested.
 9. UI: `src/components/Uploader.tsx`, `src/screens/PhotoResultsScreen.tsx`, `Scorecard.tsx`, `MeasurementSummary.tsx`, `AdjustmentsPanel.tsx`, `VideoResults.tsx`.
@@ -145,7 +145,7 @@ None of this is a bug. Video is meant to catch strain over time that a still can
 The tests worth knowing:
 
 - `src/test/baseline.test.ts` locks the RULA and REBA scores for the bundled sample photos. If a score here changes, scoring behavior changed, and that should be deliberate.
-- `src/assessment/rula/rula.test.ts` (and `reba`, `owas`, `niosh`) check the scoring tables directly.
+- `src/assessment/rula/rula.test.ts` (and `reba`, `owas`, `nerpa`, `niosh`) check the scoring tables directly.
 - `src/lib/angles2d.test.ts` checks side selection, the signed neck angle, the review flags, and the off-profile detection.
 - `src/lib/videoFile.test.ts`, `src/lib/exportData.test.ts`, `src/lib/pdf.test.ts` cover file validation and the export paths.
 

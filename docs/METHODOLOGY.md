@@ -2,7 +2,7 @@
 
 This document explains what happens between the moment you add a photo and the moment you get an ergonomic risk score. It is written for people who want to understand and trust the method: safety managers, ergonomists, clients, and reviewers. You do not need to read code to follow it.
 
-Ergo-AI looks at a photo or a short video of someone working, finds their body, measures the angles of their joints, and turns those angles into a standard ergonomic score (RULA, REBA, or OWAS). Pose detection runs on a dedicated inference server; everything else — angle math, scoring, adjustments, reports — runs in your browser. Photos are processed in memory on the server and immediately discarded, never stored.
+Ergo-AI looks at a photo or a short video of someone working, finds their body, measures the angles of their joints, and turns those angles into a standard ergonomic score (RULA, REBA, OWAS, or NERPA). Pose detection runs on a dedicated inference server; everything else — angle math, scoring, adjustments, reports — runs in your browser. Photos are processed in memory on the server and immediately discarded, never stored.
 
 ## The short version
 
@@ -85,7 +85,7 @@ The grand score maps to an action level:
 | 5 to 6 | Change soon | Investigate and change the task soon |
 | 7 | Change now | Investigate and change immediately |
 
-REBA (for whole-body tasks, scored 1 to 15 with load, coupling, and activity factors) and OWAS (posture categories) work on the same measured angles with their own tables, and you can switch between them without re-analyzing the photo. A separate NIOSH lifting-equation calculator handles lifting tasks from task parameters rather than a photo.
+REBA (for whole-body tasks, scored 1 to 15 with load, coupling, and activity factors), OWAS (posture categories), and NERPA (a RULA variant whose angle bands are re-derived from ISO 11226:2000, making it less strict near neutral postures) work on the same measured angles with their own scoring, and you can switch between them without re-analyzing the photo. A separate NIOSH lifting-equation calculator handles lifting tasks from task parameters rather than a photo.
 
 The scoring tables are implemented directly from the published papers — McAtamney & Corlett (1993) for RULA, Hignett & McAtamney (2000) for REBA — and cross-checked cell-for-cell against the published worksheets.
 
