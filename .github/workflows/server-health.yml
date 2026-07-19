@@ -1,0 +1,31 @@
+# Watches the pose-inference server. When /health stops answering, the run
+# fails and GitHub emails the repo owner - a dead server gets noticed the same
+# day, not when a visitor reports it. (The 2026-07 outage was a closed GCP
+# billing account: every request 500'd for days with nobody alerted.)
+name: Server health
+
+on:
+  schedule:
+    - cron: "17 */6 * * *" # every 6 hours; offset avoids the top-of-hour rush
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe /health (tolerates a cold start)
+        run: |
+          URL="https://ergo-pose-599737870578.us-central1.run.app/health"
+          # A scale-to-zero host can take a couple of minutes to wake: retry
+          # for up to ~4 minutes before declaring the server down.
+          for i in $(seq 1 16); do
+            code=$(curl -s -o /tmp/body -w "%{http_code}" --max-time 20 "$URL" || echo 000)
+            echo "attempt $i -> HTTP $code"
+            if [ "$code" = "200" ]; then
+              cat /tmp/body
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "::error::Pose server is DOWN ($URL). If Cloud Run logs say 'billing is disabled', reopen the GCP billing account."
+          exit 1

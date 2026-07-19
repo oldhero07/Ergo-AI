@@ -1,6 +1,5 @@
 import { Activity, Weight } from "lucide-react";
 import { Logo } from "@/components/Logo";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { cn } from "@/lib/utils";
 import type { Route } from "@/hooks/useHashRoute";
 
@@ -57,7 +56,6 @@ export function AppNav({ route, onNavigate }: { route: Route; onNavigate: (r: Ro
               </button>
             );
           })}
-          <ThemeToggle />
         </nav>
       </div>
     </header>

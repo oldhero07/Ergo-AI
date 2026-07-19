@@ -8,22 +8,6 @@
     <meta name="theme-color" content="#f5fafe" />
     <link rel="canonical" href="https://oldhero07.github.io/Ergo-AI/" />
 
-    <!-- Apply the saved theme before first paint to avoid a theme flash.
-         Light is the default look; "system" still tracks the OS preference. -->
-    <script>
-      (function () {
-        try {
-          var t = localStorage.getItem("ergo-theme") || "light";
-          var dark = t === "dark" || (t === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
-          document.documentElement.classList.toggle("dark", dark);
-          if (dark) {
-            var m = document.querySelector('meta[name="theme-color"]');
-            if (m) m.setAttribute("content", "#10161c");
-          }
-        } catch (e) {}
-      })();
-    </script>
-
     <title>Ergo AI - Free RULA &amp; REBA Ergonomic Assessment for Photos and Videos</title>
     <meta
       name="description"

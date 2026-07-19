@@ -1,144 +1,145 @@
-import { useEffect, useRef, useState } from "react";
-import { Camera, Video, ArrowRight, ShieldCheck } from "lucide-react";
+import { ArrowRight, Camera, FileText, Gauge, Play, Ruler, ScanLine, ShieldCheck, Upload, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { gsap } from "@/hooks/useScrollMotion";
+import { cn } from "@/lib/utils";
+import { RISK_PILL, RISK_TEXT } from "@/lib/risk";
+import { REVEAL_ANALYSIS } from "@/components/landing/revealAnalysis";
 import type { AnalysisMode } from "@/types";
 
-/**
- * Cinematic light hero: a full-bleed photograph (or, when present, a muted
- * looping clip at `public/hero/hero-loop.mp4`) washed toward the background
- * color so the display type stays readable, one message, one primary CTA.
- * The media layer is decorative - all information lives in the text.
- */
-export function Hero({ onStart }: { onStart: (mode: AnalysisMode) => void }) {
-  const rootRef = useRef<HTMLElement>(null);
-  const base = import.meta.env.BASE_URL;
+const STEPS = [
+  { icon: Upload, name: "Upload", copy: "A single photo or a short video." },
+  { icon: ScanLine, name: "Detect", copy: "AI finds the person and 133 keypoints." },
+  { icon: Ruler, name: "Measure", copy: "Joint angles are calculated in 2D." },
+  { icon: Gauge, name: "Score", copy: "RULA & REBA scores in seconds." },
+  { icon: FileText, name: "Report", copy: "A professional PDF, ready to share." },
+] as const;
 
-  // Entrance choreography (load-time, not scroll): eyebrow -> headline -> sub -> CTA.
-  useEffect(() => {
-    const root = rootRef.current;
-    if (!root) return;
-    const mm = gsap.matchMedia();
-    mm.add("(prefers-reduced-motion: no-preference)", () => {
-      gsap.from(root.querySelectorAll("[data-hero-seq]"), {
-        opacity: 0,
-        y: 18,
-        duration: 0.65,
-        ease: "power2.out",
-        stagger: 0.09,
-        delay: 0.1,
-      });
-    });
-    return () => mm.revert();
-  }, []);
+/** Joint markers + angle chips, positioned in % of the hero figure box. */
+const CHIPS = [
+  { key: "elbow", label: "Elbow flexion", dot: { x: 47, y: 41 }, chip: { x: 27, y: 30 } },
+  { key: "upperArm", label: "Upper arm", dot: { x: 50.5, y: 33 }, chip: { x: 58, y: 17 } },
+  { key: "trunk", label: "Trunk flexion", dot: { x: 64, y: 40 }, chip: { x: 60, y: 52 } },
+  { key: "knee", label: "Knee flexion", dot: { x: 53.5, y: 64 }, chip: { x: 58, y: 73 } },
+] as const;
+
+/** The product's opening claim, illustrated by its own output on one figure. */
+export function Hero({ onStart }: { onStart: (mode: AnalysisMode) => void }) {
+  const base = import.meta.env.BASE_URL;
+  const { angles, assessment } = REVEAL_ANALYSIS;
+  const chipValue: Record<(typeof CHIPS)[number]["key"], number> = {
+    elbow: Math.round(angles.lowerArm),
+    upperArm: Math.round(angles.upperArm),
+    trunk: Math.round(angles.trunk),
+    knee: Math.round(angles.legAngle ?? 0),
+  };
 
   return (
-    <section ref={rootRef} className="relative overflow-hidden border-b">
-      {/* Media layer (decorative) */}
-      <div className="absolute inset-0" aria-hidden>
-        <HeroMedia base={base} />
-        {/* Readability washes - light theme: wash toward the page background */}
-        <div className="absolute inset-0 bg-gradient-to-r from-background via-background/90 to-background/25" />
-        <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-background to-transparent" />
-        <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-background/80 to-transparent" />
-      </div>
-
-      <div className="relative mx-auto flex min-h-[82svh] max-w-6xl flex-col justify-center px-4 py-20 sm:px-6">
-        <div className="max-w-2xl">
-          <div data-hero-seq>
-            <span className="inline-flex items-center gap-1.5 rounded-full border bg-background/70 px-3 py-1 text-xs font-medium text-muted-foreground backdrop-blur-sm">
-              <ShieldCheck className="h-3.5 w-3.5 text-primary" /> Processed in memory · never stored
-            </span>
+    <section className="relative overflow-hidden border-b bg-white">
+      <div className="mx-auto max-w-7xl px-4 pt-14 sm:px-6 lg:pt-20">
+        <div className="grid items-center gap-12 lg:grid-cols-[0.85fr_1.15fr]">
+          <div className="relative z-10 max-w-xl">
+            <p className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-background px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-primary">
+              <span className="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden /> AI powered · research grade
+            </p>
+            <h1 className="mt-7 text-balance text-5xl font-semibold leading-[1.02] tracking-tight text-foreground sm:text-6xl lg:text-7xl">
+              Posture risk, <span className="text-primary">scored in seconds.</span>
+            </h1>
+            <p className="mt-6 max-w-lg text-pretty text-base leading-relaxed text-muted-foreground sm:text-lg">
+              Upload a photo. Our AI reads 133 body keypoints and delivers RULA and REBA scores with a professional report.
+            </p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Button size="lg" className="h-12 gap-2 px-5" onClick={() => onStart("photo")}>
+                <Camera className="h-4 w-4" /> Analyze a photo
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                className="h-12 gap-2 px-5"
+                onClick={() => document.getElementById("capture-guide")?.scrollIntoView({ behavior: "smooth" })}
+              >
+                <Play className="h-4 w-4" /> Watch how it works
+              </Button>
+            </div>
+            <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs font-medium text-muted-foreground sm:text-sm">
+              <span className="flex items-center gap-1.5"><Gauge className="h-3.5 w-3.5 text-primary" aria-hidden /> RULA &amp; REBA</span>
+              <span className="flex items-center gap-1.5"><Video className="h-3.5 w-3.5 text-primary" aria-hidden /> NIOSH Lifting Eq.</span>
+              <span className="flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5 text-primary" aria-hidden /> Photos never stored</span>
+            </div>
           </div>
 
-          <h1
-            data-hero-seq
-            className="mt-6 text-balance text-5xl font-semibold leading-[1.04] tracking-tighter sm:text-6xl lg:text-7xl"
-          >
-            Posture risk,
-            <br />
-            scored in seconds.
-          </h1>
+          <figure className="relative mx-auto w-full max-w-3xl">
+            <div className="absolute -inset-12 -z-10 rounded-full bg-primary/5 blur-3xl" aria-hidden />
+            <div className="relative">
+              <img
+                src={`${base}hero/hero-figure.jpg`}
+                alt="Translucent anatomical figure in a lifting posture, annotated with measured joint angles"
+                width={1600}
+                height={900}
+                className="aspect-video w-full [mask-image:radial-gradient(ellipse_72%_82%_at_50%_48%,black_62%,transparent_97%)]"
+                loading="eager"
+                decoding="async"
+              />
+              {/* Joint markers + measured-angle chips: the product's actual output. */}
+              <div className="pointer-events-none absolute inset-0 hidden sm:block" aria-hidden>
+                {CHIPS.map(({ key, label, dot, chip }) => (
+                  <div key={key}>
+                    <span
+                      className="absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary ring-4 ring-primary/15"
+                      style={{ left: `${dot.x}%`, top: `${dot.y}%` }}
+                    />
+                    <div
+                      className="absolute -translate-x-1/2 rounded-xl border bg-card/95 px-3.5 py-2 shadow-card backdrop-blur-sm"
+                      style={{ left: `${chip.x}%`, top: `${chip.y}%` }}
+                    >
+                      <span className="block text-[11px] font-medium text-muted-foreground">{label}</span>
+                      <span className="tabular-readout block text-xl font-semibold text-primary">{chipValue[key]}°</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
 
-          <p data-hero-seq className="mt-6 max-w-xl text-pretty text-base text-muted-foreground sm:text-lg">
-            Upload a photo of a working posture. Research-grade AI reads 133 body keypoints and returns a
-            defensible <strong className="font-semibold text-foreground">RULA</strong> or{" "}
-            <strong className="font-semibold text-foreground">REBA</strong> score - with a report you can hand
-            to management. Free, private, no sign-up.
-          </p>
-
-          <div data-hero-seq className="mt-8 flex flex-wrap items-center gap-4">
-            <Button size="lg" className="h-12 gap-2 px-6 text-base shadow-card" onClick={() => onStart("photo")}>
-              <Camera className="h-5 w-5" /> Analyze a photo
-              <ArrowRight className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="lg"
-              className="h-12 gap-2 text-muted-foreground hover:text-foreground"
-              onClick={() => onStart("video")}
-            >
-              <Video className="h-4 w-4" /> or analyze a short video
-            </Button>
-          </div>
-          <p data-hero-seq className="mt-3 text-xs text-muted-foreground">
-            JPG or PNG · MP4, MOV, WebM · batch up to 30 photos
-          </p>
+            {/* The verdict card: same numbers the report will show. */}
+            <aside className="mt-4 rounded-xl border bg-card p-5 shadow-card-hover sm:absolute sm:-right-2 sm:top-1/2 sm:mt-0 sm:w-56 sm:-translate-y-1/2 lg:-right-6">
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">RULA score</p>
+              <div className="mt-2 flex items-end gap-1.5">
+                <span className={cn("tabular-readout text-5xl font-semibold leading-none", RISK_TEXT[assessment.riskBand])}>{assessment.grandScore}</span>
+                <span className="mb-1 tabular-readout text-sm text-muted-foreground">/ {assessment.maxScore}</span>
+              </div>
+              <span className={cn("mt-3 inline-flex rounded-md px-2 py-0.5 text-xs font-semibold", RISK_PILL[assessment.riskBand])}>
+                {assessment.riskLabel}
+              </span>
+              <p className="mt-3 text-xs leading-relaxed text-muted-foreground">{assessment.actionLevel}</p>
+            </aside>
+          </figure>
         </div>
 
-        {/* Trust strip - the standards this tool stands on */}
-        <div
-          data-hero-seq
-          className="mt-16 flex flex-wrap items-center gap-x-6 gap-y-2 border-t pt-5 font-mono text-[11px] uppercase tracking-wider text-muted-foreground"
-        >
-          <span>RULA · McAtamney &amp; Corlett 1993</span>
-          <span className="hidden text-border sm:inline">|</span>
-          <span>REBA · Hignett &amp; McAtamney 2000</span>
-          <span className="hidden text-border sm:inline">|</span>
-          <span>NERPA · ISO 11226</span>
-          <span className="hidden text-border sm:inline">|</span>
-          <span>Photos never stored</span>
-        </div>
+        {/* The pipeline, in order: this sequence is the product. */}
+        <ol className="mt-14 grid gap-3 rounded-2xl border bg-muted/40 p-4 sm:grid-cols-2 sm:p-5 lg:mt-16 lg:grid-cols-5">
+          {STEPS.map(({ icon: Icon, name, copy }, index) => (
+            <li key={name} className="relative flex items-start gap-3.5 rounded-xl bg-card p-4 shadow-card">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <Icon className="h-5 w-5" aria-hidden />
+              </span>
+              <div className="min-w-0">
+                <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                  <span className="font-mono text-[10px] text-primary">0{index + 1}</span> {name}
+                </p>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{copy}</p>
+              </div>
+              {index < STEPS.length - 1 && (
+                <ArrowRight className="absolute -right-3 top-1/2 z-10 hidden h-4 w-4 -translate-y-1/2 text-muted-foreground/60 lg:block" aria-hidden />
+              )}
+            </li>
+          ))}
+        </ol>
+
+        <p className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
+          <span className="flex h-7 w-7 items-center justify-center rounded-full border bg-background" aria-hidden>
+            <ArrowRight className="h-3.5 w-3.5 rotate-90" />
+          </span>
+          Scroll to explore
+        </p>
       </div>
     </section>
-  );
-}
-
-/** Poster photograph with an optional video loop that fades in over it when
- * (and only when) a `hero/hero-loop.mp4` asset exists and motion is allowed. */
-function HeroMedia({ base }: { base: string }) {
-  const [videoOk, setVideoOk] = useState(true);
-  const [playing, setPlaying] = useState(false);
-  const [reducedMotion] = useState(
-    () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches,
-  );
-
-  return (
-    <>
-      <img
-        src={`${base}samples/warehouse-lifting.jpg`}
-        alt=""
-        width={1024}
-        height={1024}
-        className="h-full w-full object-cover object-[72%_center]"
-        loading="eager"
-        decoding="async"
-      />
-      {videoOk && !reducedMotion && (
-        <video
-          className={
-            "absolute inset-0 h-full w-full object-cover object-[72%_center] transition-opacity duration-700 " +
-            (playing ? "opacity-100" : "opacity-0")
-          }
-          src={`${base}hero/hero-loop.mp4`}
-          autoPlay
-          muted
-          loop
-          playsInline
-          onCanPlay={() => setPlaying(true)}
-          onError={() => setVideoOk(false)}
-        />
-      )}
-    </>
   );
 }

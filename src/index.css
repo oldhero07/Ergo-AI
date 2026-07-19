@@ -35,34 +35,6 @@
     --risk-veryhigh: 0 74% 42%;
   }
 
-  .dark {
-    /* Desaturated clinical night - calm slate-blue surfaces, no neon. */
-    --background: 208 28% 9%;
-    --foreground: 208 25% 92%;
-    --card: 208 26% 12%;
-    --card-foreground: 208 25% 92%;
-    --popover: 208 26% 12%;
-    --popover-foreground: 208 25% 92%;
-    --primary: 199 85% 58%;
-    --primary-foreground: 208 40% 10%;
-    --secondary: 208 22% 16%;
-    --secondary-foreground: 208 20% 88%;
-    --muted: 208 20% 15%;
-    --muted-foreground: 208 14% 66%;
-    --accent: 202 45% 18%;
-    --accent-foreground: 199 75% 78%;
-    --destructive: 0 70% 58%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 208 18% 21%;
-    --input: 208 18% 21%;
-    --ring: 199 85% 58%;
-    --success: 145 55% 52%;
-
-    --risk-low: 145 55% 52%;
-    --risk-medium: 38 90% 56%;
-    --risk-high: 20 88% 60%;
-    --risk-veryhigh: 0 78% 64%;
-  }
 }
 
 @layer base {

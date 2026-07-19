@@ -41,7 +41,7 @@ function AppShell() {
     <div className="flex min-h-screen flex-col bg-background text-foreground">
       <AppNav route={route} onNavigate={navigate} />
 
-      <main className="container flex-1 py-10">
+      <main className={route === "home" ? "flex-1" : "container flex-1 py-10"}>
         <PhaseTransition phaseKey={route === "analyze" ? `analyze:${effectiveStage}` : route}>
           {route === "home" && <HomeView />}
           {route === "niosh" && (
