@@ -1,28 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Camera, Maximize2, RotateCw, Sun } from "lucide-react";
-
-const RULES = [
-  {
-    icon: RotateCw,
-    name: "Shoot from the side",
-    copy: "Stand 90° to the person — a true profile. RULA and REBA read the sagittal plane, so the side view is the one the AI measures best.",
-  },
-  {
-    icon: Maximize2,
-    name: "Whole body in frame",
-    copy: "Head to feet, nothing cropped. Every joint the score needs has to be visible.",
-  },
-  {
-    icon: Camera,
-    name: "Camera level, waist height",
-    copy: "Hold the camera steady around waist height, not tilted up or down — tilt distorts the measured angles.",
-  },
-  {
-    icon: Sun,
-    name: "Catch the real task",
-    copy: "Photograph the working posture mid-task, in even light. A posed stance scores the pose, not the job.",
-  },
-] as const;
+import { CAPTURE_RULES } from "@/lib/captureRules";
 
 /**
  * The rotating figure demonstrates the one instruction that matters most:
@@ -91,7 +68,7 @@ export function CaptureGuidelines() {
             No sensors, no suits, no calibration. The score is only as good as the view — here is what a good view looks like.
           </p>
           <ul data-reveal-stagger className="mt-8 space-y-5">
-            {RULES.map(({ icon: Icon, name, copy }) => (
+            {CAPTURE_RULES.map(({ icon: Icon, name, copy }) => (
               <li key={name} className="flex gap-4">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
                   <Icon className="h-5 w-5" aria-hidden />
