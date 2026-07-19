@@ -89,11 +89,11 @@ export function ScoreReveal() {
     <section ref={sectionRef} className="relative isolate overflow-hidden border-b bg-background">
       <div className="mx-auto grid min-h-svh max-w-7xl items-center gap-8 px-4 py-16 sm:px-6 lg:grid-cols-[1.15fr_0.85fr] lg:py-0">
         <figure data-figure className="relative w-full">
-          <div className="relative aspect-video overflow-hidden rounded-2xl border border-border/80 bg-white shadow-card-hover">
+          <div className="relative aspect-video overflow-hidden">
             {wantsVideo && videoOk && (
-              <video ref={videoRef} className="absolute inset-0 h-full w-full" src={`${base}hero/v3-scrub.mp4`} poster={`${base}hero/v3-poster.jpg`} muted playsInline preload="auto" aria-hidden onError={() => setVideoOk(false)} />
+              <video ref={videoRef} className="absolute inset-0 h-full w-full mix-blend-multiply" src={`${base}hero/v3-scrub.mp4`} poster={`${base}hero/v3-poster.jpg`} muted playsInline preload="auto" aria-hidden onError={() => setVideoOk(false)} />
             )}
-            {staticMode && <img src={`${base}hero/v3-end.jpg`} alt="" width={1280} height={720} className="absolute inset-0 h-full w-full" loading="lazy" />}
+            {staticMode && <img src={`${base}hero/v3-end.jpg`} alt="" width={1280} height={720} className="absolute inset-0 h-full w-full mix-blend-multiply" loading="lazy" />}
             <svg viewBox={`0 0 ${REVEAL_IMG.w} ${REVEAL_IMG.h}`} className="absolute inset-0 h-full w-full" role="img" aria-label={`Pose analysis: RULA score ${assessment.grandScore}, ${assessment.riskLabel}`}>
               <g stroke="hsl(var(--primary))" strokeWidth="6" strokeLinecap="round">
                 {bones.map(([a, b]) => <line key={`${a}-${b}`} data-bone x1={point(a).x} y1={point(a).y} x2={point(b).x} y2={point(b).y} pathLength={1} strokeDasharray={1} />)}

@@ -307,11 +307,11 @@ function PhotoGuide() {
 
       {isOpen && (
         <div className="grid gap-5 border-t p-5 sm:grid-cols-[0.9fr_1.1fr] sm:items-center">
-          <figure className="relative overflow-hidden rounded-lg border bg-white">
+          <figure className="relative overflow-hidden">
             {wantsVideo && videoOk ? (
               <video
                 ref={videoRef}
-                className="aspect-video w-full"
+                className="aspect-video w-full mix-blend-multiply [mask-image:radial-gradient(ellipse_70%_80%_at_50%_50%,black_55%,transparent_96%)]"
                 src={`${base}hero/v1-loop.mp4`}
                 poster={`${base}hero/v1-poster.jpg`}
                 muted
@@ -323,7 +323,7 @@ function PhotoGuide() {
                 onError={() => setVideoOk(false)}
               />
             ) : (
-              <img src={`${base}hero/v1-poster.jpg`} alt="" width={1280} height={720} className="aspect-video w-full" loading="lazy" />
+              <img src={`${base}hero/v1-poster.jpg`} alt="" width={1280} height={720} className="aspect-video w-full mix-blend-multiply [mask-image:radial-gradient(ellipse_70%_80%_at_50%_50%,black_55%,transparent_96%)]" loading="lazy" />
             )}
             <figcaption className="absolute bottom-2 right-2 rounded-md border bg-card/90 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground backdrop-blur-sm">
               90° side profile

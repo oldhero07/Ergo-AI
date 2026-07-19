@@ -92,11 +92,11 @@ export function MsdStory() {
         </div>
 
         <figure className="relative w-full">
-          <div className="relative aspect-video overflow-hidden rounded-2xl border border-border/80 bg-white shadow-card-hover">
+          <div className="relative aspect-video overflow-hidden">
             {scrubMode ? (
               <video
                 ref={videoRef}
-                className="absolute inset-0 h-full w-full"
+                className="absolute inset-0 h-full w-full mix-blend-multiply"
                 src={`${base}hero/v2-scrub.mp4`}
                 poster={`${base}hero/v2-poster.jpg`}
                 muted
@@ -111,7 +111,7 @@ export function MsdStory() {
                 alt=""
                 width={1280}
                 height={720}
-                className="absolute inset-0 h-full w-full"
+                className="absolute inset-0 h-full w-full mix-blend-multiply"
                 loading="lazy"
               />
             )}

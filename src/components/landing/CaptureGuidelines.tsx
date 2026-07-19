@@ -25,11 +25,11 @@ export function CaptureGuidelines() {
     <section id="capture-guide" className="scroll-mt-16 border-b bg-muted/45">
       <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 py-20 sm:px-6 lg:grid-cols-[1.05fr_0.95fr] lg:py-28">
         <figure data-reveal className="relative">
-          <div className="relative aspect-video overflow-hidden rounded-2xl border border-border/80 bg-white shadow-card-hover">
+          <div className="relative aspect-video overflow-hidden">
             {wantsVideo && videoOk ? (
               <video
                 ref={videoRef}
-                className="absolute inset-0 h-full w-full"
+                className="absolute inset-0 h-full w-full mix-blend-multiply [mask-image:radial-gradient(ellipse_70%_80%_at_50%_50%,black_55%,transparent_96%)]"
                 src={`${base}hero/v1-loop.mp4`}
                 poster={`${base}hero/v1-poster.jpg`}
                 muted
@@ -46,7 +46,7 @@ export function CaptureGuidelines() {
                 alt=""
                 width={1280}
                 height={720}
-                className="absolute inset-0 h-full w-full"
+                className="absolute inset-0 h-full w-full mix-blend-multiply [mask-image:radial-gradient(ellipse_70%_80%_at_50%_50%,black_55%,transparent_96%)]"
                 loading="lazy"
               />
             )}
