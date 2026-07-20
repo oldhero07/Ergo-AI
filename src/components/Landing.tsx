@@ -1,8 +1,18 @@
-import { Camera, Video, ScanLine, Gauge, ShieldCheck, ArrowRight, Scale, FileText } from "lucide-react";
+import { ArrowRight, Camera, FileText, Gauge, Ruler, ScanLine, ShieldCheck, Scale, Upload, Video } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type { AnalysisMode } from "@/types";
+
+/** The methodology, in pipeline order - this sequence is the product. */
+const STEPS = [
+  { icon: Upload, name: "Upload", copy: "A single photo or a short video." },
+  { icon: ScanLine, name: "Detect", copy: "AI finds the person and 133 keypoints." },
+  { icon: Ruler, name: "Measure", copy: "Joint angles are calculated in 2D." },
+  { icon: Gauge, name: "Score", copy: "RULA & REBA scores in seconds." },
+  { icon: FileText, name: "Report", copy: "A professional PDF, ready to share." },
+] as const;
 
 /**
  * Presentational landing page shown before the tool. Stores nothing - no DB, no
@@ -10,71 +20,93 @@ import type { AnalysisMode } from "@/types";
  * the chosen flow (photo or video) via `onStart`.
  */
 export function Landing({ onStart }: { onStart: (mode: AnalysisMode) => void }) {
+  const base = import.meta.env.BASE_URL;
+
   return (
     <div className="animate-in fade-in duration-500">
-      {/* Hero */}
-      <section className="mx-auto max-w-5xl px-2 pt-6 pb-14 sm:pt-12">
-        <div className="grid items-center gap-10 lg:grid-cols-2">
-          <div className="text-center lg:text-left">
-            <Badge variant="outline" className="gap-1.5 rounded-full px-3 py-1 text-muted-foreground">
-              <ShieldCheck className="h-3.5 w-3.5 text-primary" /> Processed in memory · never stored
-            </Badge>
-            <h1 className="mt-6 text-balance text-4xl font-semibold tracking-tight sm:text-5xl">
-              Ergonomic risk assessment from a photo
-            </h1>
-            <p className="mx-auto mt-4 max-w-xl text-pretty text-base text-muted-foreground sm:text-lg lg:mx-0">
-              Get <strong className="font-semibold text-foreground">RULA</strong> and{" "}
-              <strong className="font-semibold text-foreground">REBA</strong> posture-risk scores from a photo or a
-              short video - with a professional PDF report. Free, private, no sign-up.
+      {/* Hero: the annotated figure is the thesis - measured angles on a body,
+          verdict beside it. In light mode the artwork multiplies into the page;
+          in dark mode it inverts to an X-ray glow and screens in. */}
+      <section className="mx-auto max-w-7xl px-4 pt-10 sm:px-6 sm:pt-14">
+        <div className="grid items-center gap-10 lg:grid-cols-[0.85fr_1.15fr]">
+          <div className="relative z-10 max-w-xl text-center lg:text-left">
+            <p className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-background px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-primary">
+              <span className="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden /> AI powered · research grade
             </p>
-
-            <div className="mt-5 flex flex-wrap items-center justify-center gap-2 lg:justify-start">
-              <Badge variant="muted" className="tabular-readout rounded-full">133 keypoints</Badge>
-              <Badge variant="muted" className="tabular-readout rounded-full">RULA · REBA · OWAS · NERPA</Badge>
-              <Badge variant="muted" className="tabular-readout rounded-full">Batch up to 30 photos</Badge>
+            <h1 className="mt-6 text-balance text-4xl font-semibold leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl">
+              Posture risk, <span className="text-primary">scored in seconds.</span>
+            </h1>
+            <p className="mx-auto mt-5 max-w-lg text-pretty text-base leading-relaxed text-muted-foreground sm:text-lg lg:mx-0">
+              Upload a photo. Our AI reads 133 body keypoints and delivers RULA and REBA scores with a professional report. Free, private, no sign-up.
+            </p>
+            <div className="mt-8 flex flex-wrap justify-center gap-3 lg:justify-start">
+              <Button size="lg" className="h-12 gap-2 px-5" onClick={() => onStart("photo")}>
+                <Camera className="h-4 w-4" /> Analyze a photo
+              </Button>
+              <Button size="lg" variant="outline" className="h-12 gap-2 px-5" onClick={() => onStart("video")}>
+                <Video className="h-4 w-4" /> Analyze a video
+              </Button>
             </div>
-
-            <div className="mt-8 grid gap-3 sm:grid-cols-2">
-              <EntryCard
-                icon={<Camera className="h-5 w-5" />}
-                title="Analyze a photo"
-                sub="One image or a batch"
-                onClick={() => onStart("photo")}
-                primary
-              />
-              <EntryCard
-                icon={<Video className="h-5 w-5" />}
-                title="Analyze a video"
-                sub="A short clip, over time"
-                onClick={() => onStart("video")}
-              />
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs font-medium text-muted-foreground sm:text-sm lg:justify-start">
+              <span className="flex items-center gap-1.5"><Gauge className="h-3.5 w-3.5 text-primary" aria-hidden /> RULA &amp; REBA</span>
+              <span className="flex items-center gap-1.5"><Ruler className="h-3.5 w-3.5 text-primary" aria-hidden /> NIOSH Lifting Eq.</span>
+              <span className="flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5 text-primary" aria-hidden /> Photos never stored</span>
             </div>
-            <p className="mt-3 text-xs text-muted-foreground">JPG or PNG · MP4, MOV, WebM</p>
           </div>
-          <div className="relative hidden min-h-[420px] lg:block">
-            <HeroVisual />
-          </div>
-        </div>
-      </section>
 
-      {/* How it works */}
-      <section className="border-t py-14">
-        <div className="mx-auto max-w-4xl px-2">
-          <h2 className="text-center text-sm font-semibold uppercase tracking-widest text-primary">
-            How it works
-          </h2>
-          <div className="mt-8 grid gap-4 sm:grid-cols-3">
-            <Step icon={<Camera className="h-5 w-5" />} n="1" title="Upload">
-              A clear side view of the working posture - photo or short clip. Analyzed in memory, never stored.
-            </Step>
-            <Step icon={<ScanLine className="h-5 w-5" />} n="2" title="AI reads the pose">
-              Research-grade AI (RTMPose wholebody) locates 133 body and hand keypoints and derives the joint angles.
-            </Step>
-            <Step icon={<Gauge className="h-5 w-5" />} n="3" title="Score + report">
-              A RULA or REBA grand score with a per-joint breakdown and an exportable PDF.
-            </Step>
-          </div>
+          <figure className="relative mx-auto w-full max-w-3xl">
+            <div className="absolute -inset-10 -z-10 rounded-full bg-primary/5 blur-3xl" aria-hidden />
+            <img
+              src={`${base}hero/hero-annotated.jpg`}
+              alt="Translucent anatomical figure lifting a box, annotated with measured joint angles: neck 18°, upper arm 35°, trunk 42°, knee 32°, ankle 6°"
+              width={1536}
+              height={1024}
+              className="aspect-[3/2] w-full mix-blend-multiply [mask-image:radial-gradient(ellipse_74%_84%_at_50%_48%,black_60%,transparent_98%)] dark:invert dark:hue-rotate-180 dark:mix-blend-screen"
+              loading="eager"
+              decoding="async"
+            />
+            {/* Verdict card: these numbers mirror the artwork's annotated pose
+                (RULA 5 for it), so the figure and its verdict always agree. */}
+            <aside className="mx-auto mt-2 w-64 rounded-xl border bg-card p-5 shadow-card-hover sm:absolute sm:right-0 sm:top-1/2 sm:mt-0 sm:w-56 sm:-translate-y-1/2 lg:-right-4">
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">RULA score</p>
+              <div className="mt-2 flex items-end gap-1.5">
+                <span className="tabular-readout text-5xl font-semibold leading-none text-risk-high">5</span>
+                <span className="mb-1 tabular-readout text-sm text-muted-foreground">/ 7</span>
+              </div>
+              <span className="mt-3 inline-flex rounded-md bg-risk-high/15 px-2 py-0.5 text-xs font-semibold text-risk-high">
+                Change soon
+              </span>
+              <p className="mt-3 text-xs leading-relaxed text-muted-foreground">Investigate further and change the task soon.</p>
+            </aside>
+          </figure>
         </div>
+
+        {/* Methodology strip: how a photo becomes a defensible score. */}
+        <ol className="mt-12 grid gap-3 rounded-2xl border bg-muted/40 p-4 sm:grid-cols-2 sm:p-5 lg:mt-14 lg:grid-cols-5">
+          {STEPS.map(({ icon: Icon, name, copy }, index) => (
+            <li key={name} className="relative flex items-start gap-3.5 rounded-xl bg-card p-4 shadow-card">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <Icon className="h-5 w-5" aria-hidden />
+              </span>
+              <div className="min-w-0">
+                <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                  <span className="font-mono text-[10px] text-primary">0{index + 1}</span> {name}
+                </p>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{copy}</p>
+              </div>
+              {index < STEPS.length - 1 && (
+                <ArrowRight className="absolute -right-3 top-1/2 z-10 hidden h-4 w-4 -translate-y-1/2 text-muted-foreground/60 lg:block" aria-hidden />
+              )}
+            </li>
+          ))}
+        </ol>
+
+        <p className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
+          <span className="flex h-7 w-7 items-center justify-center rounded-full border bg-background" aria-hidden>
+            <ArrowRight className="h-3.5 w-3.5 rotate-90" />
+          </span>
+          Scroll to explore
+        </p>
       </section>
 
       {/* Methods */}
@@ -177,86 +209,6 @@ function EntryCard({
         {sub && <span className="block text-xs text-muted-foreground">{sub}</span>}
       </span>
     </button>
-  );
-}
-
-/** A static, token-colored product motif: an annotated pose skeleton with an
- * angle arc and a score gauge. Clean clinical line-art - no glow filters. */
-function HeroVisual() {
-  return (
-    <Card className="mx-auto w-full max-w-sm p-6">
-      <svg viewBox="0 0 260 250" className="w-full" role="img" aria-label="Pose skeleton with angle and risk score">
-        {/* Keypoint annotation */}
-        <text x={10} y={20} className="fill-muted-foreground font-mono" style={{ fontSize: 8, letterSpacing: "0.05em" }}>
-          133 KEYPOINTS · SIDE VIEW
-        </text>
-
-        {/* Skeleton bones */}
-        <g stroke="hsl(var(--primary))" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none">
-          <path d="M120 44 L104 86" />
-          <path d="M104 86 L138 120" />
-          <path d="M138 120 L128 160" />
-          <path d="M104 86 L98 176" />
-          <path d="M98 176 L110 214" />
-        </g>
-
-        {/* Joint nodes */}
-        <g fill="hsl(var(--primary))">
-          <circle cx="120" cy="44" r="8" />
-          <circle cx="120" cy="44" r="3.5" fill="hsl(var(--primary-foreground))" />
-          <circle cx="104" cy="86" r="5" />
-          <circle cx="138" cy="120" r="5" />
-          <circle cx="128" cy="160" r="5" />
-          <circle cx="98" cy="176" r="5" />
-          <circle cx="110" cy="214" r="5" />
-        </g>
-
-        {/* Measured angle arc at the elbow */}
-        <path d="M 124 106 A 20 20 0 0 0 133 139" stroke="hsl(var(--risk-high))" strokeWidth="2" fill="none" />
-        <rect x={128} y={94} width={42} height={16} rx={4} fill="hsl(var(--risk-high))" fillOpacity={0.12} />
-        <text x={132} y={106} className="fill-foreground font-mono" style={{ fontSize: 9, fontWeight: 700 }}>
-          θ = 42.6°
-        </text>
-
-        {/* Score gauge */}
-        <g transform="translate(208,80)">
-          <circle r="32" fill="none" stroke="hsl(var(--muted))" strokeWidth="8" />
-          <circle
-            r="32"
-            fill="none"
-            stroke="hsl(var(--risk-medium))"
-            strokeWidth="8"
-            strokeLinecap="round"
-            strokeDasharray="201"
-            strokeDashoffset="130"
-            transform="rotate(-90)"
-          />
-          <text x="0" y="7" textAnchor="middle" className="fill-foreground font-mono" style={{ fontSize: 22, fontWeight: 800 }}>
-            3
-          </text>
-        </g>
-        <text x="208" y="138" textAnchor="middle" className="fill-muted-foreground font-mono font-medium" style={{ fontSize: 10, letterSpacing: "0.05em" }}>
-          RULA SCORE
-        </text>
-      </svg>
-    </Card>
-  );
-}
-
-function Step({ icon, n, title, children }: { icon: React.ReactNode; n: string; title: string; children: React.ReactNode }) {
-  return (
-    <Card className="p-5 transition-shadow hover:shadow-card-hover">
-      <div className="flex items-center gap-3">
-        <span className="grid h-10 w-10 place-items-center rounded-lg bg-accent text-accent-foreground">
-          {icon}
-        </span>
-        <Badge variant="muted" className="rounded-full font-mono text-[10px] font-bold uppercase tracking-widest text-primary">
-          Step {n}
-        </Badge>
-      </div>
-      <h3 className="mt-3 font-semibold tracking-tight">{title}</h3>
-      <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{children}</p>
-    </Card>
   );
 }
 

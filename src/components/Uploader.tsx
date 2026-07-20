@@ -274,7 +274,7 @@ function SampleButton({ icon, label, onClick }: { icon: React.ReactNode; label: 
 
 function CheckIcon() {
   return (
-    <svg viewBox="0 0 12 12" className="inline mr-2 h-3.5 w-3.5 shrink-0 text-emerald-500 fill-emerald-500/10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <svg viewBox="0 0 12 12" className="inline mr-2 h-3.5 w-3.5 shrink-0 text-risk-low" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none">
       <polyline points="3.5 6 5 7.5 8.5 4" />
     </svg>
   );
@@ -282,13 +282,40 @@ function CheckIcon() {
 
 function CrossIcon() {
   return (
-    <svg viewBox="0 0 12 12" className="inline mr-2 h-3.5 w-3.5 shrink-0 text-rose-500 fill-rose-500/10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <svg viewBox="0 0 12 12" className="inline mr-2 h-3.5 w-3.5 shrink-0 text-risk-veryhigh" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none">
       <line x1="3.5" y1="3.5" x2="8.5" y2="8.5" />
       <line x1="8.5" y1="3.5" x2="3.5" y2="8.5" />
     </svg>
   );
 }
 
+/** Side-profile stick figure used by every guide tile (drawn in primary). */
+function GuideFigure({ x, y }: { x: number; y: number }) {
+  return (
+    <g transform={`translate(${x}, ${y})`} stroke="hsl(var(--primary))" fill="none" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="0" cy="0" r="6" fill="hsl(var(--primary))" stroke="none" />
+      <path d="M 0 6 Q -2 20 0 35" strokeWidth="3.5" />
+      <path d="M 0 10 L 5 25 L -2 38" strokeWidth="3" />
+      <path d="M 0 35 L -3 60 M 0 35 L 5 60" strokeWidth="3.5" />
+    </g>
+  );
+}
+
+function GuideCamera() {
+  return (
+    <g stroke="hsl(var(--primary))" strokeWidth="1.5" fill="none">
+      <rect x="0" y="0" width="13" height="9" rx="2" />
+      <path d="M 13 2.5 L 17 0.5 L 17 8.5 L 13 6.5 Z" fill="hsl(var(--primary))" fillOpacity="0.2" />
+    </g>
+  );
+}
+
+/**
+ * Camera guidance panel. Each tile animates the one thing it teaches - the
+ * camera orbits to the side view, settles at waist height, the frame widens
+ * to take the whole body in. Pure CSS keyframes (see index.css), so the
+ * tiles respect prefers-reduced-motion and both themes for free.
+ */
 function PhotoGuide() {
   const [isOpen, setIsOpen] = useState(true);
 
@@ -297,6 +324,7 @@ function PhotoGuide() {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
+        aria-expanded={isOpen}
         className="flex w-full items-center justify-between font-semibold text-sm text-foreground outline-none group"
       >
         <span className="flex items-center gap-2">
@@ -310,237 +338,76 @@ function PhotoGuide() {
 
       {isOpen && (
         <div className="mt-5 grid gap-5 sm:grid-cols-3 animate-in fade-in slide-in-from-top-1 duration-200">
-          
-          {/* Card 1: Side View profile */}
+          {/* Tile 1: orbit around the subject until you see the profile. */}
           <div className="rounded-xl border border-border/50 bg-background/40 p-4 flex flex-col gap-3">
             <h4 className="font-semibold text-xs text-foreground uppercase tracking-wider">1. View Orientation</h4>
-            <div className="aspect-[4/3] rounded-lg bg-muted/20 flex items-center justify-center border border-border/40 overflow-hidden relative">
-              <svg viewBox="0 0 200 120" className="w-full h-full text-muted-foreground">
-                <defs>
-                  <pattern id="grid-1" width="10" height="10" patternUnits="userSpaceOnUse">
-                    <circle cx="10" cy="10" r="0.5" fill="currentColor" opacity="0.15" />
-                  </pattern>
-                </defs>
-                <rect width="200" height="120" fill="url(#grid-1)" />
-
-                {/* Left: Side View (Correct) */}
-                <g transform="translate(10, 10)">
-                  <rect width="80" height="100" rx="8" fill="hsl(var(--background))" fillOpacity="0.5" stroke="hsl(var(--border))" strokeWidth="1" />
-                  
-                  {/* Figure Side Profile */}
-                  <g transform="translate(35, 15)">
-                    {/* Head */}
-                    <circle cx="0" cy="0" r="6" fill="hsl(var(--primary))" />
-                    {/* Spine */}
-                    <path d="M 0 6 Q -2 20 0 35" fill="none" stroke="hsl(var(--primary))" strokeWidth="3.5" strokeLinecap="round" />
-                    {/* Arm */}
-                    <path d="M 0 10 L 5 25 L -2 38" fill="none" stroke="hsl(var(--primary))" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                    {/* Leg */}
-                    <path d="M 0 35 L -3 60 M 0 35 L 5 60" fill="none" stroke="hsl(var(--primary))" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
+            <div className="aspect-[4/3] rounded-lg bg-muted/20 border border-border/40 overflow-hidden relative">
+              <svg viewBox="0 0 200 120" className="w-full h-full text-muted-foreground" aria-hidden>
+                <ellipse cx="132" cy="62" rx="92" ry="40" fill="none" stroke="currentColor" strokeWidth="1" strokeDasharray="2 5" opacity="0.35" />
+                <GuideFigure x={132} y={26} />
+                {/* orbit arm: transform-box spans camera -> figure, origin at the figure end */}
+                <g className="guide-orbit">
+                  <g transform="translate(30, 57)">
+                    <GuideCamera />
+                    <line x1="20" y1="4.5" x2="92" y2="4.5" stroke="hsl(var(--primary))" strokeWidth="1.5" strokeDasharray="3 3" opacity="0.5" />
                   </g>
-
-                  {/* Camera icon pointing side */}
-                  <g transform="translate(14, 46)" stroke="hsl(var(--primary))" strokeWidth="1.5" fill="none">
-                    <rect x="0" y="4" width="10" height="7" rx="1.5" />
-                    <path d="M 10 6 L 13 4 L 13 11 L 10 9 Z" fill="hsl(var(--primary))" fillOpacity="0.2" />
-                  </g>
-                  <line x1="28" y1="53.5" x2="42" y2="53.5" stroke="hsl(var(--primary))" strokeWidth="1.5" strokeDasharray="3 3" opacity="0.5" />
-                  
-                  {/* Status indicator */}
-                  <g transform="translate(68, 88)">
-                    <circle r="7" fill="#10b981" />
-                    <path d="M -3 0 L -1 2 L 3 -2" fill="none" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" />
-                  </g>
+                  <rect x="30" y="61" width="102" height="1" fill="none" stroke="none" />
                 </g>
-
-                {/* Right: Front View (Incorrect) */}
-                <g transform="translate(110, 10)">
-                  <rect width="80" height="100" rx="8" fill="hsl(var(--background))" fillOpacity="0.5" stroke="hsl(var(--border))" strokeWidth="1" />
-                  
-                  {/* Figure Front Profile */}
-                  <g transform="translate(40, 15)">
-                    {/* Head */}
-                    <circle cx="0" cy="0" r="6" fill="currentColor" opacity="0.6" />
-                    {/* Spine */}
-                    <line x1="0" y1="6" x2="0" y2="35" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" opacity="0.6" />
-                    {/* Shoulders */}
-                    <line x1="-8" y1="10" x2="8" y2="10" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" opacity="0.6" />
-                    {/* Arms */}
-                    <path d="M -8 10 L -10 25 L -6 38" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" opacity="0.6" />
-                    <path d="M 8 10 L 10 25 L 6 38" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" opacity="0.6" />
-                    {/* Legs */}
-                    <path d="M -3 35 L -5 60 M 3 35 L 5 60" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.6" />
-                  </g>
-                  
-                  {/* Status indicator */}
-                  <g transform="translate(68, 88)">
-                    <circle r="7" fill="#ef4444" />
-                    <path d="M -2.5 -2.5 L 2.5 2.5 M 2.5 -2.5 L -2.5 2.5" fill="none" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" />
-                  </g>
-                </g>
+                <text x="10" y="112" fill="currentColor" fontSize="8" opacity="0.7">90° = true profile</text>
               </svg>
             </div>
             <ul className="text-xs space-y-1.5 text-muted-foreground font-medium">
-              <li className="flex items-start text-emerald-500 dark:text-emerald-400">
-                <CheckIcon />
-                <span className="text-foreground">Side view (90° profile)</span>
-              </li>
-              <li className="flex items-start text-rose-500 dark:text-rose-400">
-                <CrossIcon />
-                <span className="text-foreground">Avoid frontal or diagonal shots</span>
-              </li>
+              <li className="flex items-start"><CheckIcon /><span className="text-foreground">Side view (90° profile)</span></li>
+              <li className="flex items-start"><CrossIcon /><span className="text-foreground">Avoid frontal or diagonal shots</span></li>
             </ul>
           </div>
 
-          {/* Card 2: Camera Height */}
+          {/* Tile 2: the camera settles level with the subject's waist. */}
           <div className="rounded-xl border border-border/50 bg-background/40 p-4 flex flex-col gap-3">
             <h4 className="font-semibold text-xs text-foreground uppercase tracking-wider">2. Camera Height</h4>
-            <div className="aspect-[4/3] rounded-lg bg-muted/20 flex items-center justify-center border border-border/40 overflow-hidden relative">
-              <svg viewBox="0 0 200 120" className="w-full h-full text-muted-foreground">
-                <defs>
-                  <pattern id="grid-2" width="10" height="10" patternUnits="userSpaceOnUse">
-                    <circle cx="10" cy="10" r="0.5" fill="currentColor" opacity="0.15" />
-                  </pattern>
-                </defs>
-                <rect width="200" height="120" fill="url(#grid-2)" />
-
-                <g transform="translate(10, 10)">
-                  <rect width="180" height="100" rx="8" fill="hsl(var(--background))" fillOpacity="0.5" stroke="hsl(var(--border))" strokeWidth="1" />
-                  
-                  {/* Figure */}
-                  <g transform="translate(145, 15)">
-                    <circle cx="0" cy="0" r="6" fill="currentColor" opacity="0.4" />
-                    <path d="M 0 6 Q -2 20 0 35" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" opacity="0.4" />
-                    <path d="M 0 10 L 5 25 L -2 38" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" opacity="0.4" />
-                    <path d="M 0 35 L -3 60 M 0 35 L 5 60" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.4" />
-                  </g>
-
-                  {/* Ground line */}
-                  <line x1="120" y1="75" x2="170" y2="75" stroke="currentColor" strokeWidth="1.5" opacity="0.2" />
-
-                  {/* Level Camera (Waist height) */}
-                  <g transform="translate(25, 45)">
-                    <g stroke="hsl(var(--primary))" strokeWidth="1.5" fill="none">
-                      <rect x="0" y="4" width="14" height="9" rx="2" />
-                      <path d="M 14 6.5 L 18 4.5 L 18 12.5 L 14 10.5 Z" fill="hsl(var(--primary))" fillOpacity="0.2" />
-                    </g>
-                    <path d="M 18 8.5 L 115 8.5" stroke="hsl(var(--primary))" strokeWidth="1.5" strokeDasharray="4 4" opacity="0.7" />
-                    <g transform="translate(70, -4)">
-                      <circle r="6" fill="#10b981" />
-                      <path d="M -2.5 0 L -1 1.5 L 2.5 -2" fill="none" stroke="#fff" strokeWidth="1.2" strokeLinecap="round" />
-                    </g>
-                  </g>
-
-                  {/* Slanted Camera (Overhead height) */}
-                  <g transform="translate(30, 10)">
-                    <g transform="rotate(22 7 8)" stroke="currentColor" strokeWidth="1.5" fill="none" opacity="0.6">
-                      <rect x="0" y="4" width="14" height="9" rx="2" />
-                      <path d="M 14 6.5 L 18 4.5 L 18 12.5 L 14 10.5 Z" fill="currentColor" fillOpacity="0.2" />
-                    </g>
-                    <path d="M 18 13 L 110 40" stroke="currentColor" strokeWidth="1.5" strokeDasharray="4 4" opacity="0.4" />
-                    <g transform="translate(60, 20)">
-                      <circle r="6" fill="#ef4444" />
-                      <path d="M -2 -2 L 2 2 M 2 -2 L -2 2" fill="none" stroke="#fff" strokeWidth="1.2" strokeLinecap="round" />
-                    </g>
+            <div className="aspect-[4/3] rounded-lg bg-muted/20 border border-border/40 overflow-hidden relative">
+              <svg viewBox="0 0 200 120" className="w-full h-full text-muted-foreground" aria-hidden>
+                <GuideFigure x={155} y={26} />
+                <line x1="146" y1="52" x2="166" y2="52" stroke="currentColor" strokeWidth="1" opacity="0.4" />
+                <line x1="130" y1="90" x2="180" y2="90" stroke="currentColor" strokeWidth="1.5" opacity="0.25" />
+                <g className="guide-level">
+                  <g transform="translate(24, 47)">
+                    <GuideCamera />
+                    <line x1="20" y1="4.5" x2="126" y2="4.5" stroke="hsl(var(--primary))" strokeWidth="1.5" strokeDasharray="4 4" opacity="0.7" />
                   </g>
                 </g>
+                <text x="10" y="112" fill="currentColor" fontSize="8" opacity="0.7">lens level with the waist</text>
               </svg>
             </div>
             <ul className="text-xs space-y-1.5 text-muted-foreground font-medium">
-              <li className="flex items-start text-emerald-500 dark:text-emerald-400">
-                <CheckIcon />
-                <span className="text-foreground">Lens at subject's waist level</span>
-              </li>
-              <li className="flex items-start text-rose-500 dark:text-rose-400">
-                <CrossIcon />
-                <span className="text-foreground">Avoid high overhead/low angles</span>
-              </li>
+              <li className="flex items-start"><CheckIcon /><span className="text-foreground">Lens at subject&apos;s waist level</span></li>
+              <li className="flex items-start"><CrossIcon /><span className="text-foreground">Avoid high overhead/low angles</span></li>
             </ul>
           </div>
 
-          {/* Card 3: Framing */}
+          {/* Tile 3: the frame widens until the whole body fits. */}
           <div className="rounded-xl border border-border/50 bg-background/40 p-4 flex flex-col gap-3">
             <h4 className="font-semibold text-xs text-foreground uppercase tracking-wider">3. Full Body Framing</h4>
-            <div className="aspect-[4/3] rounded-lg bg-muted/20 flex items-center justify-center border border-border/40 overflow-hidden relative">
-              <svg viewBox="0 0 200 120" className="w-full h-full text-muted-foreground">
-                <defs>
-                  <pattern id="grid-3" width="10" height="10" patternUnits="userSpaceOnUse">
-                    <circle cx="10" cy="10" r="0.5" fill="currentColor" opacity="0.15" />
-                  </pattern>
-                </defs>
-                <rect width="200" height="120" fill="url(#grid-3)" />
-
-                {/* Left: Correct Full Body */}
-                <g transform="translate(10, 10)">
-                  <rect width="80" height="100" rx="8" fill="hsl(var(--background))" fillOpacity="0.5" stroke="hsl(var(--border))" strokeWidth="1" />
-                  
-                  {/* Viewfinder borders */}
-                  <g stroke="hsl(var(--primary))" strokeWidth="1.5" fill="none" opacity="0.8">
-                    <path d="M 8 18 L 8 12 L 14 12" />
-                    <path d="M 72 12 L 78 12 L 78 18" />
-                    <path d="M 8 82 L 8 88 L 14 88" />
-                    <path d="M 72 88 L 78 88 L 78 82" />
-                  </g>
-                  
-                  <g transform="translate(40, 20)">
-                    <circle cx="0" cy="0" r="5" fill="hsl(var(--primary))" />
-                    <path d="M 0 5 Q -2 16 0 28" fill="none" stroke="hsl(var(--primary))" strokeWidth="3" strokeLinecap="round" />
-                    <path d="M 0 8 L 4 20 L -2 30" fill="none" stroke="hsl(var(--primary))" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M 0 28 L -3 48 M 0 28 L 4 48" fill="none" stroke="hsl(var(--primary))" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                  </g>
-
-                  {/* Status indicator */}
-                  <g transform="translate(68, 88)">
-                    <circle r="7" fill="#10b981" />
-                    <path d="M -3 0 L -1 2 L 3 -2" fill="none" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" />
-                  </g>
+            <div className="aspect-[4/3] rounded-lg bg-muted/20 border border-border/40 overflow-hidden relative">
+              <svg viewBox="0 0 200 120" className="w-full h-full text-muted-foreground" aria-hidden>
+                <GuideFigure x={100} y={28} />
+                <g className="guide-fade">
+                  <line x1="55" y1="88" x2="145" y2="88" stroke="hsl(var(--risk-veryhigh))" strokeWidth="1.5" strokeDasharray="3 3" opacity="0.8" />
+                  <text x="100" y="100" textAnchor="middle" fill="hsl(var(--risk-veryhigh))" fontSize="7" fontWeight="600">CROPPED</text>
                 </g>
-
-                {/* Right: Incorrect Cropped */}
-                <g transform="translate(110, 10)">
-                  <rect width="80" height="100" rx="8" fill="hsl(var(--background))" fillOpacity="0.5" stroke="hsl(var(--border))" strokeWidth="1" />
-                  
-                  {/* Viewfinder borders */}
-                  <g stroke="currentColor" strokeWidth="1.5" fill="none" opacity="0.6">
-                    <path d="M 8 18 L 8 12 L 14 12" />
-                    <path d="M 72 12 L 78 12 L 78 18" />
-                    <path d="M 8 82 L 8 88 L 14 88" />
-                    <path d="M 72 88 L 78 88 L 78 82" />
-                  </g>
-
-                  <g transform="translate(40, 14)">
-                    <circle cx="0" cy="0" r="5" fill="currentColor" opacity="0.6" />
-                    <path d="M 0 5 Q -2 16 0 28" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" opacity="0.6" />
-                    <path d="M 0 8 L 4 20 L -2 30" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" opacity="0.6" />
-                    {/* Cut off legs */}
-                    <path d="M 0 28 L -2 46 M 0 28 L 3 46" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" opacity="0.6" />
-                    
-                    {/* Crop indicator line */}
-                    <line x1="-30" y1="46" x2="30" y2="46" stroke="#ef4444" strokeWidth="1.5" strokeDasharray="3 3" opacity="0.8" />
-                  </g>
-
-                  <text x="40" y="74" textAnchor="middle" fill="currentColor" className="font-semibold" style={{ fontSize: 7, opacity: 0.8 }}>CROPPED</text>
-
-                  {/* Status indicator */}
-                  <g transform="translate(68, 88)">
-                    <circle r="7" fill="#ef4444" />
-                    <path d="M -2.5 -2.5 L 2.5 2.5 M 2.5 -2.5 L -2.5 2.5" fill="none" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" />
-                  </g>
+                <g className="guide-frame" stroke="hsl(var(--primary))" strokeWidth="2" fill="none" opacity="0.85">
+                  <path d="M 58 22 L 58 12 L 68 12" />
+                  <path d="M 132 12 L 142 12 L 142 22" />
+                  <path d="M 58 98 L 58 108 L 68 108" />
+                  <path d="M 132 108 L 142 108 L 142 98" />
                 </g>
               </svg>
             </div>
             <ul className="text-xs space-y-1.5 text-muted-foreground font-medium">
-              <li className="flex items-start text-emerald-500 dark:text-emerald-400">
-                <CheckIcon />
-                <span className="text-foreground">Entire body in frame (head to toe)</span>
-              </li>
-              <li className="flex items-start text-rose-500 dark:text-rose-400">
-                <CrossIcon />
-                <span className="text-foreground">Avoid cropped limbs or hands</span>
-              </li>
+              <li className="flex items-start"><CheckIcon /><span className="text-foreground">Entire body in frame (head to toe)</span></li>
+              <li className="flex items-start"><CrossIcon /><span className="text-foreground">Avoid cropped limbs or hands</span></li>
             </ul>
           </div>
-
         </div>
       )}
     </div>

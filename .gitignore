@@ -26,3 +26,13 @@ __pycache__/
 /docs/agent-review-methodology.md
 /docs/pre-change-assessment.md
 /docs/sweep-backlog.md
+
+# Raw video sources and local dev logs
+/video/
+vite-dev.out.log
+vite-dev.err.log
+
+# Local AI tooling (never push)
+/.claude/
+/.agents/
+/.codex/

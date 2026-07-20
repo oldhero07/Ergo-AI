@@ -84,3 +84,46 @@
     letter-spacing: 0.04em;
   }
 }
+
+/* Photo-guide tile animations: each tile animates ONE element demonstrating
+   the rule (orbit to the side view, settle at waist height, widen the frame).
+   Long holds at the "correct" state make the lesson readable; under reduced
+   motion the animations never run and the resting markup is the settled state. */
+@media (prefers-reduced-motion: no-preference) {
+  .guide-orbit {
+    animation: guide-orbit 5.5s ease-in-out infinite;
+    transform-box: fill-box;
+    transform-origin: 100% 50%;
+  }
+  .guide-level {
+    animation: guide-level 5.5s ease-in-out infinite;
+  }
+  .guide-frame {
+    animation: guide-frame 5.5s ease-in-out infinite;
+    transform-box: fill-box;
+    transform-origin: 50% 50%;
+  }
+  .guide-fade {
+    animation: guide-fade 5.5s ease-in-out infinite;
+  }
+}
+@keyframes guide-orbit {
+  0%, 15% { transform: rotate(-38deg); }
+  40%, 90% { transform: rotate(0deg); }
+  100% { transform: rotate(-38deg); }
+}
+@keyframes guide-level {
+  0%, 15% { transform: translateY(-26px); }
+  40%, 90% { transform: translateY(0); }
+  100% { transform: translateY(-26px); }
+}
+@keyframes guide-frame {
+  0%, 15% { transform: scale(0.74); }
+  40%, 90% { transform: scale(1); }
+  100% { transform: scale(0.74); }
+}
+@keyframes guide-fade {
+  0%, 15% { opacity: 1; }
+  40%, 90% { opacity: 0; }
+  100% { opacity: 1; }
+}
