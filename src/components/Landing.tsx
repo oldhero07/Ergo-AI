@@ -56,20 +56,28 @@ export function Landing({ onStart }: { onStart: (mode: AnalysisMode) => void }) 
 
           <figure className="relative mx-auto w-full max-w-3xl">
             <div className="absolute -inset-10 -z-10 rounded-full bg-primary/5 blur-3xl dark:bg-primary/10" aria-hidden />
-            {/* The artwork is a light-on-white render, so it always shows in its
-                light form: melted into the page in light mode, presented on a
-                soft light stage in dark mode (no filter tricks - they read odd). */}
-            <div className="dark:rounded-3xl dark:bg-white dark:p-2 sm:dark:p-3">
-              <img
-                src={`${base}hero/hero-annotated.jpg`}
-                alt="Translucent anatomical figure lifting a box, annotated with measured joint angles: neck 18°, upper arm 35°, trunk 42°, knee 32°, ankle 6°"
-                width={1536}
-                height={1024}
-                className="mx-auto max-h-[280px] w-auto max-w-full object-contain mix-blend-multiply [mask-image:radial-gradient(ellipse_74%_84%_at_50%_48%,black_60%,transparent_98%)] sm:max-h-none sm:aspect-[3/2] sm:w-full"
-                loading="eager"
-                decoding="async"
-              />
-            </div>
+            {/* Two native renders of the same artwork - light-on-white and
+                dark X-ray - each blended so pixels beyond the figure become
+                the literal page color (multiply toward white, lighten toward
+                black). No filter tricks; both stay borderless "part of the page". */}
+            <img
+              src={`${base}hero/hero-annotated.jpg`}
+              alt="Translucent anatomical figure lifting a box, annotated with measured joint angles: neck 18°, upper arm 35°, trunk 42°, knee 32°, ankle 6°"
+              width={1536}
+              height={1024}
+              className="mx-auto max-h-[280px] w-auto max-w-full object-contain mix-blend-multiply [mask-image:radial-gradient(ellipse_74%_84%_at_50%_48%,black_60%,transparent_98%)] dark:hidden sm:max-h-none sm:aspect-[3/2] sm:w-full"
+              loading="eager"
+              decoding="async"
+            />
+            <img
+              src={`${base}hero/hero-annotated-dark.jpg`}
+              alt="Translucent anatomical figure lifting a box, annotated with measured joint angles: neck 18°, upper arm 35°, trunk 42°, knee 32°, ankle 6°"
+              width={1536}
+              height={1024}
+              className="mx-auto hidden max-h-[280px] w-auto max-w-full object-contain mix-blend-lighten dark:block sm:max-h-none sm:aspect-[3/2] sm:w-full"
+              loading="eager"
+              decoding="async"
+            />
             {/* Verdict card: these numbers mirror the artwork's annotated pose
                 (RULA 5 for it), so the figure and its verdict always agree.
                 Slim horizontal row on phones; floating card from sm up. */}
