@@ -36,3 +36,6 @@ vite-dev.err.log
 /.claude/
 /.agents/
 /.codex/
+
+# Local design reference mockups (kept out of the public repo)
+/landing page enterance image with reference/
