@@ -55,28 +55,38 @@ export function Landing({ onStart }: { onStart: (mode: AnalysisMode) => void }) 
           </div>
 
           <figure className="relative mx-auto w-full max-w-3xl">
-            <div className="absolute -inset-10 -z-10 rounded-full bg-primary/5 blur-3xl" aria-hidden />
-            <img
-              src={`${base}hero/hero-annotated.jpg`}
-              alt="Translucent anatomical figure lifting a box, annotated with measured joint angles: neck 18°, upper arm 35°, trunk 42°, knee 32°, ankle 6°"
-              width={1536}
-              height={1024}
-              className="aspect-[3/2] w-full mix-blend-multiply [mask-image:radial-gradient(ellipse_74%_84%_at_50%_48%,black_60%,transparent_98%)] dark:invert dark:hue-rotate-180 dark:mix-blend-screen"
-              loading="eager"
-              decoding="async"
-            />
+            <div className="absolute -inset-10 -z-10 rounded-full bg-primary/5 blur-3xl dark:bg-primary/10" aria-hidden />
+            {/* The artwork is a light-on-white render, so it always shows in its
+                light form: melted into the page in light mode, presented on a
+                soft light stage in dark mode (no filter tricks - they read odd). */}
+            <div className="dark:rounded-3xl dark:bg-white dark:p-2 sm:dark:p-3">
+              <img
+                src={`${base}hero/hero-annotated.jpg`}
+                alt="Translucent anatomical figure lifting a box, annotated with measured joint angles: neck 18°, upper arm 35°, trunk 42°, knee 32°, ankle 6°"
+                width={1536}
+                height={1024}
+                className="mx-auto max-h-[280px] w-auto max-w-full object-contain mix-blend-multiply [mask-image:radial-gradient(ellipse_74%_84%_at_50%_48%,black_60%,transparent_98%)] sm:max-h-none sm:aspect-[3/2] sm:w-full"
+                loading="eager"
+                decoding="async"
+              />
+            </div>
             {/* Verdict card: these numbers mirror the artwork's annotated pose
-                (RULA 5 for it), so the figure and its verdict always agree. */}
-            <aside className="mx-auto mt-2 w-64 rounded-xl border bg-card p-5 shadow-card-hover sm:absolute sm:right-0 sm:top-1/2 sm:mt-0 sm:w-56 sm:-translate-y-1/2 lg:-right-4">
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">RULA score</p>
-              <div className="mt-2 flex items-end gap-1.5">
-                <span className="tabular-readout text-5xl font-semibold leading-none text-risk-high">5</span>
-                <span className="mb-1 tabular-readout text-sm text-muted-foreground">/ 7</span>
+                (RULA 5 for it), so the figure and its verdict always agree.
+                Slim horizontal row on phones; floating card from sm up. */}
+            <aside className="mx-auto mt-3 flex w-full max-w-sm items-center gap-4 rounded-xl border bg-card p-4 shadow-card-hover sm:absolute sm:right-0 sm:top-1/2 sm:mt-0 sm:block sm:w-56 sm:-translate-y-1/2 sm:p-5 lg:-right-4">
+              <div className="shrink-0">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">RULA score</p>
+                <div className="mt-1 flex items-end gap-1.5 sm:mt-2">
+                  <span className="tabular-readout text-4xl font-semibold leading-none text-risk-high sm:text-5xl">5</span>
+                  <span className="mb-1 tabular-readout text-sm text-muted-foreground">/ 7</span>
+                </div>
               </div>
-              <span className="mt-3 inline-flex rounded-md bg-risk-high/15 px-2 py-0.5 text-xs font-semibold text-risk-high">
-                Change soon
-              </span>
-              <p className="mt-3 text-xs leading-relaxed text-muted-foreground">Investigate further and change the task soon.</p>
+              <div className="min-w-0">
+                <span className="inline-flex rounded-md bg-risk-high/15 px-2 py-0.5 text-xs font-semibold text-risk-high sm:mt-3">
+                  Change soon
+                </span>
+                <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground sm:mt-3">Investigate further and change the task soon.</p>
+              </div>
             </aside>
           </figure>
         </div>
